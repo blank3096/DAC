@@ -9,11 +9,11 @@ void setup() {
   // Example: Wire.begin(); // For I2C sensors
 
   // Give Serial Monitor time to connect
-  delay(2000);
+  delay(1000);
   Serial.println(F("--- System Setup Starting ---"));
 
   // 2. Call Modular Setup Functions for each sensor type
-  setupPressureSensors();
+  setupPressureSensors()
   setupLoadCells();
 
   // Call setup functions for other sensor types here

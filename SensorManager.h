@@ -3,7 +3,7 @@
 
 #include <Arduino.h> // Always include Arduino.h in .h files for types like byte, unsigned long etc.
 #include "HX711.h"   // Include necessary library headers if their types are used in declarations
-// Add includes for other sensor libraries here (e.g., Wire.h for I2C, OneWire.h, etc.)
+// Add includes for other sensor libraries here (e.g., Wire.h for I2C, etc.)
 
 // --- Common Constants ---
 extern const long ANALOG_REFERENCE_mV;
@@ -15,15 +15,12 @@ extern const float PERCENT_OFFSET;
 // --- Pressure Sensor Constants ---
 extern const int PRESSURE_SENSOR_PINS[6];
 extern const float PRESSURE_MAX[6];
-extern const int NUM_PRESSURE_SENSORS; // Defined by array size, but good to declare
+extern const int NUM_PRESSURE_SENSORS;
 
-// MV_FACTOR calculation (Method 1 style) - ensure float division
 extern const float MV_FACTOR;
 
 // --- Pre-calculated constants for faster floating-point math (Pressure - Method 1 style) ---
 extern const float MA_FACTOR;
-
-// This array is modified in setup, so it must be defined in the .cpp and declared extern here.
 extern float pressure_scale_factor[6];
 
 
@@ -31,10 +28,23 @@ extern float pressure_scale_factor[6];
 extern const byte LOADCELL_DOUT_PINS[2];
 extern const byte LOADCELL_CLK_PINS[2];
 extern const float LOADCELL_CALIBRATION_FACTORS[2];
-extern const int NUM_LOADCELL_SENSORS; // Defined by array size
+extern const int NUM_LOADCELL_SENSORS;
 
-// HX711 objects - Array of objects defined in the .cpp, declared extern here
 extern HX711 scales[2];
+
+
+// --- Flow Sensor Constants ---
+extern const int FLOW_SENSOR_PIN; // The pin for the flow sensor's pulse output
+extern const float FLOW_PPL; // Pulses per liter calibration factor for the flow sensor
+
+// Pre-calculated factor for flow calculation
+extern const float PULSES_TO_LPM_FACTOR;
+
+// Add constants for other sensor types here (pins, calibration, etc.)
+/*
+extern const int TEMP_SENSOR_PINS[2];
+extern const int NUM_TEMP_SENSORS;
+*/
 
 
 // --- Binary Protocol Constants ---
@@ -42,30 +52,23 @@ extern const byte PRESSURE_PACKET_START_BYTE;
 extern const byte PRESSURE_PACKET_END_BYTE;
 extern const byte LOADCELL_PACKET_START_BYTE;
 extern const byte LOADCELL_PACKET_END_BYTE;
+extern const byte FLOW_PACKET_START_BYTE; // New start byte for flow data
+extern const byte FLOW_PACKET_END_BYTE;   // New end byte for flow data
 
 // Define ID ranges for each sensor type
 extern const byte PRESSURE_ID_START; // Usually 0
 extern const byte LOADCELL_ID_START; // Usually PRESSURE_ID_START + NUM_PRESSURE_SENSORS
+extern const byte FLOW_SENSOR_ID;    // Unique ID for the single flow sensor (e.g., 8)
 
-// Add constants for other sensor types here (pins, calibration, etc.)
+// Add constants for other sensor types here (packet markers, ID starts)
 /*
-extern const int FLOW_METER_PINS[2];
-extern const int NUM_FLOW_METERS;
-extern const byte FLOW_PACKET_START_BYTE;
-extern const byte FLOW_PACKET_END_BYTE;
-extern const byte FLOW_ID_START;
-
-extern const int TEMP_SENSOR_PINS[2];
-extern const int NUM_TEMP_SENSORS;
 extern const byte TEMP_PACKET_START_BYTE;
 extern const byte TEMP_PACKET_END_BYTE;
 extern const byte TEMP_ID_START;
-// ... etc for other sensor types
 */
 
 
 // --- Data Structures for Sensor Values ---
-// Define these structs here so both the .ino and the .cpp know about them
 struct PressureSensorValues {
   float volts;
   float mA;
@@ -76,9 +79,12 @@ struct LoadCellValues {
   float weight_grams;
 };
 
-// Add structs for other sensor types here (Flow, Temp, Other)
+struct FlowMeterValues { // New struct for flow sensor data
+  float flow_rate_lpm;
+};
+
+// Add structs for other sensor types here (Temp, Other)
 /*
-struct FlowMeterValues { float flow_rate_lpm; };
 struct TemperatureSensorValues { float temp_c; };
 struct OtherSensorValues { // ... define fields ... };
 */
@@ -86,36 +92,39 @@ struct OtherSensorValues { // ... define fields ... };
 
 // --- State Machine / Round-Robin Variables and Constants ---
 
-// These are variables modified in loop(), so they must be defined in the .cpp and declared extern here
+// Pressure Sensor State
 extern int currentPressureSensorIndex;
 extern unsigned long lastPressureSensorProcessTime;
 extern const unsigned long MIN_PRESSURE_INTERVAL_MS;
 
+// Load Cell Sensor State
 extern int currentLoadCellIndex;
 extern unsigned long lastLoadCellProcessTime;
 extern const unsigned long MIN_LOADCELL_CHECK_INTERVAL_MS;
 
+// Flow Sensor State (for the single sensor)
+extern volatile long flow_pulse; // MUST be volatile because it's written in an ISR
+extern long flow_pulseLast;      // Stores pulse count at the start of the last interval
+extern unsigned long lastFlowProcessTime; // Time when the last flow rate was calculated/sent
+// The interval for how often to CALCULATE and SEND the flow rate
+extern const unsigned long FLOW_CALCULATION_INTERVAL_MS;
+
 // Add state variables and constants for other sensor types here
 /*
-extern int currentFlowMeterIndex;
-extern unsigned long lastFlowMeterProcessTime;
-const unsigned long MIN_FLOW_INTERVAL_MS; // Note: const here, so needs definition in .cpp
-
 extern int currentTempSensorIndex;
 extern unsigned long lastTempSensorProcessTime;
-const unsigned long MIN_TEMP_INTERVAL_MS; // Note: const here
-// ... etc
+extern const unsigned long MIN_TEMP_INTERVAL_MS;
 */
 
 
 // --- Function Prototypes (Declarations) ---
-// Declare each function defined in SensorManager.cpp so the .ino file knows they exist
 PressureSensorValues calculatePressureSensorValues(int raw_pressure_int, int index);
 LoadCellValues calculateLoadCellValues(float raw_weight_float);
+FlowMeterValues calculateFlowMeterValues(long currentPulseCount, long previousPulseCount); // New flow calc prototype
+
 
 // Add prototypes for other sensor calculation functions here
 /*
-FlowMeterValues calculateFlowMeterValues(...);
 TemperatureSensorValues calculateTemperatureSensorValues(...);
 OtherSensorValues calculateOtherSensorValues(...);
 */
@@ -127,13 +136,16 @@ void sendBinaryPacket(byte start_byte, byte id, const void* data_ptr, size_t dat
 // Modular Setup Functions
 void setupPressureSensors();
 void setupLoadCells();
+void setupFlowSensors(); // New flow sensor setup prototype
 
 // Add prototypes for other modular setup functions here
 /*
-void setupFlowMeters();
 void setupTemperatureSensors();
 void setupOtherSensors();
 */
 
+// Flow sensor Interrupt Service Routine (ISR)
+void flow_increase_pulse(); // New ISR prototype
 
-#endif //End of include guard
+
+#endif // End of include guard
