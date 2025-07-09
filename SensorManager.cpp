@@ -1,11 +1,10 @@
 #include "SensorManager.h" // Include your own header first
-#include <Arduino.h>     // Include Arduino.h here too, as this is a compilation unit
-// Add includes for other libraries needed for implementation (e.g., Wire.h)
+#include <Arduino.h>     // Include Arduino.h here too
+#include <math.h>        // Required for isnan()
 
 
 // =======================================================
 // === Definitions of Constants and Global Variables =====
-// === (Matching extern declarations in SensorManager.h) ===
 // =======================================================
 
 // --- Common Constants ---
@@ -21,10 +20,7 @@ const float PRESSURE_MAX[6] = {16.0, 16.0, 25.0, 25.0, 40.0, 40.0};
 const int NUM_PRESSURE_SENSORS = sizeof(PRESSURE_SENSOR_PINS) / sizeof(PRESSURE_SENSOR_PINS[0]);
 
 const float MV_FACTOR = (float)ANALOG_REFERENCE_mV / 1024.0f;
-
-// --- Pre-calculated constants for faster floating-point math (Pressure - Method 1 style) ---
 const float MA_FACTOR = 1000.0f / SHUNT_OHM;
-
 float pressure_scale_factor[6];
 
 
@@ -33,27 +29,38 @@ const byte LOADCELL_DOUT_PINS[2] = {12, 10};
 const byte LOADCELL_CLK_PINS[2] = {11, 9};
 const float LOADCELL_CALIBRATION_FACTORS[2] = {145.4f, 150.0f};
 const int NUM_LOADCELL_SENSORS = sizeof(LOADCELL_DOUT_PINS) / sizeof(LOADCELL_DOUT_PINS[0]);
-
 HX711 scales[2];
 
 
 // --- Flow Sensor Constants ---
-const int FLOW_SENSOR_PIN = 25; // Digital pin connected to the flow sensor output (needs to be interrupt capable!)
-// On Mega, pins 2, 3, 18, 19, 20, 21 are external interrupt pins. Pin 25 is NOT a hardware interrupt pin.
-// Let's change this to one of the Mega's interrupt pins for reliable pulse counting.
-// Using Pin 2 for example. Update your wiring accordingly.
-// const int FLOW_SENSOR_PIN = 2; // *** REMEMBER TO WIRE TO PIN 2 ***
+// Pin 2 on Mega is External Interrupt 0
+const int FLOW_SENSOR_PIN_MEGA = 2; // *** REMEMBER TO WIRE FLOW SENSOR TO PIN 2 ***
+const float FLOW_PPL = 4215;
+const float PULSES_TO_LPM_FACTOR = 60.0f / FLOW_PPL;
 
-// NOTE: If you *must* use pin 25 and it's NOT an interrupt pin, you cannot use attachInterrupt.
-// You would have to use pin change interrupts (more complex) or poll the pin VERY rapidly in loop()
-// (which would block other tasks). Using a hardware interrupt pin is highly recommended for pulse counting.
-// Let's use Pin 2 for this code example based on Mega's capability.
-const int FLOW_SENSOR_PIN_MEGA = 2; // Use Pin 2 on Mega for external interrupt 0
 
-const float FLOW_PPL = 4215; // Pulses per liter calibration factor
+// --- Temperature Sensor (MAX6675) Constants ---
+// Example pins for two MAX6675 sensors on Mega (adjust as needed)
+// Ensure these are NOT conflicting with other sensor pins (like SPI pins if using hardware SPI)
+const int THERMO_DO_PINS[2]  = { 4,  8 }; // Data Out pins
+const int THERMO_CS_PINS[2]  = { 5,  7 }; // Chip Select pins (each sensor needs a unique CS)
+const int THERMO_CLK_PINS[2] = { 6,  6 }; // Clock pins (can often share the CLK pin)
+const int NUM_TEMP_SENSORS = sizeof(THERMO_DO_PINS) / sizeof(THERMO_DO_PINS[0]); // Should be 2
 
-// Pre-calculated factor for flow calculation
-const float PULSES_TO_LPM_FACTOR = 60.0f / FLOW_PPL; // Use float literal 60.0f
+const float FAHRENHEIT_SLOPE = 9.0f / 5.0f; // Defined here
+const float FAHRENHEIT_OFFSET = 32.0f;     // Defined here
+
+MAX6675 thermocouples[2] = { // Defined here (array of objects)
+    MAX6675(THERMO_CLK_PINS[0], THERMO_CS_PINS[0], THERMO_DO_PINS[0]),
+    MAX6675(THERMO_CLK_PINS[1], THERMO_CS_PINS[1], THERMO_DO_PINS[1])
+};
+
+
+// Add definitions for other sensor constants here
+/*
+const int OTHER_SENSOR_INPUTS[2] = { ... };
+const int NUM_OTHER_SENSORS = sizeof(OTHER_SENSOR_INPUTS) / sizeof(OTHER_SENSOR_INPUTS[0]);
+*/
 
 
 // --- Binary Protocol Constants ---
@@ -61,29 +68,31 @@ const byte PRESSURE_PACKET_START_BYTE = 0xAA;
 const byte PRESSURE_PACKET_END_BYTE = 0x55;
 const byte LOADCELL_PACKET_START_BYTE = 0xBB;
 const byte LOADCELL_PACKET_END_BYTE = 0x66;
-const byte FLOW_PACKET_START_BYTE = 0xCC; // Example byte pair
-const byte FLOW_PACKET_END_BYTE = 0xDD;   // Example byte pair
+const byte FLOW_PACKET_START_BYTE = 0xCC;
+const byte FLOW_PACKET_END_BYTE = 0xDD;
+const byte TEMP_PACKET_START_BYTE = 0xEE; // Example byte pair
+const byte TEMP_PACKET_END_BYTE = 0xFF;   // Example byte pair
 
 
-// Define ID ranges for each sensor type
+// Define ID ranges and number of IDs for each sensor type
 const byte PRESSURE_ID_START = 0;
-const byte NUM_IDS_PRESSURE = NUM_PRESSURE_SENSORS; // Number of IDs for this type
+const byte NUM_IDS_PRESSURE = NUM_PRESSURE_SENSORS;
 
 const byte LOADCELL_ID_START = PRESSURE_ID_START + NUM_IDS_PRESSURE; // IDs 6, 7
 const byte NUM_IDS_LOADCELL = NUM_LOADCELL_SENSORS;
 
 const byte FLOW_SENSOR_ID = LOADCELL_ID_START + NUM_IDS_LOADCELL; // Single ID for the flow sensor (e.g., 8)
-const byte NUM_IDS_FLOW = 1; // Just one flow sensor in this example
+const byte NUM_IDS_FLOW = 1;
 
-
-// Add definitions for other sensor constants here (packet markers, ID starts)
-/*
-const int TEMP_SENSOR_PINS[2] = { ... };
-const int NUM_TEMP_SENSORS = ...;
-const byte TEMP_PACKET_START_BYTE = 0xEE;
-const byte TEMP_PACKET_END_BYTE = 0xFF;
-const byte TEMP_ID_START = FLOW_SENSOR_ID + NUM_IDS_FLOW;
+const byte TEMP_ID_START = FLOW_SENSOR_ID + NUM_IDS_FLOW;     // Temp IDs start after flow (e.g., 8 + 1 = 9)
 const byte NUM_IDS_TEMP = NUM_TEMP_SENSORS;
+
+// Add constants for other sensor types here (packet markers, ID starts, num IDs)
+/*
+const byte OTHER_PACKET_START_BYTE = 0x01; // Example byte pair
+const byte OTHER_PACKET_END_BYTE = 0x02;   // Example byte pair
+const byte OTHER_ID_START = TEMP_ID_START + NUM_IDS_TEMP; // Offset from previous group
+const byte NUM_IDS_OTHER = NUM_OTHER_SENSORS;
 */
 
 
@@ -99,25 +108,29 @@ int currentLoadCellIndex = 0;
 unsigned long lastLoadCellProcessTime = 0;
 const unsigned long MIN_LOADCELL_CHECK_INTERVAL_MS = 150;
 
-// Flow Sensor State (for the single sensor)
-volatile long flow_pulse = 0; // Defined here and initialized
-long flow_pulseLast = 0;      // Defined here and initialized
-unsigned long lastFlowProcessTime = 0; // Defined here and initialized
-// How often to CALCULATE and SEND the flow rate for the single sensor
-const unsigned long FLOW_CALCULATION_INTERVAL_MS = 1000; // Example: every 1 second
+// Flow Sensor State
+volatile long flow_pulse = 0;
+long flow_pulseLast = 0;
+unsigned long lastFlowProcessTime = 0;
+const unsigned long FLOW_CALCULATION_INTERVAL_MS = 1000;
+
+// Temperature Sensor State (for the two sensors)
+int currentTempSensorIndex = 0; // Which temp sensor to process next
+unsigned long lastTempProcessTime = 0; // Time last temp sensor was processed
+// MAX6675 requires >= 250ms between reads. Use a value >= 250ms for interval.
+const unsigned long MIN_TEMP_INTERVAL_MS = 500; // Process one temp sensor every 500ms (approx)
 
 
-// Add definitions for state variables and constants for other sensor types here
+// Add state variables and constants for other sensor types here
 /*
-int currentTempSensorIndex = 0;
-unsigned long lastTempSensorProcessTime = 0;
-const unsigned long MIN_TEMP_INTERVAL_MS = 500;
+int currentOtherSensorIndex = 0;
+unsigned long lastOtherSensorProcessTime = 0;
+const unsigned long MIN_OTHER_INTERVAL_MS = 50; // Example interval
 */
 
 
 // =======================================================
 // === Function Definitions (Code Bodies) ================
-// === (Matching prototypes in SensorManager.h) ==========
 // =======================================================
 
 // --- Calculation Function for Pressure Sensor ---
@@ -140,7 +153,7 @@ LoadCellValues calculateLoadCellValues(float raw_weight_float) {
 }
 
 // --- Calculation Function for Flow Sensor ---
-// Takes the current total pulse count and the count from the previous interval start
+// Takes current total pulse count and the count from the previous interval start
 FlowMeterValues calculateFlowMeterValues(long currentPulseCount, long previousPulseCount) {
     // Calculate pulses accumulated during the last interval
     long delta_pulse = currentPulseCount - previousPulseCount;
@@ -151,10 +164,49 @@ FlowMeterValues calculateFlowMeterValues(long currentPulseCount, long previousPu
     return {lpm};
 }
 
+// --- Calculation Function for Temperature Sensor (MAX6675) ---
+// Takes the sensor index, reads the specific sensor, and returns values
+TemperatureSensorValues calculateTemperatureSensorValues(int index) {
+    if (index < 0 || index >= NUM_TEMP_SENSORS) {
+        // Invalid index, return zero values
+        return {0.0f, 0.0f};
+    }
+
+    // Get the specific MAX6675 object for this index
+    MAX6675& currentThermocouple = thermocouples[index];
+
+    // Read temperature from the sensor
+    // This call will block until the MAX6675 conversion is ready (at least 250ms after last conversion started).
+    // The State Machine timer MIN_TEMP_INTERVAL_MS should account for this.
+    double celsius = currentThermocouple.readCelsius(); // Library returns double
+
+    TemperatureSensorValues values;
+
+    // Check for errors (isnan indicates open thermocouple or communication problem)
+    if (isnan(celsius)) {
+        // Handle error condition - perhaps send a specific error value or NaN
+        // Sending NaN directly in binary might be interpreted correctly by some systems.
+        values.temp_c = NAN; // Not a Number
+        values.temp_f = NAN; // Not a Number
+        Serial.print(F("Warning: MAX6675 ID ")); // Debug print on serial
+        Serial.print(TEMP_ID_START + index);
+        Serial.println(F(" - Thermocouple open!"));
+
+    } else {
+        // Convert Celsius to Fahrenheit using pre-calculated factors
+        double fahrenheit = celsius * FAHRENHEIT_SLOPE + FAHRENHEIT_OFFSET;
+
+        // Store the calculated values in the struct
+        values.temp_c = (float)celsius;   // Convert double back to float for the struct
+        values.temp_f = (float)fahrenheit; // Convert double back to float for the struct
+    }
+
+    return values;
+}
+
 
 // Add calculation functions for other sensor types here
 /*
-TemperatureSensorValues calculateTemperatureSensorValues(...) { ... }
 OtherSensorValues calculateOtherSensorValues(...) { ... }
 */
 
@@ -208,37 +260,41 @@ void setupLoadCells() {
 
 void setupFlowSensors() {
   Serial.println(F("Setting up Flow Sensor..."));
-  // Configure the pin as an input
   pinMode(FLOW_SENSOR_PIN_MEGA, INPUT);
-
-  // Attach the interrupt to the pin.
-  // digitalPinToInterrupt(pin) maps the digital pin number to the specific interrupt number on the chip.
-  // flow_increase_pulse is the ISR function to call.
-  // RISING means trigger the interrupt on the rising edge of the pulse.
   attachInterrupt(digitalPinToInterrupt(FLOW_SENSOR_PIN_MEGA), flow_increase_pulse, RISING);
 
   // Initialize flow sensor state variables
-  flow_pulse = 0; // Reset the counter
-  flow_pulseLast = 0; // Reset the last count
-  lastFlowProcessTime = millis(); // Initialize the timer
+  flow_pulse = 0;
+  flow_pulseLast = 0;
+  lastFlowProcessTime = millis(); // Initialize timer
 
   Serial.println(F("Flow Sensor setup complete."));
+}
+
+void setupTemperatureSensors() {
+  Serial.println(F("Setting up Temperature Sensors (MAX6675)..."));
+  // The MAX6675 library's begin() function is often just setting up pins.
+  // The important delay is after power-up and between reads.
+  // Our loop timing will handle the 250ms delay between reads.
+  // No specific initialization needed for the objects other than their definition in global scope.
+
+  // Power-up delay for the first reading might be needed if chip power state is uncertain
+  // delay(500); // Optional: Delay after chip power-up if needed
+
+  // Initialize temp sensor state variables
+  currentTempSensorIndex = 0;
+  lastTempProcessTime = millis(); // Initialize timer
+
+  Serial.print(NUM_TEMP_SENSORS); Serial.println(F(" Temperature Sensors setup complete."));
 }
 
 
 // Add setup functions for other sensor types here
 /*
-void setupTemperatureSensors() { ... }
 void setupOtherSensors() { ... }
 */
 
 // --- Flow sensor Interrupt Service Routine (ISR) ---
-// This function is called by the microcontroller hardware whenever the interrupt condition occurs on the configured pin.
-// It MUST be very short and fast!
 void flow_increase_pulse() {
-  // Simply increment the volatile pulse counter.
-  // Incrementing a 'long' might take a few cycles, but disabling/re-enabling interrupts in the ISR itself
-  // is generally discouraged unless absolutely necessary and you know what you're doing.
-  // Safely reading the 'long' in the main loop is the standard approach.
   flow_pulse++;
 }

@@ -9,18 +9,18 @@ void setup() {
   // Example: Wire.begin(); // For I2C sensors
 
   // Give Serial Monitor time to connect
-  delay(1000);
+  delay(2000);
   Serial.println(F("--- System Setup Starting ---"));
 
   // 2. Call Modular Setup Functions for each sensor type
-  setupPressureSensors()
+  setupPressureSensors();
   setupLoadCells();
+  setupFlowSensors();
+  setupTemperatureSensors(); // Add the new temperature sensor setup
 
   // Call setup functions for other sensor types here
   /*
-  setupFlowMeters();
-  setupTemperatureSensors();
-  setupOtherSensors();
+  setupOtherSensors(); // If you have other types defined
   */
 
   Serial.println(F("--- System Setup Complete. Starting loop ---"));
@@ -53,8 +53,6 @@ void loop() {
        lastLoadCellProcessTime = currentMillis; // Update timer
 
        // Get the HX711 object for the current load cell
-       // Access the scales array which is defined in SensorManager.cpp
-       // and declared extern in SensorManager.h
        HX711& currentScale = scales[currentLoadCellIndex];
 
        // Check if the HX711 is ready (CRUCIAL to avoid blocking)
@@ -75,19 +73,73 @@ void loop() {
        // The next time this block fires, we check the same sensor again.
    }
 
+  // --- State Machine Logic for Flow Sensor ---
+  // Calculate and send flow rate periodically for the single flow sensor
+   if (currentMillis - lastFlowProcessTime >= FLOW_CALCULATION_INTERVAL_MS) {
+       lastFlowProcessTime = currentMillis; // Update timer
+
+       // Safely read the current pulse count from the volatile variable
+       long currentPulseCount;
+       noInterrupts(); // Disable interrupts
+       currentPulseCount = flow_pulse; // Read the volatile counter
+       interrupts();   // Re-enable interrupts
+
+       // Calculate delta and update last count
+       long delta_pulse = currentPulseCount - flow_pulseLast;
+       flow_pulseLast = currentPulseCount; // Update for the next interval
+
+       // Calculate flow rate (LPM), package, and send
+       FlowMeterValues flowData = calculateFlowMeterValues(currentPulseCount, flow_pulseLast); // Pass delta internally in calc function
+       byte flow_id = FLOW_SENSOR_ID; // Unique ID for this flow sensor (e.g., 8)
+       sendBinaryPacket(
+         FLOW_PACKET_START_BYTE,     // Start byte for flow packets
+         flow_id,                  // Unique ID for this flow sensor
+         &flowData,                  // Pointer to the calculated data struct
+         sizeof(flowData),           // Size of the data struct
+         FLOW_PACKET_END_BYTE        // End byte for flow packets
+       );
+   }
+
+  // --- State Machine Logic for Temperature Sensors (MAX6675) ---
+  // Process one temperature sensor when its interval has passed
+  if (currentMillis - lastTempProcessTime >= MIN_TEMP_INTERVAL_MS) {
+    lastTempProcessTime = currentMillis; // Update timer
+
+    // Read, Calculate, Send for the current temperature sensor (currentTempSensorIndex)
+    // Note: The calculate function will handle the MAX6675's internal 250ms delay if needed.
+    TemperatureSensorValues tempData = calculateTemperatureSensorValues(currentTempSensorIndex);
+
+    // Use ID offset + index for temperature sensors (e.g., 9, 10)
+    byte temp_id = TEMP_ID_START + currentTempSensorIndex;
+
+    sendBinaryPacket(
+      TEMP_PACKET_START_BYTE, // Start byte for temperature packets
+      temp_id,                // ID for this specific sensor (9 or 10)
+      &tempData,              // Pointer to the calculated data struct
+      sizeof(tempData),       // Size of the data struct
+      TEMP_PACKET_END_BYTE    // End byte for temperature packets
+    );
+
+    // Move to the next temperature sensor
+    currentTempSensorIndex++;
+    if (currentTempSensorIndex >= NUM_TEMP_SENSORS) {
+      currentTempSensorIndex = 0; // Wrap around
+    }
+  }
+
+
   // --- Add State Machine Logic blocks for other sensor types here ---
   /*
-  // Example for Flow Meters:
-  unsigned long currentMillis_Flow = millis();
-  if (currentMillis_Flow - lastFlowMeterProcessTime >= MIN_FLOW_INTERVAL_MS) {
-    lastFlowMeterProcessTime = currentMillis_Flow;
-    // Read raw flow data for currentFlowMeterIndex (e.g., count pulses, analogRead)
-    // FlowMeterValues flowData = calculateFlowMeterValues(...);
-    // byte flow_id = FLOW_ID_START + currentFlowMeterIndex; // Define FLOW_ID_START
-    // sendBinaryPacket(FLOW_PACKET_START_BYTE, flow_id, &flowData, sizeof(flowData), FLOW_PACKET_END_BYTE);
-    // currentFlowMeterIndex++; if (currentFlowMeterIndex >= NUM_FLOW_METERS) currentFlowMeterIndex = 0;
+  // Example for Other sensors:
+  unsigned long currentMillis_Other = millis();
+  if (currentMillis_Other - lastOtherSensorProcessTime >= MIN_OTHER_INTERVAL_MS) {
+    lastOtherSensorProcessTime = currentMillis_Other;
+    // Read raw other data for currentOtherSensorIndex
+    // OtherSensorValues otherData = calculateOtherSensorValues(...);
+    // byte other_id = OTHER_ID_START + currentOtherSensorIndex;
+    // sendBinaryPacket(OTHER_PACKET_START_BYTE, other_id, &otherData, sizeof(otherData), OTHER_PACKET_END_BYTE);
+    // currentOtherSensorIndex++; if (currentOtherSensorIndex >= NUM_OTHER_SENSORS) currentOtherSensorIndex = 0;
   }
-  // ... etc for Temperature, Other sensors
   */
 
   // --- Incoming Control Signal Handling Block ---
