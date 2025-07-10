@@ -374,7 +374,7 @@ if __name__ == "__main__":
 
     BAUD_RATE = args.baudrate
     READ_TIMEOUT = args.timeout
-    UPDATE_INTERVAL = args.update_INTERVAL
+    UPDATE_INTERVAL = args.update_interval
 
 
     receiver = SerialPacketReceiver()
