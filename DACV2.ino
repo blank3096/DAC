@@ -2,151 +2,159 @@
 #include "SensorManager.h" // Include your custom header file
 
 void setup() {
-  // 1. Basic Serial Communication Setup (usually done first)
-  Serial.begin(115200); // High baud rate
+  Serial.begin(115200);
 
-  // Add setup for other serial ports, I2C, SPI, etc. if needed before specific sensors
+  // Add setup for other serial ports, I2C, SPI, etc. if needed
   // Example: Wire.begin(); // For I2C sensors
 
-  // Give Serial Monitor time to connect
-  delay(2000);
+  delay(2000); // Give Serial Monitor time to connect
   Serial.println(F("--- System Setup Starting ---"));
 
-  // 2. Call Modular Setup Functions for each sensor type
   setupPressureSensors();
   setupLoadCells();
   setupFlowSensors();
-  setupTemperatureSensors(); // Add the new temperature sensor setup
+  setupTemperatureSensors();
 
   // Call setup functions for other sensor types here
   /*
-  setupOtherSensors(); // If you have other types defined
+  setupOtherSensors();
   */
 
   Serial.println(F("--- System Setup Complete. Starting loop ---"));
+
+  // --- Run timing tests once after setup ---
+  delay(1000); // Short delay before tests
+  Serial.println(F("\n--- Running Initial Timing Tests ---"));
+
+  // Test 1: Time for one full iteration of the State Machine loop (should be very fast if no blocks fire)
+  // Note: This will fluctuate depending on which sensor blocks *do* fire in that specific loop iteration.
+  // A more reliable test is Test Batch.
+  /*
+  startTimer();
+  // Let loop() run one time... this is tricky because loop runs continuously.
+  // We'll measure the time *around* the code in loop, but the loop itself never finishes.
+  // The best way to measure the loop *overhead* is to have an empty loop or very short timed tasks.
+  // Let's skip this test and rely on the batch tests and per-block timings.
+  */
+
+  // Test 2: Time for a batch execution of ONE block from EACH sensor type.
+  // This simulates the time needed to process one sample from each type back-to-back.
+  testTimingBatchAllTypes();
+
+  Serial.println(F("\n--- Initial Timing Tests Complete. Entering Main Loop ---"));
+  delay(1000); // Delay before starting the continuous loop
 }
 
 void loop() {
-  unsigned long currentMillis = millis(); // Get the current time *once* per loop iteration
+  // --- Measure the time for this specific loop iteration ---
+  startTimer(); // Start timer at the beginning of loop
+
+  unsigned long currentMillis = millis(); // Get the current time
 
   // --- State Machine Logic for Pressure Sensors ---
-  // Process one pressure sensor when its interval has passed
   if (currentMillis - lastPressureSensorProcessTime >= MIN_PRESSURE_INTERVAL_MS) {
+    startTimer(); // Start timer for THIS block
     lastPressureSensorProcessTime = currentMillis; // Update timer
 
-    // Read, Calculate, Send for the current pressure sensor
     int raw_pressure_int = analogRead(PRESSURE_SENSOR_PINS[currentPressureSensorIndex]);
     PressureSensorValues pressureData = calculatePressureSensorValues(raw_pressure_int, currentPressureSensorIndex);
-    byte pressure_id = PRESSURE_ID_START + currentPressureSensorIndex; // Use ID offset + index (0-5)
+    byte pressure_id = PRESSURE_ID_START + currentPressureSensorIndex;
     sendBinaryPacket(PRESSURE_PACKET_START_BYTE, pressure_id, &pressureData, sizeof(pressureData), PRESSURE_PACKET_END_BYTE);
 
-    // Move to the next pressure sensor
     currentPressureSensorIndex++;
     if (currentPressureSensorIndex >= NUM_PRESSURE_SENSORS) {
-      currentPressureSensorIndex = 0; // Wrap around
+      currentPressureSensorIndex = 0;
     }
+    printElapsedTime("Pressure Sensor Block"); // Print time for THIS block
   }
 
   // --- State Machine Logic for Load Cells ---
-  // Attempt to process one load cell when its interval has passed
    if (currentMillis - lastLoadCellProcessTime >= MIN_LOADCELL_CHECK_INTERVAL_MS) {
+       startTimer(); // Start timer for THIS block
        lastLoadCellProcessTime = currentMillis; // Update timer
 
-       // Get the HX711 object for the current load cell
        HX711& currentScale = scales[currentLoadCellIndex];
 
-       // Check if the HX711 is ready (CRUCIAL to avoid blocking)
        if (currentScale.is_ready()) {
-           // Read, Calculate, Send for the current load cell (if ready)
-           float raw_weight = currentScale.get_units(); // Might block briefly if ready state is marginal
+           float raw_weight = currentScale.get_units(); // Might block briefly
            LoadCellValues loadCellData = calculateLoadCellValues(raw_weight);
-           byte loadCell_id = LOADCELL_ID_START + currentLoadCellIndex; // Use ID offset + index (6, 7)
+           byte loadCell_id = LOADCELL_ID_START + currentLoadCellIndex;
            sendBinaryPacket(LOADCELL_PACKET_START_BYTE, loadCell_id, &loadCellData, sizeof(loadCellData), LOADCELL_PACKET_END_BYTE);
 
-           // Move to the next load cell ONLY if a successful read happened
            currentLoadCellIndex++;
            if (currentLoadCellIndex >= NUM_LOADCELL_SENSORS) {
-             currentLoadCellIndex = 0; // Wrap around
+             currentLoadCellIndex = 0;
            }
+            printElapsedTime("Load Cell Block (incl. get_units wait)"); // Print time for THIS block
+       } else {
+           // If not ready, we still print the time spent checking this block (very fast)
+           printElapsedTime("Load Cell Block (not ready check)");
        }
-       // If not ready, the timer was reset, but the index was NOT incremented.
-       // The next time this block fires, we check the same sensor again.
    }
 
   // --- State Machine Logic for Flow Sensor ---
-  // Calculate and send flow rate periodically for the single flow sensor
    if (currentMillis - lastFlowProcessTime >= FLOW_CALCULATION_INTERVAL_MS) {
+       startTimer(); // Start timer for THIS block
        lastFlowProcessTime = currentMillis; // Update timer
 
-       // Safely read the current pulse count from the volatile variable
        long currentPulseCount;
-       noInterrupts(); // Disable interrupts
-       currentPulseCount = flow_pulse; // Read the volatile counter
-       interrupts();   // Re-enable interrupts
+       noInterrupts();
+       currentPulseCount = flow_pulse;
+       interrupts();
 
-       // Calculate delta and update last count
        long delta_pulse = currentPulseCount - flow_pulseLast;
-       flow_pulseLast = currentPulseCount; // Update for the next interval
+       flow_pulseLast = currentPulseCount;
 
-       // Calculate flow rate (LPM), package, and send
-       FlowMeterValues flowData = calculateFlowMeterValues(currentPulseCount, flow_pulseLast); // Pass delta internally in calc function
-       byte flow_id = FLOW_SENSOR_ID; // Unique ID for this flow sensor (e.g., 8)
-       sendBinaryPacket(
-         FLOW_PACKET_START_BYTE,     // Start byte for flow packets
-         flow_id,                  // Unique ID for this flow sensor
-         &flowData,                  // Pointer to the calculated data struct
-         sizeof(flowData),           // Size of the data struct
-         FLOW_PACKET_END_BYTE        // End byte for flow packets
-       );
+       FlowMeterValues flowData = calculateFlowMeterValues(currentPulseCount, flow_pulseLast);
+       byte flow_id = FLOW_SENSOR_ID;
+       sendBinaryPacket(FLOW_PACKET_START_BYTE, flow_id, &flowData, sizeof(flowData), FLOW_PACKET_END_BYTE);
+       printElapsedTime("Flow Sensor Block"); // Print time for THIS block
    }
 
   // --- State Machine Logic for Temperature Sensors (MAX6675) ---
-  // Process one temperature sensor when its interval has passed
   if (currentMillis - lastTempProcessTime >= MIN_TEMP_INTERVAL_MS) {
+    startTimer(); // Start timer for THIS block
     lastTempProcessTime = currentMillis; // Update timer
 
-    // Read, Calculate, Send for the current temperature sensor (currentTempSensorIndex)
-    // Note: The calculate function will handle the MAX6675's internal 250ms delay if needed.
     TemperatureSensorValues tempData = calculateTemperatureSensorValues(currentTempSensorIndex);
 
-    // Use ID offset + index for temperature sensors (e.g., 9, 10)
     byte temp_id = TEMP_ID_START + currentTempSensorIndex;
+    sendBinaryPacket(TEMP_PACKET_START_BYTE, temp_id, &tempData, sizeof(tempData), TEMP_PACKET_END_BYTE);
 
-    sendBinaryPacket(
-      TEMP_PACKET_START_BYTE, // Start byte for temperature packets
-      temp_id,                // ID for this specific sensor (9 or 10)
-      &tempData,              // Pointer to the calculated data struct
-      sizeof(tempData),       // Size of the data struct
-      TEMP_PACKET_END_BYTE    // End byte for temperature packets
-    );
-
-    // Move to the next temperature sensor
     currentTempSensorIndex++;
     if (currentTempSensorIndex >= NUM_TEMP_SENSORS) {
-      currentTempSensorIndex = 0; // Wrap around
+      currentTempSensorIndex = 0;
     }
+    printElapsedTime("Temp Sensor Block (incl. readCelsius wait)"); // Print time for THIS block
   }
 
 
   // --- Add State Machine Logic blocks for other sensor types here ---
   /*
-  // Example for Other sensors:
   unsigned long currentMillis_Other = millis();
   if (currentMillis_Other - lastOtherSensorProcessTime >= MIN_OTHER_INTERVAL_MS) {
+    startTimer(); // Start timer for THIS block
     lastOtherSensorProcessTime = currentMillis_Other;
-    // Read raw other data for currentOtherSensorIndex
+    // Read, Calculate, Send for currentOtherSensorIndex
     // OtherSensorValues otherData = calculateOtherSensorValues(...);
     // byte other_id = OTHER_ID_START + currentOtherSensorIndex;
     // sendBinaryPacket(OTHER_PACKET_START_BYTE, other_id, &otherData, sizeof(otherData), OTHER_PACKET_END_BYTE);
     // currentOtherSensorIndex++; if (currentOtherSensorIndex >= NUM_OTHER_SENSORS) currentOtherSensorIndex = 0;
+    printElapsedTime("Other Sensor Block"); // Print time for THIS block
   }
   */
 
   // --- Incoming Control Signal Handling Block ---
   // Implement checking Serial.available() and parsing logic here.
-  // This runs every loop() iteration, providing responsiveness.
-  // (See previous explanation for details)
+  // startTimer(); // If you want to time the duration of processing all available bytes
   // while (Serial.available() > 0) { ... read and parse command ... }
+  // If the while loop finishes and it actually read bytes: printElapsedTime("Control Signal Handling");
 
+  // --- Time for the overall loop iteration (excluding the timer prints themselves) ---
+  // This measurement captures the overhead of the loop structure plus any sensor blocks
+  // that *didn't* trigger their specific print but whose timer was checked.
+  // It's less informative than per-block timing for the State Machine.
+  // Let's remove this measurement to focus on the block timings and the batch test.
+  // printElapsedTime("Full loop() iteration"); // This measurement isn't very useful here.
 
 }
