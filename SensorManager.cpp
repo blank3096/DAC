@@ -100,7 +100,7 @@ const unsigned long MIN_PRESSURE_INTERVAL_MS = 10;
 
 int currentLoadCellIndex = 0;
 unsigned long lastLoadCellProcessTime = 0;
-const unsigned long MIN_LOADCELL_CHECK_INTERVAL_MS = 150;
+const unsigned long MIN_LOADCELL_CHECK_INTERVAL_MS = 110;
 
 volatile long flow_pulse = 0;
 long flow_pulseLast = 0;

@@ -70,12 +70,15 @@ void loop() {
 
   // --- State Machine Logic for Load Cells ---
    if (currentMillis - lastLoadCellProcessTime >= MIN_LOADCELL_CHECK_INTERVAL_MS) {
+
+       Serial.println("-> Load cell timer fired!"); 
        startTimer(); // Start timer for THIS block
        lastLoadCellProcessTime = currentMillis; // Update timer
 
        HX711& currentScale = scales[currentLoadCellIndex];
 
-       if (currentScale.is_ready()) {
+//       if (currentScale.is_ready()) {
+//           Serial.println("  -> is_ready() was TRUE. Getting units..."); 
            float raw_weight = currentScale.get_units(); // Might block briefly
            LoadCellValues loadCellData = calculateLoadCellValues(raw_weight);
            byte loadCell_id = LOADCELL_ID_START + currentLoadCellIndex;
@@ -86,10 +89,12 @@ void loop() {
              currentLoadCellIndex = 0;
            }
             printElapsedTime("Load Cell Block (incl. get_units wait)"); // Print time for THIS block
-       } else {
+       //} else {
            // If not ready, we still print the time spent checking this block (very fast)
-           printElapsedTime("Load Cell Block (not ready check)");
-       }
+
+        //   Serial.println("  -> is_ready() was FALSE. Skipping read."); // <-- ADD THIS
+        //   printElapsedTime("Load Cell Block (not ready check)");
+       //}
    }
 
   // --- State Machine Logic for Flow Sensor ---
