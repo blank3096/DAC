@@ -25,30 +25,31 @@ float pressure_scale_factor[6];
 
 
 // --- Load Cell Constants ---
-const byte LOADCELL_DOUT_PINS[2] = {12, 10};
-const byte LOADCELL_CLK_PINS[2] = {11, 9};
+const byte LOADCELL_DOUT_PINS[2] = {5, 10}; // Using D31 for LC0, D10 for LC1 (example, adjust if used)
+const byte LOADCELL_CLK_PINS[2] = {4, 9};   // Using D30 for LC0, D9 for LC1 (example, adjust if used)
 const float LOADCELL_CALIBRATION_FACTORS[2] = {145.4f, 150.0f};
 const int NUM_LOADCELL_SENSORS = sizeof(LOADCELL_DOUT_PINS) / sizeof(LOADCELL_DOUT_PINS[0]);
 HX711 scales[2];
 
 
 // --- Flow Sensor Constants ---
-const int FLOW_SENSOR_PIN_MEGA = 2; // *** REMEMBER TO WIRE FLOW SENSOR TO PIN 2 ***
+const int FLOW_SENSOR_PIN_MEGA = 2; // Pin 2 on Mega is External Interrupt 0
 const float FLOW_PPL = 4215;
 const float PULSES_TO_LPM_FACTOR = 60.0f / FLOW_PPL;
 
 
 // --- Temperature Sensor (MAX6675) Constants ---
-// Example pins for two MAX6675 sensors on Mega (adjust as needed)
-const int THERMO_DO_PINS[2]  = { 4,  8 };
-const int THERMO_CS_PINS[2]  = { 5,  7 };
-const int THERMO_CLK_PINS[2] = { 6,  6 }; // Can often share CLK
-const int NUM_TEMP_SENSORS = sizeof(THERMO_DO_PINS) / sizeof(THERMO_DO_PINS[0]);
+// Example pins for two MAX6675 sensors on Mega (adjust as needed based on your wiring)
+// Using pins 3, 6, 7 for TS0 and 8, 11, 12 for TS1 (example, verify availability)
+const int THERMO_DO_PINS[2]  = { 3,  8 }; // Data Out pins
+const int THERMO_CS_PINS[2]  = { 6, 11 }; // Chip Select pins (each sensor needs a unique CS)
+const int THERMO_CLK_PINS[2] = { 7, 12 }; // Clock pins (using separate CLK pins is safer)
+const int NUM_TEMP_SENSORS = sizeof(THERMO_DO_PINS) / sizeof(THERMO_DO_PINS[0]); // Should be 2
 
 const float FAHRENHEIT_SLOPE = 9.0f / 5.0f;
 const float FAHRENHEIT_OFFSET = 32.0f;
 
-MAX6675 thermocouples[2] = {
+MAX6675 thermocouples[2] = { // Defined here (array of objects)
     MAX6675(THERMO_CLK_PINS[0], THERMO_CS_PINS[0], THERMO_DO_PINS[0]),
     MAX6675(THERMO_CLK_PINS[1], THERMO_CS_PINS[1], THERMO_DO_PINS[1])
 };
@@ -70,6 +71,7 @@ const byte FLOW_PACKET_START_BYTE = 0xCC;
 const byte FLOW_PACKET_END_BYTE = 0xDD;
 const byte TEMP_PACKET_START_BYTE = 0xEE;
 const byte TEMP_PACKET_END_BYTE = 0xFF;
+
 
 // Define ID ranges and number of IDs for each sensor type
 const byte PRESSURE_ID_START = 0;
@@ -100,7 +102,7 @@ const unsigned long MIN_PRESSURE_INTERVAL_MS = 10;
 
 int currentLoadCellIndex = 0;
 unsigned long lastLoadCellProcessTime = 0;
-const unsigned long MIN_LOADCELL_CHECK_INTERVAL_MS = 110;
+const unsigned long MIN_LOADCELL_CHECK_INTERVAL_MS = 150;
 
 volatile long flow_pulse = 0;
 long flow_pulseLast = 0;
@@ -110,6 +112,7 @@ const unsigned long FLOW_CALCULATION_INTERVAL_MS = 1000;
 int currentTempSensorIndex = 0;
 unsigned long lastTempProcessTime = 0;
 const unsigned long MIN_TEMP_INTERVAL_MS = 500;
+
 
 // Add state variables and constants for other sensor types here
 /*
@@ -123,11 +126,11 @@ const unsigned long MIN_OTHER_INTERVAL_MS = 50;
 unsigned long _timerStartTime = 0; // Defined here
 
 void startTimer() {
-  _timerStartTime = micros(); // Record the current microsecond count
+  _timerStartTime = micros();
 }
 
 void printElapsedTime(const char* description) {
-  unsigned long elapsed = micros() - _timerStartTime; // Calculate elapsed time
+  unsigned long elapsed = micros() - _timerStartTime;
   Serial.print(F("Time for "));
   Serial.print(description);
   Serial.print(F(": "));
@@ -141,8 +144,14 @@ void printElapsedTime(const char* description) {
 // =======================================================
 
 // --- Calculation Function for Pressure Sensor ---
+// Now returns only the pressure value in the struct
 PressureSensorValues calculatePressureSensorValues(int raw_pressure_int, int index) {
-  if (index < 0 || index >= NUM_PRESSURE_SENSORS) return {0.0f, 0.0f, 0.0f};
+  // Access constants and scale_factor array defined above in this .cpp file
+  if (index < 0 || index >= NUM_PRESSURE_SENSORS) {
+      // Return a struct with a clear invalid/error value, e.g., negative pressure if not possible
+      // Or NAN if preferred, but requires math.h
+      return {-1.0f}; // Example: return -1.0f for invalid index
+  }
 
   float raw_pressure_f = (float)raw_pressure_int;
   float mV = raw_pressure_f * MV_FACTOR;
@@ -151,7 +160,7 @@ PressureSensorValues calculatePressureSensorValues(int raw_pressure_int, int ind
   float percent = mA * PERCENT_SLOPE + PERCENT_OFFSET;
   float pressure = percent * pressure_scale_factor[index];
 
-  return {volts, mA, pressure};
+  return {pressure}; // Only return the pressure value
 }
 
 // --- Calculation Function for Load Cell Sensor ---
@@ -183,11 +192,12 @@ TemperatureSensorValues calculateTemperatureSensorValues(int index) {
         // Serial.print(F("Warning: MAX6675 ID ")); Serial.print(TEMP_ID_START + index); Serial.println(F(" - Thermocouple open!")); // Debug print
     } else {
         double fahrenheit = celsius * FAHRENHEIT_SLOPE + FAHRENHEIT_OFFSET;
-        values.temp_c = (float)celsius;
-        values.temp_f = (float)fahrenheit;
+        values.temp_c = (float)celsius;   // Convert double back to float for the struct
+        values.temp_f = (float)fahrenheit; // Convert double back to float for the struct
     }
     return values;
 }
+
 
 // Add calculation functions for other sensor types here
 /*
@@ -197,7 +207,7 @@ OtherSensorValues calculateOtherSensorValues(...) { ... }
 
 // --- GENERIC Function to send any data block in binary format ---
 void sendBinaryPacket(byte start_byte, byte id, const void* data_ptr, size_t data_size, byte end_byte) {
-   if (data_ptr == nullptr || data_size == 0) return;
+   if (data_ptr == nullptr || data_size == 0) return; // Corrected condition
 
   Serial.write(start_byte);
   Serial.write(id);
@@ -246,7 +256,6 @@ void setupFlowSensors() {
   pinMode(FLOW_SENSOR_PIN_MEGA, INPUT);
   attachInterrupt(digitalPinToInterrupt(FLOW_SENSOR_PIN_MEGA), flow_increase_pulse, RISING);
 
-  // Initialize flow sensor state variables
   flow_pulse = 0;
   flow_pulseLast = 0;
   lastFlowProcessTime = millis();
@@ -257,10 +266,8 @@ void setupFlowSensors() {
 void setupTemperatureSensors() {
   Serial.println(F("Setting up Temperature Sensors (MAX6675)..."));
   // Objects are defined globally, initialized with pins.
-  // Power-up delay for the first reading might be needed if chip power state is uncertain
-  // delay(500); // Optional
+  // delay(500); // Optional power-up delay
 
-  // Initialize temp sensor state variables
   currentTempSensorIndex = 0;
   lastTempProcessTime = millis();
 
@@ -295,56 +302,33 @@ void testTimingBatchAllTypes() {
   printElapsedTime("One Pressure Sensor Block");
 
   // Measure time for one Load Cell block execution (simulating a read)
-  // Need to ensure the HX711 is ready or bypass the check/read for a predictable test time.
-  // Let's assume for this test that get_units() returns quickly if ready, and the interval makes it ready.
-  // We'll just call the logic including get_units() for sensor 0. This *might* block up to ~100ms if not ready.
-  // For a reliable code performance test *excluding* the read waits, you'd pass dummy data.
-  // For testing the block's real-world execution time *including* the potential wait, do this:
-  // Note: get_units() requires the CLK pin to be low before calling. Ensure this is the case
-  // or call power_up() if needed before the test. The library usually handles this.
+  // This will likely block for ~100ms waiting for the sensor to be ready if it just tared/read.
   startTimer();
-  // Ensure we try to get data from sensor 0
+  // Get the first Load Cell object
   HX711& testScale = scales[0];
-  // In a test, you might need to wait here explicitly once to ensure it gets the first sample
-  // or ensure the interval has passed since setup.
-  // For simplicity here, we just call the block logic:
-  // This *will* likely block for ~100ms if the test runs right after setup/previous read.
-  // A more controlled test would mock the read or ensure sensor state.
-  // Let's just call the logic as it appears in the timed block for sensor 0:
-  // We can't reliably call is_ready() and get_units() for a specific sensor index here
-  // because currentLoadCellIndex and lastLoadCellProcessTime are managed by the loop() state.
-  // A better test calls the calc+send only:
-
-  // Revised Load Cell Test: Measure Calc + Send Time
-  LoadCellValues dummyLoadCellData = {999.99f}; // Use dummy data
-  startTimer();
-  // calculateLoadCellValues(scales[0].get_units()); // Don't call get_units here in this test
-  LoadCellValues processedLoadCellData = calculateLoadCellValues(dummyLoadCellData.weight_grams); // Just calculate
-  sendBinaryPacket(LOADCELL_PACKET_START_BYTE, LOADCELL_ID_START, &processedLoadCellData, sizeof(processedLoadCellData), LOADCELL_PACKET_END_BYTE);
-  printElapsedTime("One Load Cell Calc + Send"); // Time excludes the get_units() wait
+  // Read, Calculate, Send for load cell 0.
+  float raw_weight = testScale.get_units(); // This will wait for is_ready()
+  LoadCellValues loadCellData = calculateLoadCellValues(raw_weight);
+  byte loadCell_id = LOADCELL_ID_START + 0; // ID for load cell 0
+  sendBinaryPacket(LOADCELL_PACKET_START_BYTE, loadCell_id, &loadCellData, sizeof(loadCellData), LOADCELL_PACKET_END_BYTE);
+  printElapsedTime("One Load Cell Block (incl. get_units wait)");
 
 
   // Measure time for one Flow Sensor block execution (simulating update)
   // Simulate delta pulse for calculation test
-  long dummyCurrentPulse = flow_pulse + 100; // Assume 100 pulses happened
-  long dummyLastPulse = flow_pulse;
+  long dummyCurrentPulse = flow_pulse + 100; // Assume 100 pulses happened since flow_pulse was 0 in setup
+  long dummyLastPulse = 0; // Since flow_pulseLast was 0 in setup
   startTimer();
-  // NoInterrupts/interrupts needed here in the test as we are faking the values, not reading volatile
-  // long currentPulseCopy = flow_pulse; // To simulate reading the volatile
-  // long delta = currentPulseCopy - flow_pulseLast; // Calc delta
-  // flow_pulseLast = currentPulseCopy; // Update last (these lines are the *loop* logic, not just calc)
-  // Let's test the calculation function + send logic only:
-  FlowMeterValues fData = calculateFlowMeterValues(dummyCurrentPulse, dummyLastPulse); // Use dummy delta
+  FlowMeterValues fData = calculateFlowMeterValues(dummyCurrentPulse, dummyLastPulse);
   sendBinaryPacket(FLOW_PACKET_START_BYTE, FLOW_SENSOR_ID, &fData, sizeof(fData), FLOW_PACKET_END_BYTE);
-  printElapsedTime("One Flow Sensor Calc + Send"); // Time excludes reading volatile and the ISR
+  printElapsedTime("One Flow Sensor Calc + Send");
 
 
   // Measure time for one Temp Sensor block execution (simulating a read)
-  // This *will* call readCelsius() and potentially block for ~250ms if not ready.
-  // This is representative of the time the temp sensor block takes when it fires.
+  // This will call readCelsius() and potentially block for ~250ms if not ready.
   startTimer();
   TemperatureSensorValues tData = calculateTemperatureSensorValues(0); // Calculate for sensor 0
-  sendBinaryPacket(TEMP_PACKET_START_BYTE, TEMP_ID_START, &tData, sizeof(tData), TEMP_PACKET_END_BYTE); // Send for sensor 0
+  sendBinaryPacket(TEMP_PACKET_START_BYTE, TEMP_ID_START, &tData, sizeof(tData), TEMP_PACKET_END_BYTE);
   printElapsedTime("One Temp Sensor Block (incl. readCelsius wait)");
 
   // Add tests for other sensor types here
@@ -352,10 +336,10 @@ void testTimingBatchAllTypes() {
   OtherSensorValues dummyOtherData = { ... };
   startTimer();
   OtherSensorValues processedOtherData = calculateOtherSensorValues(dummyOtherData);
-  sendBinaryPacket(OTHER_PACKET_START_BYTE, OTHER_ID_START, &processedOtherData, sizeof(processedOtherData), OTHER_PACKET_END_BYTE);
+  byte other_id = OTHER_ID_START + 0; // ID for other sensor 0
+  sendBinaryPacket(OTHER_PACKET_START_BYTE, other_id, &processedOtherData, sizeof(processedOtherData), OTHER_PACKET_END_BYTE);
   printElapsedTime("One Other Sensor Block");
   */
 
   Serial.println(F("--- Timing Test Batch Complete ---"));
 }
-

@@ -4,7 +4,7 @@
 #include <Arduino.h> // Always include Arduino.h in .h files
 #include "HX711.h"   // Include necessary library headers
 #include "max6675.h" // Include MAX6675 library header
-#include <math.h>    // For isnan() prototype (used in calculation function)
+#include <math.h>    // For isnan() prototype
 
 // --- Common Constants ---
 extern const long ANALOG_REFERENCE_mV;
@@ -40,9 +40,12 @@ extern const float PULSES_TO_LPM_FACTOR;
 extern const int THERMO_DO_PINS[2];
 extern const int THERMO_CS_PINS[2];
 extern const int THERMO_CLK_PINS[2];
+
 extern const int NUM_TEMP_SENSORS;
+
 extern const float FAHRENHEIT_SLOPE;
 extern const float FAHRENHEIT_OFFSET;
+
 extern MAX6675 thermocouples[2];
 
 
@@ -66,10 +69,13 @@ extern const byte TEMP_PACKET_END_BYTE;
 // Define ID ranges and number of IDs for each sensor type
 extern const byte PRESSURE_ID_START;
 extern const byte NUM_IDS_PRESSURE;
+
 extern const byte LOADCELL_ID_START;
 extern const byte NUM_IDS_LOADCELL;
+
 extern const byte FLOW_SENSOR_ID;
 extern const byte NUM_IDS_FLOW;
+
 extern const byte TEMP_ID_START;
 extern const byte NUM_IDS_TEMP;
 
@@ -83,9 +89,8 @@ extern const byte NUM_IDS_OTHER;
 
 
 // --- Data Structures for Sensor Values ---
+// Pressure Sensor Values - Now only contains pressure
 struct PressureSensorValues {
-  float volts;
-  float mA;
   float pressure;
 };
 
@@ -135,10 +140,10 @@ extern const unsigned long MIN_OTHER_INTERVAL_MS;
 
 
 // --- Timing Helper Functions ---
-extern unsigned long _timerStartTime; // Global variable to store the timer start time
+extern unsigned long _timerStartTime;
 
-void startTimer(); // Records the current micros()
-void printElapsedTime(const char* description); // Prints elapsed time since startTimer()
+void startTimer();
+void printElapsedTime(const char* description);
 
 
 // --- Function Prototypes (Declarations) ---
@@ -146,6 +151,7 @@ PressureSensorValues calculatePressureSensorValues(int raw_pressure_int, int ind
 LoadCellValues calculateLoadCellValues(float raw_weight_float);
 FlowMeterValues calculateFlowMeterValues(long currentPulseCount, long previousPulseCount);
 TemperatureSensorValues calculateTemperatureSensorValues(int index);
+
 
 // Add prototypes for other sensor calculation functions here
 /*
@@ -172,7 +178,6 @@ void flow_increase_pulse();
 
 
 // --- Test Functions ---
-// Function to run a test batch of all sensor processing blocks once
 void testTimingBatchAllTypes();
 
 
