@@ -22,6 +22,9 @@ void setup() {
   setupOtherSensors();
   */
 
+  // Initialize the Serial Receive State Machine
+  currentRxState = RX_WAITING_FOR_START; // <-- Initialize state variable
+
   Serial.println(F("--- System Setup Complete. Starting loop ---"));
 
   // --- Run timing tests once after setup ---
@@ -36,6 +39,90 @@ void setup() {
 
 void loop() {
   unsigned long currentMillis = millis(); // Get the current time
+
+  // --- Serial Receive State Machine Block ---
+  // This block runs every loop() iteration to process any incoming serial bytes
+  while (Serial.available() > 0) {
+    byte incomingByte = Serial.read(); // Read the next byte from the buffer
+
+    switch (currentRxState) {
+      case RX_WAITING_FOR_START:
+        if (incomingByte == COMMAND_START_BYTE) {
+          currentRxState = RX_READING_TYPE;
+          // Reset variables for the new command packet
+          rxCommandType = 0;
+          rxTargetId = 0;
+          rxPayloadSize = 0;
+          rxPayloadBytesRead = 0;
+          // No need to clear rxPayloadBuffer here, it will be overwritten
+          // Serial.println("RX: Found Start"); // Debug
+        }
+        // If not the start byte, stay in this state and discard the byte.
+        break;
+
+      case RX_READING_TYPE:
+        rxCommandType = incomingByte;
+        currentRxState = RX_READING_TARGET_ID;
+        // Serial.print("RX: Read Type: "); Serial.println(rxCommandType); // Debug
+        break;
+
+      case RX_READING_TARGET_ID:
+        rxTargetId = incomingByte;
+        currentRxState = RX_READING_SIZE;
+        // Serial.print("RX: Read Target ID: "); Serial.println(rxTargetId); // Debug
+        break;
+
+      case RX_READING_SIZE:
+        rxPayloadSize = incomingByte; // This is the expected size of JUST the payload
+        rxPayloadBytesRead = 0; // Reset payload counter
+
+        // Validate the received payload size against the expected maximum
+        if (rxPayloadSize > MAX_COMMAND_PAYLOAD_SIZE) {
+             Serial.print(F("RX Error: Payload size too large (")); Serial.print(rxPayloadSize); Serial.print(F("). Max is ")); Serial.print(MAX_COMMAND_PAYLOAD_SIZE); Serial.println(F(". Resetting."));
+             currentRxState = RX_WAITING_FOR_START; // Discard packet
+        } else if (rxPayloadSize == 0) {
+             // If payload size is 0, we're done reading payload. Go straight to END.
+             currentRxState = RX_READING_END;
+             // Serial.println("RX: Read Size 0, going to End"); // Debug
+        } else {
+            // Expecting payload bytes next
+            currentRxState = RX_READING_PAYLOAD;
+            // Serial.print("RX: Read Size: "); Serial.println(rxPayloadSize); // Debug
+        }
+        break;
+
+      case RX_READING_PAYLOAD:
+        // Store the incoming byte in the buffer
+        rxPayloadBuffer[rxPayloadBytesRead] = incomingByte;
+        rxPayloadBytesRead++;
+
+        // Check if we have read all the expected payload bytes
+        if (rxPayloadBytesRead == rxPayloadSize) {
+          currentRxState = RX_READING_END;
+          // Serial.println("RX: Payload Complete, going to End"); // Debug
+        }
+        break;
+
+      case RX_READING_END:
+        // We expect the Command End Byte
+        if (incomingByte == COMMAND_END_BYTE) {
+          // --- COMMAND PACKET SUCCESSFULLY RECEIVED AND VALIDATED! ---
+          // Process the command
+          // Serial.println("RX: Found End. Processing command..."); // Debug
+          handleCommand(rxCommandType, rxTargetId, rxPayloadBuffer, rxPayloadSize); // Pass the stored components
+        } else {
+          // Protocol error! Unexpected byte where END byte should be.
+          Serial.print(F("RX Error: Expected End Byte (")); Serial.print(COMMAND_END_BYTE, HEX); Serial.print(F(") but got (")); Serial.print(incomingByte, HEX); Serial.println(F("). Resetting."));
+          // Discard the corrupted packet.
+        }
+
+        // --- Reset the state for the next packet regardless of success or failure ---
+        currentRxState = RX_WAITING_FOR_START;
+        // Serial.println("RX: State Reset to WAITING_FOR_START"); // Debug
+        break;
+    } // End switch(currentRxState)
+  } // End while(Serial.available())
+
 
   // --- State Machine Logic for Pressure Sensors ---
   if (currentMillis - lastPressureSensorProcessTime >= MIN_PRESSURE_INTERVAL_MS) {
@@ -115,8 +202,7 @@ void loop() {
     printElapsedTime("Temp Sensor Block (incl. readCelsius wait)");
   }
 
-  // --- State Machine Logic for Motor RPM ---
-  // Calculate and send Motor RPM periodically
+   // --- State Machine Logic for Motor RPM ---
    if (currentMillis - lastMotorCalcTime >= MOTOR_CALCULATION_INTERVAL_MS) {
        startTimer(); // Start timer for THIS block
        unsigned long interval_ms = currentMillis - lastMotorCalcTime; // Actual interval duration
@@ -152,32 +238,5 @@ void loop() {
    }
 
 
-  // --- Add State Machine Logic blocks for other sensor types here ---
-  /*
-  unsigned long currentMillis_Other = millis();
-  if (currentMillis_Other - lastOtherSensorProcessTime >= MIN_OTHER_INTERVAL_MS) {
-    startTimer();
-    lastOtherSensorProcessTime = currentMillis_Other;
-    // Read, Calculate, Send for currentOtherSensorIndex
-    // OtherSensorValues otherData = calculateOtherSensorValues(...);
-    // byte other_id = OTHER_ID_START + currentOtherSensorIndex;
-    // sendBinaryPacket(OTHER_PACKET_START_BYTE, other_id, &otherData, sizeof(otherData), OTHER_PACKET_END_BYTE);
-    // currentOtherSensorIndex++; if (currentOtherSensorIndex >= NUM_OTHER_SENSORS) currentOtherSensorIndex = 0;
-    printElapsedTime("Other Sensor Block");
-  }
-  */
 
-  // --- Incoming Control Signal Handling Block ---
-  // This block handles receiving commands to control relays, motor speed/direction, etc.
-  // It should be non-blocking and check for available serial data.
-  // (Implementation needed here)
-  // while (Serial.available() > 0) {
-  //   byte incomingByte = Serial.read();
-  //   // Implement your command parsing state machine here...
-  //   // Based on the command, update relay states, motor speed/direction variables.
-  //   // Example: If command received to set motor speed:
-  //   // updateMotorSpeed(newSpeed); // Function to update OCR1A and enable pin
-  // }
-
-  // No overall loop timing print as it's not meaningful here.
 }

@@ -53,8 +53,7 @@ const int NUM_TEMP_SENSORS = sizeof(THERMO_CS_PINS) / sizeof(THERMO_CS_PINS[0]);
 const float FAHRENHEIT_SLOPE = 9.0f / 5.0f;
 const float FAHRENHEIT_OFFSET = 32.0f;
 
-// Array of MAX6675 objects - SIZE IS 4, initialized with shared CLK/DO and unique CS
-MAX6675 thermocouples[4] = {
+MAX6675 thermocouples[4] = { // Defined here (array of objects)
     MAX6675(THERMO_SHARED_CLK_PIN, THERMO_CS_PINS[0], THERMO_SHARED_DO_PIN),
     MAX6675(THERMO_SHARED_CLK_PIN, THERMO_CS_PINS[1], THERMO_SHARED_DO_PIN),
     MAX6675(THERMO_SHARED_CLK_PIN, THERMO_CS_PINS[2], THERMO_SHARED_DO_PIN),
@@ -70,26 +69,23 @@ const int NUM_RELAYS = sizeof(RELAY_PINS) / sizeof(RELAY_PINS[0]);
 
 // --- DC Motor Constants ---
 // Pins for DC Motor (As per table)
-const int MOTOR_PWM_PIN = 6;       // D6 
+const int MOTOR_PWM_PIN = 6;       // D6 (Timer4) <-- CHANGED TO D6
 const int MOTOR_ENABLE_PIN = 37;    // D37
 const int MOTOR_DIRECTION_PIN = 38; // D38
 const int MOTOR_SPEED_SENSE_PIN = 3;  // D3 (INT1)
 
-// Define motor specific constants
 const int MOTOR_PULSES_PER_REVOLUTION = 12; // As per code snippet
-// Pre-calculated factor: (Pulses/sec / Pulses/Rev) * 60 sec/min = RPM
-// RPM = Frequency (Hz) * (60 / PulsesPerRev)
 const float PULSES_PER_SEC_TO_RPM_FACTOR = 60.0f / MOTOR_PULSES_PER_REVOLUTION;
 
 
-// Add constants for other sensor types here
+// Add definitions for other sensor constants here
 /*
 const int OTHER_SENSOR_INPUTS[2] = { ... };
 const int NUM_OTHER_SENSORS = sizeof(OTHER_SENSOR_INPUTS) / sizeof(OTHER_SENSOR_INPUTS[0]);
 */
 
 
-// --- Binary Protocol Constants ---
+// --- Binary Protocol Constants (Sensor Data Output) ---
 const byte PRESSURE_PACKET_START_BYTE = 0xAA;
 const byte PRESSURE_PACKET_END_BYTE = 0x55;
 const byte LOADCELL_PACKET_START_BYTE = 0xBB;
@@ -98,24 +94,37 @@ const byte FLOW_PACKET_START_BYTE = 0xCC;
 const byte FLOW_PACKET_END_BYTE = 0xDD;
 const byte TEMP_PACKET_START_BYTE = 0xEE;
 const byte TEMP_PACKET_END_BYTE = 0xFF;
-const byte MOTOR_RPM_PACKET_START_BYTE = 0xF0; // Example byte pair for Motor RPM
-const byte MOTOR_RPM_PACKET_END_BYTE = 0xF1;   // Example byte pair
+const byte MOTOR_RPM_PACKET_START_BYTE = 0xF0;
+const byte MOTOR_RPM_PACKET_END_BYTE = 0xF1;
 
 
-// Define ID ranges and number of IDs for each sensor type
+// --- Binary Protocol Constants (Incoming Commands) ---
+const byte COMMAND_START_BYTE = 0xFC; // Start byte for commands
+const byte COMMAND_END_BYTE = 0xFD;   // End byte for commands
+
+// Command Type definitions
+const byte CMD_TYPE_SET_RELAY = 0x01; // Command to set a relay state
+const byte CMD_TYPE_SET_MOTOR = 0x02; // Command to set motor state (enable, direction, throttle)
+
+// Target ID definitions for commands
+const byte CMD_TARGET_RELAY_START = 0; // Relays targeted by their 0-3 index
+const byte CMD_TARGET_MOTOR_ID = 0;    // Motor targeted by ID 0
+
+
+// Define ID ranges and number of IDs for each sensor type (Output Packets)
 const byte PRESSURE_ID_START = 0;
 const byte NUM_IDS_PRESSURE = NUM_PRESSURE_SENSORS; // 6
 
-const byte LOADCELL_ID_START = PRESSURE_ID_START + NUM_IDS_PRESSURE; // IDs 6, 7, 8
+const byte LOADCELL_ID_START = PRESSURE_ID_START + NUM_IDS_PRESSURE; // 6
 const byte NUM_IDS_LOADCELL = NUM_LOADCELL_SENSORS; // 3
 
-const byte FLOW_SENSOR_ID = LOADCELL_ID_START + NUM_IDS_LOADCELL; // Single ID for the flow sensor (9)
+const byte FLOW_SENSOR_ID = LOADCELL_ID_START + NUM_IDS_LOADCELL; // 9
 const byte NUM_IDS_FLOW = 1;
 
-const byte TEMP_ID_START = FLOW_SENSOR_ID + NUM_IDS_FLOW;     // Temp IDs start after flow (10, 11, 12, 13)
+const byte TEMP_ID_START = FLOW_SENSOR_ID + NUM_IDS_FLOW;     // 10
 const byte NUM_IDS_TEMP = NUM_TEMP_SENSORS; // 4
 
-const byte MOTOR_RPM_ID = TEMP_ID_START + NUM_IDS_TEMP;      // Motor RPM ID (14)
+const byte MOTOR_RPM_ID = TEMP_ID_START + NUM_IDS_TEMP;      // 14
 const byte NUM_IDS_MOTOR_RPM = 1;
 
 
@@ -128,14 +137,39 @@ const byte NUM_IDS_OTHER = NUM_OTHER_SENSORS;
 */
 
 
-// --- State Machine / Round-Robin Variables and Constants ---
+// --- Serial Receive State Machine Variables and Constants ---
+// Define states for parsing incoming commands
+enum RxState {
+  RX_WAITING_FOR_START,
+  RX_READING_TYPE,
+  RX_READING_TARGET_ID,
+  RX_READING_SIZE,
+  RX_READING_PAYLOAD,
+  RX_READING_END // Or just transition directly to processing from READING_PAYLOAD
+};
+
+// Global state variable, initialized in setup()
+RxState currentRxState = RX_WAITING_FOR_START;
+
+// Variables to store components of the current command being received
+byte rxCommandType = 0;
+byte rxTargetId = 0;
+byte rxPayloadSize = 0; // The size indicated in the packet
+byte rxPayloadBytesRead = 0; // How many payload bytes we've read so far
+
+// Buffer to hold the incoming command payload
+const byte MAX_COMMAND_PAYLOAD_SIZE = 16; // Choose a reasonable size larger than max needed (Motor is 3 bytes)
+byte rxPayloadBuffer[MAX_COMMAND_PAYLOAD_SIZE];
+
+
+// --- State Machine / Round-Robin Variables and Constants (Sensor Reading) ---
 int currentPressureSensorIndex = 0;
 unsigned long lastPressureSensorProcessTime = 0;
 const unsigned long MIN_PRESSURE_INTERVAL_MS = 10;
 
 int currentLoadCellIndex = 0; // Cycles 0, 1, 2
 unsigned long lastLoadCellProcessTime = 0;
-const unsigned long MIN_LOADCELL_CHECK_INTERVAL_MS = 150; // Consider adjusting this for 3 sensors
+const unsigned long MIN_LOADCELL_CHECK_INTERVAL_MS = 150;
 
 volatile long flow_pulse = 0;
 long flow_pulseLast = 0;
@@ -146,12 +180,10 @@ int currentTempSensorIndex = 0; // Cycles 0, 1, 2, 3
 unsigned long lastTempProcessTime = 0;
 const unsigned long MIN_TEMP_INTERVAL_MS = 500;
 
-// Motor Speed Sense State
-volatile unsigned long motor_pulse_count = 0; // Defined here and initialized
-unsigned long motor_last_pulse_count = 0;      // Defined here and initialized
-unsigned long lastMotorCalcTime = 0; // Defined here and initialized
-// The interval for how often to CALCULATE and SEND the Motor RPM
-const unsigned long MOTOR_CALCULATION_INTERVAL_MS = 500; // Example: every 500ms
+volatile unsigned long motor_pulse_count = 0;
+unsigned long motor_last_pulse_count = 0;
+unsigned long lastMotorCalcTime = 0;
+const unsigned long MOTOR_CALCULATION_INTERVAL_MS = 500;
 
 
 // Add state variables and constants for other sensor types here
@@ -163,19 +195,12 @@ const unsigned long MIN_OTHER_INTERVAL_MS = 50;
 
 
 // --- Timing Helper Functions ---
-unsigned long _timerStartTime = 0; // Defined here
-
-void startTimer() {
-  _timerStartTime = micros();
-}
-
+unsigned long _timerStartTime = 0;
+void startTimer() { _timerStartTime = micros(); }
 void printElapsedTime(const char* description) {
   unsigned long elapsed = micros() - _timerStartTime;
-  Serial.print(F("Time for "));
-  Serial.print(description);
-  Serial.print(F(": "));
-  Serial.print(elapsed);
-  Serial.println(F(" us"));
+  Serial.print(F("Time for ")); Serial.print(description); Serial.print(F(": "));
+  Serial.print(elapsed); Serial.println(F(" us"));
 }
 
 
@@ -185,17 +210,13 @@ void printElapsedTime(const char* description) {
 
 // --- Calculation Function for Pressure Sensor ---
 PressureSensorValues calculatePressureSensorValues(int raw_pressure_int, int index) {
-  if (index < 0 || index >= NUM_PRESSURE_SENSORS) {
-      return {-1.0f}; // Example: return -1.0f for invalid index
-  }
-
+  if (index < 0 || index >= NUM_PRESSURE_SENSORS) { return {-1.0f}; }
   float raw_pressure_f = (float)raw_pressure_int;
   float mV = raw_pressure_f * MV_FACTOR;
   float volts = mV / 1000.0f;
   float mA = volts * MA_FACTOR;
   float percent = mA * PERCENT_SLOPE + PERCENT_OFFSET;
   float pressure = percent * pressure_scale_factor[index];
-
   return {pressure};
 }
 
@@ -213,23 +234,15 @@ FlowMeterValues calculateFlowMeterValues(long currentPulseCount, long previousPu
 
 // --- Calculation Function for Temperature Sensor (MAX6675) ---
 TemperatureSensorValues calculateTemperatureSensorValues(int index) {
-    if (index < 0 || index >= NUM_TEMP_SENSORS) {
-        return {0.0f, 0.0f};
-    }
-
+    if (index < 0 || index >= NUM_TEMP_SENSORS) { return {0.0f, 0.0f}; }
     MAX6675& currentThermocouple = thermocouples[index];
-    double celsius = currentThermocouple.readCelsius(); // Library returns double
-
+    double celsius = currentThermocouple.readCelsius();
     TemperatureSensorValues values;
-
-    if (isnan(celsius)) {
-        values.temp_c = NAN;
-        values.temp_f = NAN;
-        // Serial.print(F("Warning: MAX6675 ID ")); Serial.print(TEMP_ID_START + index); Serial.println(F(" - Thermocouple open!")); // Debug print
-    } else {
+    if (isnan(celsius)) { values.temp_c = NAN; values.temp_f = NAN; }
+    else {
         double fahrenheit = celsius * FAHRENHEIT_SLOPE + FAHRENHEIT_OFFSET;
-        values.temp_c = (float)celsius;   // Convert double back to float for the struct
-        values.temp_f = (float)fahrenheit; // Convert double back to float for the struct
+        values.temp_c = (float)celsius;
+        values.temp_f = (float)fahrenheit;
     }
     return values;
 }
@@ -237,21 +250,11 @@ TemperatureSensorValues calculateTemperatureSensorValues(int index) {
 // --- Calculation Function for Motor RPM ---
 MotorRPMValue calculateMotorRPM(unsigned long currentPulseCount, unsigned long previousPulseCount, unsigned long interval_ms) {
     unsigned long delta_pulse = currentPulseCount - previousPulseCount;
-
-    // Avoid division by zero if interval_ms is 0
-    if (interval_ms == 0) {
-        return {0.0f};
-    }
-
-    // Frequency in Hz = (delta_pulse / interval_ms) * 1000 ms/sec
+    if (interval_ms == 0) { return {0.0f}; } // Avoid division by zero
     float frequency_hz = (float)delta_pulse / (float)interval_ms * 1000.0f;
-
-    // RPM = Frequency (Hz) * (60 sec/min / PulsesPerRev)
-    float rpm = frequency_hz * PULSES_PER_SEC_TO_RPM_FACTOR; // Use pre-calculated factor
-
+    float rpm = frequency_hz * PULSES_PER_SEC_TO_RPM_FACTOR;
     return {rpm};
 }
-
 
 // Add calculation functions for other sensor types here
 /*
@@ -274,6 +277,125 @@ void sendBinaryPacket(byte start_byte, byte id, const void* data_ptr, size_t dat
 
   Serial.write((const byte*)data_ptr, (size_t)data_size);
   Serial.write(end_byte);
+}
+
+
+// --- Command Handling Helper Functions ---
+
+// Helper function to set a relay state
+void setRelayState(byte relayIndex, byte state) {
+    if (relayIndex >= NUM_RELAYS) {
+        Serial.print(F("Error: Invalid relay index received: ")); Serial.println(relayIndex);
+        // Optional: Send error packet back to GUI
+        return;
+    }
+    if (state > 1) { // Assuming state is 0 (OFF) or 1 (ON)
+        Serial.print(F("Error: Invalid relay state received: ")); Serial.println(state);
+        // Optional: Send error packet back to GUI
+        return;
+    }
+    digitalWrite(RELAY_PINS[relayIndex], (state == 1) ? HIGH : LOW);
+    Serial.print(F("Set Relay ")); Serial.print(relayIndex); Serial.print(F(" to ")); Serial.println((state == 1) ? F("ON") : F("OFF"));
+    // Optional: Send acknowledgment packet back to GUI
+}
+
+// Helper function to set motor enable state
+void setMotorEnable(byte state) {
+    if (state > 1) { // Assuming state is 0 (OFF) or 1 (ON)
+        Serial.print(F("Error: Invalid motor enable state received: ")); Serial.println(state);
+        return;
+    }
+    digitalWrite(MOTOR_ENABLE_PIN, (state == 1) ? HIGH : LOW);
+    Serial.print(F("Set Motor Enable to: ")); Serial.println((state == 1) ? F("ON") : F("OFF"));
+}
+
+// Helper function to set motor direction
+void setMotorDirection(byte direction) {
+     if (direction > 1) { // Assuming direction is 0 (Reverse) or 1 (Forward)
+        Serial.print(F("Error: Invalid motor direction received: ")); Serial.println(direction);
+        return;
+    }
+    digitalWrite(MOTOR_DIRECTION_PIN, (direction == 1) ? HIGH : LOW); // Assuming HIGH is Forward based on setup
+     Serial.print(F("Set Motor Direction to: ")); Serial.println((direction == 1) ? F("Forward") : F("Reverse"));
+}
+
+// Helper function to set motor throttle (PWM duty cycle)
+void setMotorThrottle(byte throttlePercent) {
+    // Clamp the received percentage to 0-100
+    if (throttlePercent > 100) {
+        Serial.print(F("Warning: Clamping received throttle ")); Serial.print(throttlePercent); Serial.println(F(" to 100%."));
+        throttlePercent = 100;
+    }
+
+    // Map the 0-100% duty cycle value to the timer's range (0-199 for Timer4 @ 10kHz)
+    // Note: OCR4A is 16-bit, but map returns long. Cast to int or uint16_t.
+    int dutyCycleValue = map(throttlePercent, 0, 100, 0, 199);
+
+    // Set the duty cycle on Timer4's A channel (controls MOTOR_PWM_PIN = Pin 6)
+    OCR4A = dutyCycleValue; // Assign to Timer4 Output Compare Register A
+
+    Serial.print(F("Set Motor Throttle to: ")); Serial.print(throttlePercent); Serial.print(F("% (Timer value: ")); Serial.print(dutyCycleValue); Serial.println(F(")"));
+}
+
+
+// --- Main Command Handling Function ---
+// Processes a complete, valid command packet
+void handleCommand(byte commandType, byte targetId, const byte* payload, byte payloadSize) {
+    Serial.print(F("Received Command: Type=")); Serial.print(commandType);
+    Serial.print(F(", Target ID=")); Serial.print(targetId);
+    Serial.print(F(", Payload Size=")); Serial.println(payloadSize);
+
+    switch (commandType) {
+        case CMD_TYPE_SET_RELAY:
+            // Expected payload size is 1 byte (state)
+            if (payloadSize == 1) {
+                 // Target ID should be within the relay index range (0 to NUM_RELAYS-1)
+                if (targetId >= CMD_TARGET_RELAY_START && targetId < CMD_TARGET_RELAY_START + NUM_RELAYS) {
+                    setRelayState(targetId - CMD_TARGET_RELAY_START, payload[0]); // Adjust targetId to 0-3 index
+                } else {
+                    Serial.print(F("Error: CMD_TYPE_SET_RELAY received with invalid target ID: ")); Serial.println(targetId);
+                }
+            } else {
+                Serial.print(F("Error: CMD_TYPE_SET_RELAY received with invalid payload size: ")); Serial.println(payloadSize);
+            }
+            break;
+
+        case CMD_TYPE_SET_MOTOR:
+            // Expected payload size is 3 bytes (enable, direction, throttle)
+             if (payloadSize == 3) {
+                 // Target ID should be the motor ID
+                 if (targetId == CMD_TARGET_MOTOR_ID) {
+                     byte enableState = payload[0];
+                     byte directionState = payload[1];
+                     byte throttlePercent = payload[2];
+
+                     // Call motor control helpers
+                     setMotorEnable(enableState);
+                     setMotorDirection(directionState);
+                     setMotorThrottle(throttlePercent);
+
+                 } else {
+                    Serial.print(F("Error: CMD_TYPE_SET_MOTOR received with invalid target ID: ")); Serial.println(targetId);
+                 }
+             } else {
+                Serial.print(F("Error: CMD_TYPE_SET_MOTOR received with invalid payload size: ")); Serial.println(payloadSize);
+             }
+             break;
+
+        // Add cases for other command types here
+        /*
+        case CMD_TYPE_OTHER_COMMAND:
+           // ... process payload based on command type and target ID ...
+           break;
+        */
+
+        default:
+            // Received an unknown command type
+            Serial.print(F("Error: Received unknown command type: ")); Serial.println(commandType);
+            break;
+    }
+    // Optional: Send a generic acknowledgment packet back to GUI after processing a command
+    // sendBinaryPacket(ACK_PACKET_START_BYTE, ACK_ID, nullptr, 0, ACK_PACKET_END_BYTE);
 }
 
 
@@ -325,7 +447,6 @@ void setupFlowSensors() {
 void setupTemperatureSensors() {
   Serial.println(F("Setting up Temperature Sensors (MAX6675)..."));
   // MAX6675 objects are defined globally, initialized with pins.
-  // Library's begin() handles pinMode for DO, CS, CLK.
   // delay(500); // Optional power-up delay
 
   currentTempSensorIndex = 0;
@@ -354,16 +475,16 @@ void setupDCMotor() {
     digitalWrite(MOTOR_DIRECTION_PIN, HIGH); // Set default direction (e.g., Forward)
     analogWrite(MOTOR_PWM_PIN, 0);         // Set initial PWM to 0 (stopped)
 
-    // --- Setup PWM on Pin 11 using Timer1 for 10kHz frequency (Matching code snippet) ---
-    // Make sure you are using Timer1 registers for Pin 11 (OC1A)
-    // This configuration sets Fast PWM mode (WGM13:12:11 = 111) with TOP = ICR1
-    // Non-inverting mode (COM1A1=1, COM1A0=0)
-    // Prescaler 8 (CS11=1)
-    // Frequency = F_CPU / (Prescaler * (1 + TOP)) = 16,000,000 / (8 * (1 + 199)) = 16,000,000 / (8 * 200) = 16,000,000 / 1600 = 10,000 Hz
-    TCCR1A = _BV(COM1A1) | _BV(WGM11); // Pin 11 (OC1A) Non-inverting, Fast PWM
-    TCCR1B = _BV(WGM13) | _BV(WGM12) | _BV(CS11); // Fast PWM Mode, TOP in ICR1, Prescaler 8
-    ICR1 = 199; // Sets the frequency to 10kHz
-    OCR1A = 0;  // Set initial duty cycle to 0% (Pin 11)
+    // --- Setup PWM on Pin 6 using Timer4 for 10kHz frequency ---
+    // Pin 6 is OC4A, controlled by Timer4.
+    // Mode 14: Fast PWM, TOP=ICR4. WGM43:42:41:40 = 1110
+    // Non-inverting mode: COM4A1=1, COM4A0=0
+    // Prescaler 8: CS41=1
+    // Frequency = F_CPU / (Prescaler * (1 + TOP)) = 16,000,000 / (8 * (1 + 199)) = 10,000 Hz
+    TCCR4A = _BV(COM4A1) | _BV(WGM41); // COM4A1 non-inverting, WGM41 for Mode 14
+    TCCR4B = _BV(WGM43) | _BV(WGM42) | _BV(CS41); // WGM43, WGM42 for Mode 14, CS41 for prescaler 8
+    ICR4 = 199; // Sets the TOP value for the timer
+    OCR4A = 0;  // Set initial duty cycle to 0% (Pin 6)
 
     // --- Setup for RPM Reading ---
     pinMode(MOTOR_SPEED_SENSE_PIN, INPUT_PULLUP); // Use internal pull-up resistor
