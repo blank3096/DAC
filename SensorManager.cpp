@@ -559,6 +559,7 @@ void testTimingBatchAllTypes() {
   byte motor_id = MOTOR_RPM_ID;
   sendBinaryPacket(MOTOR_RPM_PACKET_START_BYTE, motor_id, &mData, sizeof(mData), MOTOR_RPM_PACKET_END_BYTE);
   printElapsedTime("One Motor RPM Calc + Send");
+    if (index < 0 || index >= NUM_TEMP_SENSORS) { return {0.0f, 0.0f}; }
 
 
   // Add tests for other sensor types here

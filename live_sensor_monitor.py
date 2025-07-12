@@ -21,6 +21,8 @@ FLOW_PACKET_END_BYTE = 0xDD
 TEMP_PACKET_START_BYTE = 0xEE
 TEMP_PACKET_END_BYTE = 0xFF
 
+MOTOR_RPM_PACKET_START_BYTE = 0xF0
+MOTOR_RPM_PACKET_END_BYTE = 0xF1
 
 # --- Define expected payload structures and sizes ---
 # Format strings for struct.unpack: '<' is little-endian (Arduino AVR is little-endian)
@@ -40,8 +42,7 @@ PACKET_TYPES = {
         'payload_size': 4,  # 1 float * 4 bytes/float
         'format': '<f',    # little-endian, 1 float (weight_grams)
         'fields': ['weight_grams'],
-        # --- CHANGED: Expected ID range for 3 sensors (e.g., 6-8) ---
-        'ids': list(range(6, 9))
+        'ids': list(range(6, 9)) # Expected IDs for load cell sensors (6-8)
     },
     FLOW_PACKET_START_BYTE: {
         'name': 'Flow',
@@ -49,25 +50,28 @@ PACKET_TYPES = {
         'payload_size': 4,  # 1 float * 4 bytes/float
         'format': '<f',
         'fields': ['flow_rate_lpm'],
-        # --- CHANGED: Expected ID range for 1 sensor (e.g., 9) ---
-        'ids': [9] # Assuming a single flow sensor with ID 9 (6 + 3)
+        'ids': [9] # Expected ID for flow sensor (9)
     },
-     TEMP_PACKET_START_BYTE: {
+    TEMP_PACKET_START_BYTE: {
         'name': 'Temperature',
         'end_byte': TEMP_PACKET_END_BYTE,
         'payload_size': 8,  # 2 floats * 4 bytes/float
         'format': '<ff',
         'fields': ['temp_c', 'temp_f'],
-        # --- CHANGED: Expected ID range for 4 sensors (e.g., 10-13) ---
-        'ids': list(range(10, 14)) # Assuming temp starts after flow (9 + 1 = 10)
+        'ids': list(range(10, 14)) # Expected IDs for temperature sensors (10-13)
     },
-    # Add other sensor types here
-    # OTHER_PACKET_START_BYTE: { ... }
+    MOTOR_RPM_PACKET_START_BYTE: {
+        'name': 'MotorRPM',
+        'end_byte': MOTOR_RPM_PACKET_END_BYTE,
+        'payload_size': 4,  # 1 float * 4 bytes/float
+        'format': '<f',
+        'fields': ['rpm'],
+        'ids': [14] # Expected ID for motor RPM sensor (14)
+    }
 }
 
 # Mapping from Packet ID back to Type Info for easier lookup (Built in main)
 ID_TO_PACKET_INFO = {}
-
 
 # --- Parsing State Machine ---
 STATE_WAITING_FOR_START = 0
@@ -90,7 +94,6 @@ class SerialPacketReceiver:
         # Format: {id: {'type': '...', 'timestamp': ..., 'values': (...), 'fields': [...]}}
         self.latest_sensor_data = {}
 
-
     def process_byte(self, byte_data):
         """Processes a single incoming byte."""
         # print(f"Processing byte: {byte_data:02X}") # Debug byte processing
@@ -110,27 +113,27 @@ class SerialPacketReceiver:
                 self.current_id = byte_data
                 self.payload_buffer += bytes([byte_data]) # Add ID to buffer (optional)
             elif len(self.payload_buffer) == 1: # Reading Size
-                 self.payload_size = byte_data
-                 self.payload_buffer += bytes([byte_data]) # Add Size to buffer (optional)
+                self.payload_size = byte_data
+                self.payload_buffer += bytes([byte_data]) # Add Size to buffer (optional)
 
-                 # Check if declared size matches expected size for this type
-                 # Also check if the ID is one we expect for this packet type
-                 expected_size = self.current_packet_type_type_info['payload_size'] # Typo fix: removed extra '_type'
-                 expected_ids = self.current_packet_type_info.get('ids')
+                # Check if declared size matches expected size for this type
+                # Also check if the ID is one we expect for this packet type
+                expected_size = self.current_packet_type_info['payload_size']
+                expected_ids = self.current_packet_type_info.get('ids')
 
-                 if self.payload_size != expected_size:
-                     print(f"Warning: Packet {self.current_packet_type_info['name']} (start {self.current_start_byte:02X}) - Declared size ({self.payload_size}) != expected ({expected_size}). Discarding.", file=sys.stderr)
-                     self._reset_state()
-                 elif expected_ids is not None and self.current_id not in expected_ids:
-                     print(f"Warning: Packet {self.current_packet_type_info['name']} (start {self.current_start_byte:02X}) - Unexpected ID ({self.current_id}) for this type. Discarding.", file=sys.stderr)
-                     self._reset_state()
-                 elif self.payload_size == 0:
-                     # If payload size is 0, skip reading payload and go straight to end byte
-                     self.state = STATE_READING_END
-                     self.payload_buffer = b'' # Clear buffer after header processing
-                 else:
-                     self.state = STATE_READING_PAYLOAD
-                     self.payload_buffer = b'' # Clear buffer to store only actual payload data
+                if self.payload_size != expected_size:
+                    print(f"Warning: Packet {self.current_packet_type_info['name']} (start {self.current_start_byte:02X}) - Declared size ({self.payload_size}) != expected ({expected_size}). Discarding.", file=sys.stderr)
+                    self._reset_state()
+                elif expected_ids is not None and self.current_id not in expected_ids:
+                    print(f"Warning: Packet {self.current_packet_type_info['name']} (start {self.current_start_byte:02X}) - Unexpected ID ({self.current_id}) for this type. Discarding.", file=sys.stderr)
+                    self._reset_state()
+                elif self.payload_size == 0:
+                    # If payload size is 0, skip reading payload and go straight to end byte
+                    self.state = STATE_READING_END
+                    self.payload_buffer = b'' # Clear buffer after header processing
+                else:
+                    self.state = STATE_READING_PAYLOAD
+                    self.payload_buffer = b'' # Clear buffer to store only actual payload data
 
         elif self.state == STATE_READING_PAYLOAD:
             self.payload_buffer += bytes([byte_data])
@@ -148,7 +151,6 @@ class SerialPacketReceiver:
 
             # Reset state for the next packet regardless of success or failure
             self._reset_state()
-
 
     def _process_complete_packet(self):
         """Handles a successfully received and validated packet."""
@@ -176,14 +178,13 @@ class SerialPacketReceiver:
         except Exception as e:
             print(f"Error processing packet {packet_info['name']} ID {self.current_id}: {e}", file=sys.stderr)
 
-
     def _reset_state(self):
-         self.state = STATE_WAITING_FOR_START
-         self.payload_buffer = b''
-         self.current_packet_type_info = None
-         self.current_start_byte = None
-         self.current_id = None
-         self.payload_size = 0
+        self.state = STATE_WAITING_FOR_START
+        self.payload_buffer = b''
+        self.current_packet_type_info = None
+        self.current_start_byte = None
+        self.current_id = None
+        self.payload_size = 0
 
     def get_latest_data(self, sensor_id):
         """Retrieve the latest data for a given sensor ID."""
@@ -206,12 +207,10 @@ class SerialPacketReceiver:
             header = f"[{data['type']} ID {sensor_id}]"
             max_header_len = max(max_header_len, len(header))
 
-
         print("-" * (max_header_len + 50)) # Print a separator line
         for sensor_id in sorted_ids:
             data = self.latest_sensor_data[sensor_id]
             packet_type = data['type']
-            # timestamp = data['timestamp'] # Not printed in summary
             values = data['values']
             fields = data['fields']
 
@@ -219,35 +218,35 @@ class SerialPacketReceiver:
             print(f"{header:<{max_header_len}}", end=" ") # Print header left-aligned
 
             for i, field_name in enumerate(fields):
-                 # Add specific formatting or units based on field_name or sensor_id
-                 value = values[i] # Get the specific value
-                 if packet_type == 'Pressure' and field_name == 'pressure': # Formatting for Pressure (now only pressure)
-                     print(f"{field_name}: {value:.2f} bar", end=" ")
-                 elif packet_type == 'LoadCell' and field_name == 'weight_grams':
-                      print(f"{field_name}: {value:.3f} g", end=" ")
-                 elif packet_type == 'Flow' and field_name == 'flow_rate_lpm': # Formatting for Flow
-                      print(f"{field_name}: {value:.3f} LPM", end=" ")
-                 elif packet_type == 'Temperature': # Formatting for Temp
-                     if field_name == 'temp_c':
-                          # Check for NaN (open thermocouple)
-                          if math.isnan(value): # Use math.isnan for clarity
-                              print(f"{field_name}: ERR (Open TC)", end=" ")
-                          else:
-                              print(f"{field_name}: {value:.1f} C", end=" ")
-                     elif field_name == 'temp_f':
-                          if math.isnan(value):
-                               print(f"{field_name}: ERR (Open TC)", end=" ")
-                          else:
-                              print(f"{field_name}: {value:.1f} F", end=" ")
-                     else: # Default float formatting for temp fields if names change
-                           print(f"{field_name}: {value:.1f}", end=" ")
-                 else: # Default formatting for other types or unknown fields
-                      print(f"{field_name}: {value:.3f}", end=" ")
+                # Add specific formatting or units based on field_name or sensor_id
+                value = values[i] # Get the specific value
+                if packet_type == 'Pressure' and field_name == 'pressure':
+                    print(f"{field_name}: {value:.2f} bar", end=" ")
+                elif packet_type == 'LoadCell' and field_name == 'weight_grams':
+                    print(f"{field_name}: {value:.3f} g", end=" ")
+                elif packet_type == 'Flow' and field_name == 'flow_rate_lpm':
+                    print(f"{field_name}: {value:.3f} LPM", end=" ")
+                elif packet_type == 'Temperature':
+                    if field_name == 'temp_c':
+                        if math.isnan(value):
+                            print(f"{field_name}: ERR (Open TC)", end=" ")
+                        else:
+                            print(f"{field_name}: {value:.1f} C", end=" ")
+                    elif field_name == 'temp_f':
+                        if math.isnan(value):
+                            print(f"{field_name}: ERR (Open TC)", end=" ")
+                        else:
+                            print(f"{field_name}: {value:.1f} F", end=" ")
+                    else:
+                        print(f"{field_name}: {value:.1f}", end=" ")
+                elif packet_type == 'MotorRPM' and field_name == 'rpm':
+                    print(f"{field_name}: {value:.1f} RPM", end=" ")
+                else:
+                    print(f"{field_name}: {value:.3f}", end=" ")
 
             print() # Newline for next sensor
 
         # print("--------------------------") # Separator handled by the first line
-
 
 # --- Function to automatically detect Arduino port ---
 def auto_detect_arduino_port():
@@ -285,7 +284,6 @@ def auto_detect_arduino_port():
         print("No Arduino port found.")
         return None # Indicate not found
 
-
 # --- Threading function to continuously read from serial ---
 def serial_reader_thread(ser, receiver):
     """Function to run in a separate thread, reading serial."""
@@ -300,11 +298,10 @@ def serial_reader_thread(ser, receiver):
             print(f"Serial reading thread error: {e}", file=sys.stderr)
             break # Exit the thread on error
         except Exception as e:
-             print(f"Unexpected error in serial reading thread: {e}", file=sys.stderr)
-             break # Exit thread
+            print(f"Unexpected error in serial reading thread: {e}", file=sys.stderr)
+            break # Exit thread
 
     print("Serial reading thread finished.")
-
 
 # --- Main part to run the live monitor ---
 if __name__ == "__main__":
@@ -316,7 +313,6 @@ if __name__ == "__main__":
                 existing_type_name = PACKET_TYPES[existing_start_byte]['name']
                 print(f"Warning: Duplicate sensor ID {sensor_id} found! Defined for {existing_type_name} (start {existing_start_byte:02X}) and {info['name']} (start {start_byte:02X}). This will cause ambiguity!", file=sys.stderr)
             ID_TO_PACKET_INFO[sensor_id] = start_byte
-
 
     # Create an argument parser
     parser = argparse.ArgumentParser(description='Live monitor for sensor data from an Arduino via serial.')
@@ -360,11 +356,9 @@ if __name__ == "__main__":
             print("Error: No suitable serial port found or specified. Exiting.", file=sys.stderr)
             sys.exit(1)
 
-
     BAUD_RATE = args.baudrate
     READ_TIMEOUT = args.timeout
     UPDATE_INTERVAL = args.update_interval
-
 
     receiver = SerialPacketReceiver()
     serial_thread = None
@@ -375,7 +369,6 @@ if __name__ == "__main__":
         ser = serial.Serial(SERIAL_PORT_TO_USE, BAUD_RATE, timeout=READ_TIMEOUT)
         print("Serial port opened successfully.")
         time.sleep(2) # Give Arduino time to reset and reach setup()
-
 
         # Start the serial reading in a separate thread
         serial_thread = threading.Thread(target=serial_reader_thread, args=(ser, receiver), daemon=True)
