@@ -7,6 +7,33 @@ import threading
 import argparse
 import math
 import queue
+import logging
+
+# Configure logging to write to Work.log and console with timestamps
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(message)s',
+    datefmt='%Y-%m-%d %H:%M:%S',
+    handlers=[
+        logging.FileHandler('Work.log', mode='a'),
+        logging.StreamHandler(sys.stdout)
+    ]
+)
+logger = logging.getLogger()
+
+# Redirect stderr to logger
+class StdErrToLogger:
+    def __init__(self, logger):
+        self.logger = logger
+
+    def write(self, message):
+        if message.strip():  # Avoid logging empty lines
+            self.logger.error(message.strip())
+
+    def flush(self):
+        pass
+
+sys.stderr = StdErrToLogger(logger)
 
 # Constants (matched to SensorManager.cpp)
 COMMAND_START_BYTE = 0xFC  # Start byte for command packets
@@ -124,10 +151,10 @@ class SerialPacketReceiver:
                 expected_size = self.current_packet_type_info['payload_size']
                 expected_ids = self.current_packet_type_info.get('ids')
                 if self.payload_size != expected_size:
-                    print(f"Warning: Packet {self.current_packet_type_info['name']} (start {self.current_start_byte:02X}) - Declared size ({self.payload_size}) != expected ({expected_size}). Discarding.", file=sys.stderr)
+                    logger.warning(f"Packet {self.current_packet_type_info['name']} (start {self.current_start_byte:02X}) - Declared size ({self.payload_size}) != expected ({expected_size}). Discarding.")
                     self._reset_state()
                 elif expected_ids is not None and self.current_id not in expected_ids:
-                    print(f"Warning: Packet {self.current_packet_type_info['name']} (start {self.current_start_byte:02X}) - Unexpected ID ({self.current_id}). Discarding.", file=sys.stderr)
+                    logger.warning(f"Packet {self.current_packet_type_info['name']} (start {self.current_start_byte:02X}) - Unexpected ID ({self.current_id}). Discarding.")
                     self._reset_state()
                 elif self.payload_size == 0:
                     self.state = STATE_READING_END
@@ -146,7 +173,7 @@ class SerialPacketReceiver:
             if byte_data == expected_end_byte:
                 self._process_complete_packet()
             else:
-                print(f"Warning: Protocol Error for packet starting with {self.current_start_byte:02X}. Expected End Byte {expected_end_byte:02X}, got {byte_data:02X}. Discarding.", file=sys.stderr)
+                logger.warning(f"Protocol Error for packet starting with {self.current_start_byte:02X}. Expected End Byte {expected_end_byte:02X}, got {byte_data:02X}. Discarding.")
             self._reset_state()
 
     def _process_complete_packet(self):
@@ -161,9 +188,9 @@ class SerialPacketReceiver:
                 'fields': packet_info['fields']
             }
         except struct.error as e:
-            print(f"Error unpacking {packet_info['name']} packet ID {self.current_id}: {e}", file=sys.stderr)
+            logger.error(f"Unpacking {packet_info['name']} packet ID {self.current_id}: {e}")
         except Exception as e:
-            print(f"Error processing packet {packet_info['name']} ID {self.current_id}: {e}", file=sys.stderr)
+            logger.error(f"Processing packet {packet_info['name']} ID {self.current_id}: {e}")
 
     def _reset_state(self):
         self.state = STATE_WAITING_FOR_START
@@ -179,38 +206,38 @@ class SerialPacketReceiver:
             return
         sorted_ids = sorted(self.latest_sensor_data.keys())
         max_header_len = max(len(f"[{data['type']} ID {sid}]") for sid, data in self.latest_sensor_data.items())
-        print("-" * (max_header_len + 50))
+        logger.info("-" * (max_header_len + 50))
         for sensor_id in sorted_ids:
             data = self.latest_sensor_data[sensor_id]
             packet_type = data['type']
             values = data['values']
             fields = data['fields']
             header = f"[{packet_type} ID {sensor_id}]"
-            print(f"{header:<{max_header_len}}", end=" ")
+            output = f"{header:<{max_header_len}} "
             for i, field_name in enumerate(fields):
                 value = values[i]
                 if packet_type == 'Pressure' and field_name == 'pressure':
-                    print(f"{field_name}: {value:.2f} bar", end=" ")
+                    output += f"{field_name}: {value:.2f} bar "
                 elif packet_type == 'LoadCell' and field_name == 'weight_grams':
-                    print(f"{field_name}: {value:.3f} g", end=" ")
+                    output += f"{field_name}: {value:.3f} g "
                 elif packet_type == 'Flow' and field_name == 'flow_rate_lpm':
-                    print(f"{field_name}: {value:.3f} LPM", end=" ")
+                    output += f"{field_name}: {value:.3f} LPM "
                 elif packet_type == 'Temperature':
                     if field_name == 'temp_c':
-                        print(f"{field_name}: {'ERR (Open TC)' if math.isnan(value) else f'{value:.1f} C'}", end=" ")
+                        output += f"{field_name}: {'ERR (Open TC)' if math.isnan(value) else f'{value:.1f} C'} "
                     elif field_name == 'temp_f':
-                        print(f"{field_name}: {'ERR (Open TC)' if math.isnan(value) else f'{value:.1f} F'}", end=" ")
+                        output += f"{field_name}: {'ERR (Open TC)' if math.isnan(value) else f'{value:.1f} F'} "
                 elif packet_type == 'MotorRPM' and field_name == 'rpm':
-                    print(f"{field_name}: {value:.1f} RPM", end=" ")
+                    output += f"{field_name}: {value:.1f} RPM "
                 else:
-                    print(f"{field_name}: {value:.3f}", end=" ")
-            print()
+                    output += f"{field_name}: {value:.3f} "
+            logger.info(output.strip())
 
 def auto_detect_arduino_port():
     """Detects Arduino Mega port, returns port name or None if not found/ambiguous."""
     arduino_ports = []
     search_terms = ['Arduino', 'USB-SERIAL', 'VID:PID=2341', 'VID:PID=1A86', 'VID:PID=0403', 'usbmodem']
-    print("Searching for Arduino port...")
+    logger.info("Searching for Arduino port...")
     ports = serial.tools.list_ports.comports()
     for port in ports:
         port_description = port.description.lower()
@@ -220,14 +247,14 @@ def auto_detect_arduino_port():
                 arduino_ports.append(port.device)
                 break
     if len(arduino_ports) == 1:
-        print(f"Automatically selected port: {arduino_ports[0]}")
+        logger.info(f"Automatically selected port: {arduino_ports[0]}")
         return arduino_ports[0]
     elif len(arduino_ports) > 1:
-        print(f"Found multiple potential Arduino ports: {', '.join(arduino_ports)}")
-        print("Please specify the port using the --port argument.")
+        logger.info(f"Found multiple potential Arduino ports: {', '.join(arduino_ports)}")
+        logger.info("Please specify the port using the --port argument.")
         return None
     else:
-        print("No Arduino port found.")
+        logger.info("No Arduino port found.")
         return None
 
 def send_motor_control_command(ser, motor_id, throttle):
@@ -239,12 +266,12 @@ def send_motor_control_command(ser, motor_id, throttle):
     """
     try:
         if not (0 <= throttle <= 100):
-            print("Error: Throttle must be between 0 and 100")
+            logger.error("Throttle must be between 0 and 100")
             return
         payload = struct.pack('>B', throttle)
         payload_size = len(payload)
         if payload_size > MAX_COMMAND_PAYLOAD_SIZE:
-            print(f"Error: Payload size {payload_size} exceeds max {MAX_COMMAND_PAYLOAD_SIZE}")
+            logger.error(f"Payload size {payload_size} exceeds max {MAX_COMMAND_PAYLOAD_SIZE}")
             return
         packet = bytearray()
         packet.append(COMMAND_START_BYTE)
@@ -254,11 +281,11 @@ def send_motor_control_command(ser, motor_id, throttle):
         packet.extend(payload)
         packet.append(COMMAND_END_BYTE)
         ser.write(packet)
-        print(f"Sent motor control command: ID={motor_id}, Throttle={throttle}%")
+        logger.info(f"Sent motor control command: ID={motor_id}, Throttle={throttle}%")
     except serial.SerialException as e:
-        print(f"Serial error: {e}", file=sys.stderr)
+        logger.error(f"Serial error: {e}")
     except Exception as e:
-        print(f"Error: {e}", file=sys.stderr)
+        logger.error(f"Error: {e}")
 
 def send_relay_control_command(ser, relay_id, state):
     """
@@ -269,12 +296,12 @@ def send_relay_control_command(ser, relay_id, state):
     """
     try:
         if state not in (0, 1):
-            print("Error: State must be 0 (OFF) or 1 (ON)")
+            logger.error("State must be 0 (OFF) or 1 (ON)")
             return
         payload = struct.pack('>B', state)
         payload_size = len(payload)
         if payload_size > MAX_COMMAND_PAYLOAD_SIZE:
-            print(f"Error: Payload size {payload_size} exceeds max {MAX_COMMAND_PAYLOAD_SIZE}")
+            logger.error(f"Payload size {payload_size} exceeds max {MAX_COMMAND_PAYLOAD_SIZE}")
             return
         packet = bytearray()
         packet.append(COMMAND_START_BYTE)
@@ -284,31 +311,31 @@ def send_relay_control_command(ser, relay_id, state):
         packet.extend(payload)
         packet.append(COMMAND_END_BYTE)
         ser.write(packet)
-        print(f"Sent relay control command: ID={relay_id}, State={'ON' if state else 'OFF'}")
+        logger.info(f"Sent relay control command: ID={relay_id}, State={'ON' if state else 'OFF'}")
     except serial.SerialException as e:
-        print(f"Serial error: {e}", file=sys.stderr)
+        logger.error(f"Serial error: {e}")
     except Exception as e:
-        print(f"Error: {e}", file=sys.stderr)
+        logger.error(f"Error: {e}")
 
 def serial_reader_thread(ser, receiver):
     """Reads serial data in a separate thread."""
-    print("Serial reading thread started.")
+    logger.info("Serial reading thread started.")
     while ser.is_open:
         try:
             byte_data = ser.read(1)
             if byte_data:
                 receiver.process_byte(byte_data[0])
         except serial.SerialException as e:
-            print(f"Serial reading thread error: {e}", file=sys.stderr)
+            logger.error(f"Serial reading thread error: {e}")
             break
         except Exception as e:
-            print(f"Unexpected error in serial reading thread: {e}", file=sys.stderr)
+            logger.error(f"Unexpected error in serial reading thread: {e}")
             break
-    print("Serial reading thread finished.")
+    logger.info("Serial reading thread finished.")
 
 def command_input_thread(command_queue):
     """Reads user input in a separate thread and puts commands into the queue."""
-    print("Command input thread started.")
+    logger.info("Command input thread started.")
     while True:
         try:
             command = input().strip()
@@ -317,9 +344,9 @@ def command_input_thread(command_queue):
             command_queue.put('q')  # Signal exit on EOF
             break
         except Exception as e:
-            print(f"Error in command input thread: {e}", file=sys.stderr)
+            logger.error(f"Error in command input thread: {e}")
             break
-    print("Command input thread finished.")
+    logger.info("Command input thread finished.")
 
 def main():
     # Build ID_TO_PACKET_INFO lookup table
@@ -328,7 +355,7 @@ def main():
             if sensor_id in ID_TO_PACKET_INFO:
                 existing_start_byte = ID_TO_PACKET_INFO[sensor_id]
                 existing_type_name = PACKET_TYPES[existing_start_byte]['name']
-                print(f"Warning: Duplicate sensor ID {sensor_id} found! Defined for {existing_type_name} (start {existing_start_byte:02X}) and {info['name']} (start {start_byte:02X}).", file=sys.stderr)
+                logger.warning(f"Duplicate sensor ID {sensor_id} found! Defined for {existing_type_name} (start {existing_start_byte:02X}) and {info['name']} (start {start_byte:02X}).")
             ID_TO_PACKET_INFO[sensor_id] = start_byte
 
     # Argument parser
@@ -341,7 +368,7 @@ def main():
 
     SERIAL_PORT = args.port if args.port else auto_detect_arduino_port()
     if SERIAL_PORT is None:
-        print("Error: No suitable serial port found or specified. Exiting.", file=sys.stderr)
+        logger.error("No suitable serial port found or specified. Exiting.")
         sys.exit(1)
 
     BAUDRATE = args.baudrate
@@ -355,9 +382,9 @@ def main():
     ser = None
 
     try:
-        print(f"Opening serial port {SERIAL_PORT} at {BAUDRATE} baud...")
+        logger.info(f"Opening serial port {SERIAL_PORT} at {BAUDRATE} baud...")
         ser = serial.Serial(SERIAL_PORT, BAUDRATE, timeout=READ_TIMEOUT)
-        print("Serial port opened successfully.")
+        logger.info("Serial port opened successfully.")
         time.sleep(2)  # Allow Arduino to reset
 
         serial_thread = threading.Thread(target=serial_reader_thread, args=(ser, receiver), daemon=True)
@@ -366,10 +393,10 @@ def main():
         input_thread = threading.Thread(target=command_input_thread, args=(command_queue,), daemon=True)
         input_thread.start()
 
-        print(f"Connected to Arduino Mega on {SERIAL_PORT}")
-        print("Monitoring sensor data. Enter commands (or 'q' to quit):")
-        print("  Motor: 'm <throttle>' (e.g., 'm 50' for 50% throttle)")
-        print("  Relay: 'r <id> <state>' (e.g., 'r 0 1' for relay 0 ON)")
+        logger.info(f"Connected to Arduino Mega on {SERIAL_PORT}")
+        logger.info("Monitoring sensor data. Enter commands (or 'q' to quit):")
+        logger.info("  Motor: 'm <throttle>' (e.g., 'm 50' for 50% throttle)")
+        logger.info("  Relay: 'r <id> <state>' (e.g., 'r 0 1' for relay 0 ON)")
         last_print_time = time.time()
 
         while True:
@@ -385,7 +412,7 @@ def main():
                     break
                 parts = command.split()
                 if not parts:
-                    print("Please enter a command or 'q' to quit")
+                    logger.info("Please enter a command or 'q' to quit")
                     continue
                 cmd_type = parts[0].lower()
                 if cmd_type == 'm' and len(parts) == 2:
@@ -393,35 +420,35 @@ def main():
                         throttle = int(parts[1])
                         send_motor_control_command(ser, CMD_TARGET_MOTOR_ID, throttle)
                     except ValueError:
-                        print("Invalid input. Use a number for throttle")
+                        logger.error("Invalid input. Use a number for throttle")
                 elif cmd_type == 'r' and len(parts) == 3:
                     try:
                         relay_id = int(parts[1])
                         state = int(parts[2])
                         if relay_id not in (0, 1, 2, 3):
-                            print("Error: Relay ID must be 0, 1, 2, or 3")
+                            logger.error("Relay ID must be 0, 1, 2, or 3")
                         else:
                             send_relay_control_command(ser, relay_id, state)
                     except ValueError:
-                        print("Invalid input. Use numbers for relay_id and state")
+                        logger.error("Invalid input. Use numbers for relay_id and state")
                 else:
-                    print("Invalid command. Use 'm <throttle>' or 'r <id> <state>'")
+                    logger.error("Invalid command. Use 'm <throttle>' or 'r <id> <state>'")
             except queue.Empty:
                 pass  # No command available, continue loop
             time.sleep(0.05)  # Prevent CPU overload
 
     except serial.SerialException as e:
-        print(f"Error: Could not open serial port {SERIAL_PORT}: {e}", file=sys.stderr)
+        logger.error(f"Could not open serial port {SERIAL_PORT}: {e}")
         sys.exit(1)
     except KeyboardInterrupt:
-        print("\nExiting due to user interrupt.")
+        logger.info("Exiting due to user interrupt.")
     except Exception as e:
-        print(f"Unexpected error: {e}", file=sys.stderr)
+        logger.error(f"Unexpected error: {e}")
         sys.exit(1)
     finally:
         if ser and ser.is_open:
             ser.close()
-            print("Serial port closed.")
+            logger.info("Serial port closed.")
 
 if __name__ == "__main__":
     main()
