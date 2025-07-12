@@ -37,16 +37,19 @@ extern const float PULSES_TO_LPM_FACTOR;
 
 
 // --- Temperature Sensor (MAX6675) Constants ---
-extern const int THERMO_DO_PINS[2];
-extern const int THERMO_CS_PINS[2];
-extern const int THERMO_CLK_PINS[2];
+// Define arrays for pins for each of the FOUR MAX6675 sensors - SIZE INCREASED TO 4
+extern const int THERMO_DO_PINS[4];
+extern const int THERMO_CS_PINS[4];
+extern const int THERMO_CLK_PINS[4]; // Now holds potentially different pins
 
-extern const int NUM_TEMP_SENSORS;
+extern const int NUM_TEMP_SENSORS; // Will be 4
 
+// Pre-calculated constants for Fahrenheit conversion (needed in calc function)
 extern const float FAHRENHEIT_SLOPE;
 extern const float FAHRENHEIT_OFFSET;
 
-extern MAX6675 thermocouples[2];
+// Array of MAX6675 objects - SIZE INCREASED TO 4
+extern MAX6675 thermocouples[4];
 
 
 // Add constants for other sensor types here
@@ -76,8 +79,8 @@ extern const byte NUM_IDS_LOADCELL;
 extern const byte FLOW_SENSOR_ID;
 extern const byte NUM_IDS_FLOW;
 
-extern const byte TEMP_ID_START;
-extern const byte NUM_IDS_TEMP;
+extern const byte TEMP_ID_START; // Temp IDs start after flow (e.g., 8 + 1 = 9)
+extern const byte NUM_IDS_TEMP; // Now 4
 
 // Add constants for other sensor types here (packet markers, ID starts, num IDs)
 /*
@@ -89,7 +92,6 @@ extern const byte NUM_IDS_OTHER;
 
 
 // --- Data Structures for Sensor Values ---
-// Pressure Sensor Values - Now only contains pressure
 struct PressureSensorValues {
   float pressure;
 };
@@ -127,8 +129,11 @@ extern long flow_pulseLast;
 extern unsigned long lastFlowProcessTime;
 extern const unsigned long FLOW_CALCULATION_INTERVAL_MS;
 
-extern int currentTempSensorIndex;
-extern unsigned long lastTempProcessTime;
+// Temperature Sensor State (for the four sensors) - SIZE INCREASED TO 4
+extern int currentTempSensorIndex; // Which temp sensor to process next
+extern unsigned long lastTempProcessTime; // Time last temp sensor was processed
+// The interval for how often to read and send temp for ONE sensor
+// Must be >= 250ms due to MAX6675 conversion time
 extern const unsigned long MIN_TEMP_INTERVAL_MS;
 
 // Add state variables and constants for other sensor types here
@@ -166,7 +171,7 @@ void sendBinaryPacket(byte start_byte, byte id, const void* data_ptr, size_t dat
 void setupPressureSensors();
 void setupLoadCells();
 void setupFlowSensors();
-void setupTemperatureSensors();
+void setupTemperatureSensors(); // Updated to handle 4 sensors
 
 // Add prototypes for other modular setup functions here
 /*

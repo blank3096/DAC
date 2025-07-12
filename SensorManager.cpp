@@ -25,8 +25,8 @@ float pressure_scale_factor[6];
 
 
 // --- Load Cell Constants ---
-const byte LOADCELL_DOUT_PINS[2] = {5, 10}; // Using D31 for LC0, D10 for LC1 (example, adjust if used)
-const byte LOADCELL_CLK_PINS[2] = {4, 9};   // Using D30 for LC0, D9 for LC1 (example, adjust if used)
+const byte LOADCELL_DOUT_PINS[2] = {5, 10}; // Example, adjust based on your wiring
+const byte LOADCELL_CLK_PINS[2] = {4, 9};   // Example, adjust based on your wiring
 const float LOADCELL_CALIBRATION_FACTORS[2] = {145.4f, 150.0f};
 const int NUM_LOADCELL_SENSORS = sizeof(LOADCELL_DOUT_PINS) / sizeof(LOADCELL_DOUT_PINS[0]);
 HX711 scales[2];
@@ -39,21 +39,22 @@ const float PULSES_TO_LPM_FACTOR = 60.0f / FLOW_PPL;
 
 
 // --- Temperature Sensor (MAX6675) Constants ---
-// Example pins for two MAX6675 sensors on Mega (adjust as needed based on your wiring)
-// Using pins 3, 6, 7 for TS0 and 8, 11, 12 for TS1 (example, verify availability)
-const int THERMO_DO_PINS[2]  = { 3,  8 }; // Data Out pins
-const int THERMO_CS_PINS[2]  = { 6, 11 }; // Chip Select pins (each sensor needs a unique CS)
-const int THERMO_CLK_PINS[2] = { 7, 12 }; // Clock pins (using separate CLK pins is safer)
-const int NUM_TEMP_SENSORS = sizeof(THERMO_DO_PINS) / sizeof(THERMO_DO_PINS[0]); // Should be 2
+// Pins for FOUR MAX6675 sensors on Mega (adjust as needed based on your wiring)
+// ENSURE THESE PINS DO NOT CONFLICT WITH ANY OTHER SENSOR PINS!
+const int THERMO_DO_PINS[4]  = { 3,  8, 13, 22 }; // Data Out pins (D3, D8, D13, D22)
+const int THERMO_CS_PINS[4]  = { 6, 11, 20, 23 }; // Chip Select pins (D6, D11, D20, D23) - Each sensor needs a unique CS
+const int THERMO_CLK_PINS[4] = { 7, 12, 21, 24 }; // Clock pins (D7, D12, D21, D24) - Using separate CLK pins is safest
+const int NUM_TEMP_SENSORS = sizeof(THERMO_DO_PINS) / sizeof(THERMO_DO_PINS[0]); // Should be 4
 
 const float FAHRENHEIT_SLOPE = 9.0f / 5.0f;
 const float FAHRENHEIT_OFFSET = 32.0f;
 
-MAX6675 thermocouples[2] = { // Defined here (array of objects)
-    MAX6675(THERMO_CLK_PINS[0], THERMO_CS_Pconst int THERMO_DO_PINS[2]  = { 3,  8 }; // Data Out pins
-const int THERMO_CS_PINS[2]  = { 6, 11 }; // Chip Select pins (each sensor needs a unique CS)
-const int THERMO_CLK_PINS[2] = { 7, 12 }; // Clock pins (using separate CLK pins is safer)INS[0], THERMO_DO_PINS[0]),
-    MAX6675(THERMO_CLK_PINS[1], THERMO_CS_PINS[1], THERMO_DO_PINS[1])
+// Array of MAX6675 objects - SIZE INCREASED TO 4
+MAX6675 thermocouples[4] = {
+    MAX6675(THERMO_CLK_PINS[0], THERMO_CS_PINS[0], THERMO_DO_PINS[0]),
+    MAX6675(THERMO_CLK_PINS[1], THERMO_CS_PINS[1], THERMO_DO_PINS[1]),
+    MAX6675(THERMO_CLK_PINS[2], THERMO_CS_PINS[2], THERMO_DO_PINS[2]), // New object 2
+    MAX6675(THERMO_CLK_PINS[3], THERMO_CS_PINS[3], THERMO_DO_PINS[3])  // New object 3
 };
 
 
@@ -85,14 +86,14 @@ const byte NUM_IDS_LOADCELL = NUM_LOADCELL_SENSORS;
 const byte FLOW_SENSOR_ID = LOADCELL_ID_START + NUM_IDS_LOADCELL;
 const byte NUM_IDS_FLOW = 1;
 
-const byte TEMP_ID_START = FLOW_SENSOR_ID + NUM_IDS_FLOW;
-const byte NUM_IDS_TEMP = NUM_TEMP_SENSORS;
+const byte TEMP_ID_START = FLOW_SENSOR_ID + NUM_IDS_FLOW; // Temp IDs start after flow (e.g., 8 + 1 = 9)
+const byte NUM_IDS_TEMP = NUM_TEMP_SENSORS; // Now 4
 
 // Add constants for other sensor types here
 /*
 const byte OTHER_PACKET_START_BYTE = 0x01;
 const byte OTHER_PACKET_END_BYTE = 0x02;
-const byte OTHER_ID_START = TEMP_ID_START + NUM_IDS_TEMP;
+const byte OTHER_ID_START = TEMP_ID_START + NUM_IDS_TEMP; // Offset from previous group
 const byte NUM_IDS_OTHER = NUM_OTHER_SENSORS;
 */
 
@@ -111,8 +112,12 @@ long flow_pulseLast = 0;
 unsigned long lastFlowProcessTime = 0;
 const unsigned long FLOW_CALCULATION_INTERVAL_MS = 1000;
 
-int currentTempSensorIndex = 0;
-unsigned long lastTempProcessTime = 0;
+int currentTempSensorIndex = 0; // Which temp sensor to process next
+unsigned long lastTempProcessTime = 0; // Time last temp sensor was processed
+// MAX6675 requires >= 250ms between reads. Use a value >= 250ms for interval.
+// This interval is for how often we read and send temp for *ONE* sensor.
+// Total cycle time for all temp sensors = NUM_TEMP_SENSORS * MIN_TEMP_INTERVAL_MS
+// E.g., 4 sensors * 500ms = 2000ms per full temp scan.
 const unsigned long MIN_TEMP_INTERVAL_MS = 500;
 
 
@@ -125,7 +130,7 @@ const unsigned long MIN_OTHER_INTERVAL_MS = 50;
 
 
 // --- Timing Helper Functions ---
-unsigned long _timerStartTime = 0; // Defined here
+unsigned long _timerStartTime = 0;
 
 void startTimer() {
   _timerStartTime = micros();
@@ -146,12 +151,8 @@ void printElapsedTime(const char* description) {
 // =======================================================
 
 // --- Calculation Function for Pressure Sensor ---
-// Now returns only the pressure value in the struct
 PressureSensorValues calculatePressureSensorValues(int raw_pressure_int, int index) {
-  // Access constants and scale_factor array defined above in this .cpp file
   if (index < 0 || index >= NUM_PRESSURE_SENSORS) {
-      // Return a struct with a clear invalid/error value, e.g., negative pressure if not possible
-      // Or NAN if preferred, but requires math.h
       return {-1.0f}; // Example: return -1.0f for invalid index
   }
 
@@ -162,7 +163,7 @@ PressureSensorValues calculatePressureSensorValues(int raw_pressure_int, int ind
   float percent = mA * PERCENT_SLOPE + PERCENT_OFFSET;
   float pressure = percent * pressure_scale_factor[index];
 
-  return {pressure}; // Only return the pressure value
+  return {pressure};
 }
 
 // --- Calculation Function for Load Cell Sensor ---
@@ -209,7 +210,7 @@ OtherSensorValues calculateOtherSensorValues(...) { ... }
 
 // --- GENERIC Function to send any data block in binary format ---
 void sendBinaryPacket(byte start_byte, byte id, const void* data_ptr, size_t data_size, byte end_byte) {
-   if (data_ptr == nullptr || data_size == 0) return; // Corrected condition
+   if (data_ptr == nullptr || data_size == 0) return;
 
   Serial.write(start_byte);
   Serial.write(id);
@@ -244,22 +245,18 @@ void setupLoadCells() {
     scales[i].begin(LOADCELL_DOUT_PINS[i], LOADCELL_CLK_PINS[i]);
     delay(100); // Give HX711 a moment
 
-    scales[i].set_scale(LOADCELL_CALIBRATION_FACTORS[i]); // Apply calibration factor
+    scales[i].set_scale(LOADCELL_CALIBRATION_FACTORS[i]);
+    // Add user prompt and delay here if needed for initial load taring
+    // Serial.print(F("Load Cell ")); Serial.print(i + 1); Serial.println(F(": Please place initial load on the scale NOW. Taring in 5 seconds...")); delay(5000);
 
+    scales[i].tare();
 
-    Serial.print(F("Load Cell ")); Serial.print(i + 1);
-    Serial.println(F(": Please place initial load on the scale NOW."));
-    Serial.println(F("Taring in 5 seconds..."));
-    delay(5000); // Wait for 5 seconds to allow user to place the load
-    // --- END ADDED ---
-
-    scales[i].tare(); // Tare the scale - this sets the current reading (with load) to zero
-
-    Serial.print(F("Load Cell ")); Serial.print(i + 1); Serial.println(F(" tared with initial load."));
-    delay(50); // Small delay between taring different sensors
+    Serial.print(F("Load Cell ")); Serial.print(i + 1); Serial.println(F(" tared."));
+    delay(50); // Small delay between taring
   }
   Serial.print(NUM_LOADCELL_SENSORS); Serial.println(F(" Load Cells setup complete."));
 }
+
 void setupFlowSensors() {
   Serial.println(F("Setting up Flow Sensor..."));
   pinMode(FLOW_SENSOR_PIN_MEGA, INPUT);
@@ -274,7 +271,7 @@ void setupFlowSensors() {
 
 void setupTemperatureSensors() {
   Serial.println(F("Setting up Temperature Sensors (MAX6675)..."));
-  // Objects are defined globally, initialized with pins.
+  // MAX6675 objects are defined globally, initialized with pins.
   // delay(500); // Optional power-up delay
 
   currentTempSensorIndex = 0;
@@ -284,6 +281,10 @@ void setupTemperatureSensors() {
 }
 
 
+// Add setup functions for other sensor types here
+/*
+void setupOtherSensors() { ... }
+*/
 
 // --- Flow sensor Interrupt Service Routine (ISR) ---
 void flow_increase_pulse() {
@@ -308,12 +309,9 @@ void testTimingBatchAllTypes() {
   printElapsedTime("One Pressure Sensor Block");
 
   // Measure time for one Load Cell block execution (simulating a read)
-  // This will likely block for ~100ms waiting for the sensor to be ready if it just tared/read.
   startTimer();
-  // Get the first Load Cell object
-  HX711& testScale = scales[0];
-  // Read, Calculate, Send for load cell 0.
-  float raw_weight = testScale.get_units(); // This will wait for is_ready()
+  HX711& testScale = scales[0]; // Get Load Cell 0
+  float raw_weight = testScale.get_units(); // Read from Load Cell 0 (will wait for ready)
   LoadCellValues loadCellData = calculateLoadCellValues(raw_weight);
   byte loadCell_id = LOADCELL_ID_START + 0; // ID for load cell 0
   sendBinaryPacket(LOADCELL_PACKET_START_BYTE, loadCell_id, &loadCellData, sizeof(loadCellData), LOADCELL_PACKET_END_BYTE);
@@ -321,7 +319,6 @@ void testTimingBatchAllTypes() {
 
 
   // Measure time for one Flow Sensor block execution (simulating update)
-  // Simulate delta pulse for calculation test
   long dummyCurrentPulse = flow_pulse + 100; // Assume 100 pulses happened since flow_pulse was 0 in setup
   long dummyLastPulse = 0; // Since flow_pulseLast was 0 in setup
   startTimer();
@@ -331,7 +328,6 @@ void testTimingBatchAllTypes() {
 
 
   // Measure time for one Temp Sensor block execution (simulating a read)
-  // This will call readCelsius() and potentially block for ~250ms if not ready.
   startTimer();
   TemperatureSensorValues tData = calculateTemperatureSensorValues(0); // Calculate for sensor 0
   sendBinaryPacket(TEMP_PACKET_START_BYTE, TEMP_ID_START, &tData, sizeof(tData), TEMP_PACKET_END_BYTE);
