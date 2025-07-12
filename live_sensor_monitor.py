@@ -56,7 +56,8 @@ PACKET_TYPES = {
         'payload_size': 8,  # 2 floats * 4 bytes/float
         'format': '<ff',
         'fields': ['temp_c', 'temp_f'],
-        'ids': list(range(9, 11)) # Assuming two temp sensors with IDs 9 and 10
+        # --- CHANGED: Expected ID range for 4 sensors (e.g., 9-12) ---
+        'ids': list(range(9, 13))
     },
     # Add other sensor types here
     # OTHER_PACKET_START_BYTE: { ... }
@@ -400,5 +401,4 @@ if __name__ == "__main__":
         sys.exit(1)
     finally:
         if ser and ser.is_open:
-            ser.close()
-            print("Serial port closed.")
+            ser.close
