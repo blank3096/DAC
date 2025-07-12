@@ -113,13 +113,13 @@ extern const byte NUM_IDS_TEMP;
 extern const byte MOTOR_RPM_ID;
 extern const byte NUM_IDS_MOTOR_RPM;
 
-// Add constants for other sensor types here (packet markers, ID starts, num IDs)
-/*
-extern const byte OTHER_PACKET_START_BYTE;
-extern const byte OTHER_PACKET_END_BYTE;
-extern const byte OTHER_ID_START;
-extern const byte NUM_IDS_OTHER;
-*/
+//-------Struct for sensor data ------
+struct PressureSensorValues { float pressure; };
+struct LoadCellValues { float weight_grams; };
+struct FlowMeterValues { float flow_rate_lpm; };
+struct TemperatureSensorValues { float temp_c; float temp_f; };
+struct MotorRPMValue { float rpm; };
+
 
 
 // --- Serial Receive State Machine Variables and Constants ---
@@ -183,6 +183,8 @@ extern const unsigned long MIN_OTHER_INTERVAL_MS;
 extern unsigned long _timerStartTime;
 void startTimer();
 void printElapsedTime(const char* description);
+
+
 
 
 // --- Function Prototypes (Declarations) ---

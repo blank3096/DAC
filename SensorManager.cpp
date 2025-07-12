@@ -139,14 +139,6 @@ const byte NUM_IDS_OTHER = NUM_OTHER_SENSORS;
 
 // --- Serial Receive State Machine Variables and Constants ---
 // Define states for parsing incoming commands
-enum RxState {
-  RX_WAITING_FOR_START,
-  RX_READING_TYPE,
-  RX_READING_TARGET_ID,
-  RX_READING_SIZE,
-  RX_READING_PAYLOAD,
-  RX_READING_END // Or just transition directly to processing from READING_PAYLOAD
-};
 
 // Global state variable, initialized in setup()
 RxState currentRxState = RX_WAITING_FOR_START;
@@ -158,7 +150,6 @@ byte rxPayloadSize = 0; // The size indicated in the packet
 byte rxPayloadBytesRead = 0; // How many payload bytes we've read so far
 
 // Buffer to hold the incoming command payload
-const byte MAX_COMMAND_PAYLOAD_SIZE = 16; // Choose a reasonable size larger than max needed (Motor is 3 bytes)
 byte rxPayloadBuffer[MAX_COMMAND_PAYLOAD_SIZE];
 
 

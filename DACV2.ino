@@ -31,7 +31,7 @@ void setup() {
   delay(1000); // Short delay before tests
   Serial.println(F("\n--- Running Initial Timing Tests ---"));
 
-  testTimingBatchAllTypes();
+ // testTimingBatchAllTypes();
 
   Serial.println(F("\n--- Initial Timing Tests Complete. Entering Main Loop ---"));
   delay(1000); // Delay before starting the continuous loop
@@ -238,5 +238,20 @@ void loop() {
    }
 
 
+  // --- Add State Machine Logic blocks for other sensor types here ---
+  /*
+  unsigned long currentMillis_Other = millis();
+  if (currentMillis_Other - lastOtherSensorProcessTime >= MIN_OTHER_INTERVAL_MS) {
+    startTimer();
+    lastOtherSensorProcessTime = currentMillis_Other;
+    // Read, Calculate, Send for currentOtherSensorIndex
+    // OtherSensorValues otherData = calculateOtherSensorValues(...);
+    // byte other_id = OTHER_ID_START + currentOtherSensorIndex;
+    // sendBinaryPacket(OTHER_PACKET_START_BYTE, other_id, &otherData, sizeof(otherData), OTHER_PACKET_END_BYTE);
+    // currentOtherSensorIndex++; if (currentOtherSensorIndex >= NUM_OTHER_SENSORS) currentOtherSensorIndex = 0;
+    printElapsedTime("Other Sensor Block");
+  }
+  */
 
+  // No overall loop timing print as it's not meaningful here.
 }
