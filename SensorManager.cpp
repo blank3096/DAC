@@ -1,6 +1,7 @@
 #include "SensorManager.h" // Include your own header first
 #include <Arduino.h>     // Include Arduino.h here too
 #include <math.h>        // Required for isnan()
+// Add includes for other libraries needed for implementation (e.g., Wire.h)
 
 
 // =======================================================
@@ -15,8 +16,8 @@ const float PERCENT_OFFSET = -25.0;
 
 
 // --- Pressure Sensor Constants ---
-const int PRESSURE_SENSOR_PINS[6] = {A0, A2, A4, A6, A8, A10};
-const float PRESSURE_MAX[6] = {16.0, 16.0, 25.0, 25.0, 40.0, 40.0};
+const int PRESSURE_SENSOR_PINS[6] = {A0, A2, A4, A6, A8, A10}; // As per table
+const float PRESSURE_MAX[6] = {16.0, 16.0, 25.0, 25.0, 40.0, 40.0}; // Using original pressure max values for now
 const int NUM_PRESSURE_SENSORS = sizeof(PRESSURE_SENSOR_PINS) / sizeof(PRESSURE_SENSOR_PINS[0]);
 
 const float MV_FACTOR = (float)ANALOG_REFERENCE_mV / 1024.0f;
@@ -25,41 +26,63 @@ float pressure_scale_factor[6];
 
 
 // --- Load Cell Constants ---
-// Pins for THREE Load Cells (adjust based on your wiring, using D27, D29, D37 DT and D28, D30, D38 SCK as examples)
-const byte LOADCELL_DOUT_PINS[3] = {27, 29, 37}; // Data Output lines (DT)
-const byte LOADCELL_CLK_PINS[3] = {28, 30, 38};   // Clock lines (SCK)
+// Pins for THREE Load Cells (As per table)
+const byte LOADCELL_DOUT_PINS[3] = {27, 29, 31}; // Data Output lines (DT)
+const byte LOADCELL_CLK_PINS[3] = {28, 30, 32};   // Clock lines (SCK)
 const float LOADCELL_CALIBRATION_FACTORS[3] = {145.4f, 150.0f, 160.0f}; // Calibration factors for 3 sensors
 const int NUM_LOADCELL_SENSORS = sizeof(LOADCELL_DOUT_PINS) / sizeof(LOADCELL_DOUT_PINS[0]); // Should be 3
 
-// Array of HX711 objects - SIZE INCREASED TO 3
+// Array of HX711 objects - SIZE IS 3
 HX711 scales[3];
 
 
 // --- Flow Sensor Constants ---
-const int FLOW_SENSOR_PIN_MEGA = 2; // Pin 2 on Mega is External Interrupt 0
+const int FLOW_SENSOR_PIN_MEGA = 2; // Pin 2 on Mega is External Interrupt 0 (As per table)
 const float FLOW_PPL = 4215;
 const float PULSES_TO_LPM_FACTOR = 60.0f / FLOW_PPL;
 
 
 // --- Temperature Sensor (MAX6675) Constants ---
-// Pins for FOUR MAX6675 sensors on Mega (adjust as needed based on your wiring)
-const int THERMO_DO_PINS[4]  = { 3,  8, 13, 22 };
-const int THERMO_CS_PINS[4]  = { 6, 11, 20, 23 };
-const int THERMO_CLK_PINS[4] = { 7, 12, 21, 24 };
-const int NUM_TEMP_SENSORS = sizeof(THERMO_DO_PINS) / sizeof(THERMO_DO_PINS[0]); // Should be 4
+// Pins for FOUR MAX6675 sensors (As per table, interpreting ranges)
+const int THERMO_SHARED_CLK_PIN = 22; // D22 - Shared Clock
+const int THERMO_SHARED_DO_PIN  = 50; // D50 - Shared Data Out (MISO)
+
+const int THERMO_CS_PINS[4]  = { 23, 24, 25, 26 }; // D23-D26 - Unique Chip Selects
+const int NUM_TEMP_SENSORS = sizeof(THERMO_CS_PINS) / sizeof(THERMO_CS_PINS[0]); // Should be 4
 
 const float FAHRENHEIT_SLOPE = 9.0f / 5.0f;
 const float FAHRENHEIT_OFFSET = 32.0f;
 
+// Array of MAX6675 objects - SIZE IS 4, initialized with shared CLK/DO and unique CS
 MAX6675 thermocouples[4] = {
-    MAX6675(THERMO_CLK_PINS[0], THERMO_CS_PINS[0], THERMO_DO_PINS[0]),
-    MAX6675(THERMO_CLK_PINS[1], THERMO_CS_PINS[1], THERMO_DO_PINS[1]),
-    MAX6675(THERMO_CLK_PINS[2], THERMO_CS_PINS[2], THERMO_DO_PINS[2]),
-    MAX6675(THERMO_CLK_PINS[3], THERMO_CS_PINS[3], THERMO_DO_PINS[3])
+    MAX6675(THERMO_SHARED_CLK_PIN, THERMO_CS_PINS[0], THERMO_SHARED_DO_PIN),
+    MAX6675(THERMO_SHARED_CLK_PIN, THERMO_CS_PINS[1], THERMO_SHARED_DO_PIN),
+    MAX6675(THERMO_SHARED_CLK_PIN, THERMO_CS_PINS[2], THERMO_SHARED_DO_PIN),
+    MAX6675(THERMO_SHARED_CLK_PIN, THERMO_CS_PINS[3], THERMO_SHARED_DO_PIN)
 };
 
 
-// Add definitions for other sensor constants here
+// --- Relay Constants ---
+// Pins for the FOUR Relays (As per table)
+const int RELAY_PINS[4] = {33, 34, 35, 36};
+const int NUM_RELAYS = sizeof(RELAY_PINS) / sizeof(RELAY_PINS[0]);
+
+
+// --- DC Motor Constants ---
+// Pins for DC Motor (As per table)
+const int MOTOR_PWM_PIN = 6;       // D6 
+const int MOTOR_ENABLE_PIN = 37;    // D37
+const int MOTOR_DIRECTION_PIN = 38; // D38
+const int MOTOR_SPEED_SENSE_PIN = 3;  // D3 (INT1)
+
+// Define motor specific constants
+const int MOTOR_PULSES_PER_REVOLUTION = 12; // As per code snippet
+// Pre-calculated factor: (Pulses/sec / Pulses/Rev) * 60 sec/min = RPM
+// RPM = Frequency (Hz) * (60 / PulsesPerRev)
+const float PULSES_PER_SEC_TO_RPM_FACTOR = 60.0f / MOTOR_PULSES_PER_REVOLUTION;
+
+
+// Add constants for other sensor types here
 /*
 const int OTHER_SENSOR_INPUTS[2] = { ... };
 const int NUM_OTHER_SENSORS = sizeof(OTHER_SENSOR_INPUTS) / sizeof(OTHER_SENSOR_INPUTS[0]);
@@ -75,26 +98,32 @@ const byte FLOW_PACKET_START_BYTE = 0xCC;
 const byte FLOW_PACKET_END_BYTE = 0xDD;
 const byte TEMP_PACKET_START_BYTE = 0xEE;
 const byte TEMP_PACKET_END_BYTE = 0xFF;
+const byte MOTOR_RPM_PACKET_START_BYTE = 0xF0; // Example byte pair for Motor RPM
+const byte MOTOR_RPM_PACKET_END_BYTE = 0xF1;   // Example byte pair
 
 
 // Define ID ranges and number of IDs for each sensor type
 const byte PRESSURE_ID_START = 0;
-const byte NUM_IDS_PRESSURE = NUM_PRESSURE_SENSORS;
+const byte NUM_IDS_PRESSURE = NUM_PRESSURE_SENSORS; // 6
 
-const byte LOADCELL_ID_START = PRESSURE_ID_START + NUM_IDS_PRESSURE; // IDs 6, 7, 8 (Now 3 sensors)
-const byte NUM_IDS_LOADCELL = NUM_LOADCELL_SENSORS; // Now 3
+const byte LOADCELL_ID_START = PRESSURE_ID_START + NUM_IDS_PRESSURE; // IDs 6, 7, 8
+const byte NUM_IDS_LOADCELL = NUM_LOADCELL_SENSORS; // 3
 
-const byte FLOW_SENSOR_ID = LOADCELL_ID_START + NUM_IDS_LOADCELL; // Single ID for the flow sensor (e.g., 6 + 3 = 9)
+const byte FLOW_SENSOR_ID = LOADCELL_ID_START + NUM_IDS_LOADCELL; // Single ID for the flow sensor (9)
 const byte NUM_IDS_FLOW = 1;
 
-const byte TEMP_ID_START = FLOW_SENSOR_ID + NUM_IDS_FLOW;     // Temp IDs start after flow (e.g., 9 + 1 = 10)
-const byte NUM_IDS_TEMP = NUM_TEMP_SENSORS; // Now 4
+const byte TEMP_ID_START = FLOW_SENSOR_ID + NUM_IDS_FLOW;     // Temp IDs start after flow (10, 11, 12, 13)
+const byte NUM_IDS_TEMP = NUM_TEMP_SENSORS; // 4
+
+const byte MOTOR_RPM_ID = TEMP_ID_START + NUM_IDS_TEMP;      // Motor RPM ID (14)
+const byte NUM_IDS_MOTOR_RPM = 1;
+
 
 // Add constants for other sensor types here
 /*
 const byte OTHER_PACKET_START_BYTE = 0x01;
 const byte OTHER_PACKET_END_BYTE = 0x02;
-const byte OTHER_ID_START = TEMP_ID_START + NUM_IDS_TEMP; // Offset from previous group
+const byte OTHER_ID_START = MOTOR_RPM_ID + NUM_IDS_MOTOR_RPM; // Offset from previous group
 const byte NUM_IDS_OTHER = NUM_OTHER_SENSORS;
 */
 
@@ -106,20 +135,23 @@ const unsigned long MIN_PRESSURE_INTERVAL_MS = 10;
 
 int currentLoadCellIndex = 0; // Cycles 0, 1, 2
 unsigned long lastLoadCellProcessTime = 0;
-// MIN_LOADCELL_CHECK_INTERVAL_MS needs to be adjusted for 3 sensors if you want to hit max chip rate
-// Total cycle time = 3 * MIN_LOADCELL_CHECK_INTERVAL_MS. Chip rate is ~100ms.
-// To hit 10Hz per chip, Total cycle should be 100ms. 100ms / 3 sensors = ~33ms.
-// Let's stick with 150ms check interval for less frequent updates per sensor, but adjust if needed.
-const unsigned long MIN_LOADCELL_CHECK_INTERVAL_MS = 150;
+const unsigned long MIN_LOADCELL_CHECK_INTERVAL_MS = 150; // Consider adjusting this for 3 sensors
 
 volatile long flow_pulse = 0;
 long flow_pulseLast = 0;
 unsigned long lastFlowProcessTime = 0;
 const unsigned long FLOW_CALCULATION_INTERVAL_MS = 1000;
 
-int currentTempSensorIndex = 0;
+int currentTempSensorIndex = 0; // Cycles 0, 1, 2, 3
 unsigned long lastTempProcessTime = 0;
 const unsigned long MIN_TEMP_INTERVAL_MS = 500;
+
+// Motor Speed Sense State
+volatile unsigned long motor_pulse_count = 0; // Defined here and initialized
+unsigned long motor_last_pulse_count = 0;      // Defined here and initialized
+unsigned long lastMotorCalcTime = 0; // Defined here and initialized
+// The interval for how often to CALCULATE and SEND the Motor RPM
+const unsigned long MOTOR_CALCULATION_INTERVAL_MS = 500; // Example: every 500ms
 
 
 // Add state variables and constants for other sensor types here
@@ -131,7 +163,7 @@ const unsigned long MIN_OTHER_INTERVAL_MS = 50;
 
 
 // --- Timing Helper Functions ---
-unsigned long _timerStartTime = 0;
+unsigned long _timerStartTime = 0; // Defined here
 
 void startTimer() {
   _timerStartTime = micros();
@@ -202,6 +234,24 @@ TemperatureSensorValues calculateTemperatureSensorValues(int index) {
     return values;
 }
 
+// --- Calculation Function for Motor RPM ---
+MotorRPMValue calculateMotorRPM(unsigned long currentPulseCount, unsigned long previousPulseCount, unsigned long interval_ms) {
+    unsigned long delta_pulse = currentPulseCount - previousPulseCount;
+
+    // Avoid division by zero if interval_ms is 0
+    if (interval_ms == 0) {
+        return {0.0f};
+    }
+
+    // Frequency in Hz = (delta_pulse / interval_ms) * 1000 ms/sec
+    float frequency_hz = (float)delta_pulse / (float)interval_ms * 1000.0f;
+
+    // RPM = Frequency (Hz) * (60 sec/min / PulsesPerRev)
+    float rpm = frequency_hz * PULSES_PER_SEC_TO_RPM_FACTOR; // Use pre-calculated factor
+
+    return {rpm};
+}
+
 
 // Add calculation functions for other sensor types here
 /*
@@ -232,13 +282,14 @@ void setupPressureSensors() {
   Serial.println(F("Setting up Pressure Sensors..."));
   for (int i = 0; i < NUM_PRESSURE_SENSORS; i++) {
     pressure_scale_factor[i] = PRESSURE_MAX[i] / 100.0f;
+    // Analog pins are inputs by default, no pinMode needed unless using as digital
   }
   Serial.print(NUM_PRESSURE_SENSORS); Serial.println(F(" Pressure Sensors setup complete."));
 }
 
 void setupLoadCells() {
   Serial.println(F("Setting up Load Cells..."));
-  for (int i = 0; i < NUM_LOADCELL_SENSORS; i++) { // Loop runs 3 times
+  for (int i = 0; i < NUM_LOADCELL_SENSORS; i++) { // Loop runs 3 times now
     Serial.print(F("Load Cell ")); Serial.print(i + 1);
     Serial.print(F(" on pins DOUT:")); Serial.print(LOADCELL_DOUT_PINS[i]);
     Serial.print(F(" CLK:")); Serial.println(LOADCELL_CLK_PINS[i]);
@@ -260,7 +311,8 @@ void setupLoadCells() {
 
 void setupFlowSensors() {
   Serial.println(F("Setting up Flow Sensor..."));
-  pinMode(FLOW_SENSOR_PIN_MEGA, INPUT);
+  pinMode(FLOW_SENSOR_PIN_MEGA, INPUT); // Or INPUT_PULLUP if needed
+  // Pin 2 is External Interrupt 0 on Mega
   attachInterrupt(digitalPinToInterrupt(FLOW_SENSOR_PIN_MEGA), flow_increase_pulse, RISING);
 
   flow_pulse = 0;
@@ -273,12 +325,58 @@ void setupFlowSensors() {
 void setupTemperatureSensors() {
   Serial.println(F("Setting up Temperature Sensors (MAX6675)..."));
   // MAX6675 objects are defined globally, initialized with pins.
+  // Library's begin() handles pinMode for DO, CS, CLK.
   // delay(500); // Optional power-up delay
 
   currentTempSensorIndex = 0;
   lastTempProcessTime = millis();
 
   Serial.print(NUM_TEMP_SENSORS); Serial.println(F(" Temperature Sensors setup complete."));
+}
+
+void setupRelays() {
+    Serial.println(F("Setting up Relays..."));
+    for (int i = 0; i < NUM_RELAYS; i++) {
+        pinMode(RELAY_PINS[i], OUTPUT);
+        digitalWrite(RELAY_PINS[i], LOW); // Ensure relays are off initially
+    }
+    Serial.print(NUM_RELAYS); Serial.println(F(" Relays setup complete."));
+}
+
+void setupDCMotor() {
+    Serial.println(F("Setting up DC Motor..."));
+    // Configure Control Pins
+    pinMode(MOTOR_ENABLE_PIN, OUTPUT);
+    pinMode(MOTOR_DIRECTION_PIN, OUTPUT);
+    pinMode(MOTOR_PWM_PIN, OUTPUT); // PWM pin needs to be an output
+
+    digitalWrite(MOTOR_ENABLE_PIN, LOW);    // Start with motor disabled
+    digitalWrite(MOTOR_DIRECTION_PIN, HIGH); // Set default direction (e.g., Forward)
+    analogWrite(MOTOR_PWM_PIN, 0);         // Set initial PWM to 0 (stopped)
+
+    // --- Setup PWM on Pin 11 using Timer1 for 10kHz frequency (Matching code snippet) ---
+    // Make sure you are using Timer1 registers for Pin 11 (OC1A)
+    // This configuration sets Fast PWM mode (WGM13:12:11 = 111) with TOP = ICR1
+    // Non-inverting mode (COM1A1=1, COM1A0=0)
+    // Prescaler 8 (CS11=1)
+    // Frequency = F_CPU / (Prescaler * (1 + TOP)) = 16,000,000 / (8 * (1 + 199)) = 16,000,000 / (8 * 200) = 16,000,000 / 1600 = 10,000 Hz
+    TCCR1A = _BV(COM1A1) | _BV(WGM11); // Pin 11 (OC1A) Non-inverting, Fast PWM
+    TCCR1B = _BV(WGM13) | _BV(WGM12) | _BV(CS11); // Fast PWM Mode, TOP in ICR1, Prescaler 8
+    ICR1 = 199; // Sets the frequency to 10kHz
+    OCR1A = 0;  // Set initial duty cycle to 0% (Pin 11)
+
+    // --- Setup for RPM Reading ---
+    pinMode(MOTOR_SPEED_SENSE_PIN, INPUT_PULLUP); // Use internal pull-up resistor
+    // Pin 3 is External Interrupt 1 on Mega
+    attachInterrupt(digitalPinToInterrupt(MOTOR_SPEED_SENSE_PIN), motor_count_pulse, RISING); // Attach ISR
+
+    // Initialize motor speed sense state variables
+    motor_pulse_count = 0;
+    motor_last_pulse_count = 0;
+    lastMotorCalcTime = millis();
+
+    Serial.println(F("DC Motor setup complete. Driver Disabled, Motor Stopped."));
+    // To enable the motor and set a speed, use the control signal handling logic in loop().
 }
 
 
@@ -290,6 +388,11 @@ void setupOtherSensors() { ... }
 // --- Flow sensor Interrupt Service Routine (ISR) ---
 void flow_increase_pulse() {
   flow_pulse++;
+}
+
+// --- Motor Speed Sense Interrupt Service Routine (ISR) ---
+void motor_count_pulse() {
+  motor_pulse_count++;
 }
 
 
@@ -310,7 +413,6 @@ void testTimingBatchAllTypes() {
   printElapsedTime("One Pressure Sensor Block");
 
   // Measure time for one Load Cell block execution (simulating a read)
-  // This will likely block for ~100ms waiting for the sensor to be ready if it just tared/read.
   startTimer();
   HX711& testScale = scales[0]; // Get Load Cell 0
   float raw_weight = testScale.get_units(); // Read from Load Cell 0 (will wait for ready)
@@ -334,6 +436,18 @@ void testTimingBatchAllTypes() {
   TemperatureSensorValues tData = calculateTemperatureSensorValues(0); // Calculate for sensor 0
   sendBinaryPacket(TEMP_PACKET_START_BYTE, TEMP_ID_START, &tData, sizeof(tData), TEMP_PACKET_END_BYTE);
   printElapsedTime("One Temp Sensor Block (incl. readCelsius wait)");
+
+  // Measure time for one Motor RPM block execution (simulating update)
+  // Simulate pulses and interval
+  unsigned long dummyMotorCurrentPulse = motor_pulse_count + 50; // Assume 50 pulses
+  unsigned long dummyMotorLastPulse = 0; // Assume 0 at start of interval
+  unsigned long dummyIntervalMs = 500; // Assume 500ms interval for calc
+  startTimer();
+  MotorRPMValue mData = calculateMotorRPM(dummyMotorCurrentPulse, dummyMotorLastPulse, dummyIntervalMs);
+  byte motor_id = MOTOR_RPM_ID;
+  sendBinaryPacket(MOTOR_RPM_PACKET_START_BYTE, motor_id, &mData, sizeof(mData), MOTOR_RPM_PACKET_END_BYTE);
+  printElapsedTime("One Motor RPM Calc + Send");
+
 
   // Add tests for other sensor types here
   /*

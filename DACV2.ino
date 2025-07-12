@@ -11,9 +11,11 @@ void setup() {
   Serial.println(F("--- System Setup Starting ---"));
 
   setupPressureSensors();
-  setupLoadCells(); // Will now set up 3 sensors
+  setupLoadCells();
   setupFlowSensors();
-  setupTemperatureSensors(); // Will now set up 4 sensors
+  setupTemperatureSensors();
+  setupRelays(); // Setup relays
+  setupDCMotor(); // Setup DC Motor
 
   // Call setup functions for other sensor types here
   /*
@@ -44,7 +46,7 @@ void loop() {
     // calculatePressureSensorValues returns PressureSensorValues { float pressure; }
     PressureSensorValues pressureData = calculatePressureSensorValues(raw_pressure_int, currentPressureSensorIndex);
     byte pressure_id = PRESSURE_ID_START + currentPressureSensorIndex; // Use ID offset + index (0-5)
-    sendBinaryPacket(PRESSURE_PACKET_START_BYTE, pressure_id, &pressureData, sizeof(pressureData), PRESSURE_PACKET_END_BYTE);
+    sendBinaryPacket(PRESSURE_PACKET_START_BYTE, pressure_id, &pressureData, sizeof(pressureData), PRESSURE_PACKET_END_BYTE); // sizeof(pressureData) is 4
 
     currentPressureSensorIndex++;
     if (currentPressureSensorIndex >= NUM_PRESSURE_SENSORS) {
@@ -113,6 +115,43 @@ void loop() {
     printElapsedTime("Temp Sensor Block (incl. readCelsius wait)");
   }
 
+  // --- State Machine Logic for Motor RPM ---
+  // Calculate and send Motor RPM periodically
+   if (currentMillis - lastMotorCalcTime >= MOTOR_CALCULATION_INTERVAL_MS) {
+       startTimer(); // Start timer for THIS block
+       unsigned long interval_ms = currentMillis - lastMotorCalcTime; // Actual interval duration
+       lastMotorCalcTime = currentMillis; // Update timer
+
+       // --- Perform Motor RPM Calculation and Sending ---
+
+       // 1. Safely read the current pulse count from the volatile variable
+       unsigned long currentPulseCount;
+       noInterrupts(); // Disable interrupts
+       currentPulseCount = motor_pulse_count; // Read the volatile counter
+       interrupts();   // Re-enable interrupts
+
+       // 2. Calculate the number of pulses since the last check
+       unsigned long delta_pulse = currentPulseCount - motor_last_pulse_count;
+
+       // 3. Update motor_last_pulse_count for the next calculation interval
+       motor_last_pulse_count = currentPulseCount;
+
+       // 4. Calculate RPM
+       MotorRPMValue mData = calculateMotorRPM(currentPulseCount, motor_last_pulse_count, interval_ms);
+
+       // 5. Send the data using the GENERIC sender
+       sendBinaryPacket(
+         MOTOR_RPM_PACKET_START_BYTE, // Start byte for motor rpm packets
+         MOTOR_RPM_ID,                // Unique ID for this motor RPM (14)
+         &mData,                      // Pointer to the calculated data struct
+         sizeof(mData),               // Size of the data struct
+         MOTOR_RPM_PACKET_END_BYTE     // End byte for motor rpm packets
+       );
+
+       printElapsedTime("Motor RPM Block"); // Print time for THIS block
+   }
+
+
   // --- Add State Machine Logic blocks for other sensor types here ---
   /*
   unsigned long currentMillis_Other = millis();
@@ -129,7 +168,16 @@ void loop() {
   */
 
   // --- Incoming Control Signal Handling Block ---
-  // while (Serial.available() > 0) { ... read and parse command ... }
+  // This block handles receiving commands to control relays, motor speed/direction, etc.
+  // It should be non-blocking and check for available serial data.
+  // (Implementation needed here)
+  // while (Serial.available() > 0) {
+  //   byte incomingByte = Serial.read();
+  //   // Implement your command parsing state machine here...
+  //   // Based on the command, update relay states, motor speed/direction variables.
+  //   // Example: If command received to set motor speed:
+  //   // updateMotorSpeed(newSpeed); // Function to update OCR1A and enable pin
+  // }
 
   // No overall loop timing print as it's not meaningful here.
 }
