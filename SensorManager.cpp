@@ -50,7 +50,9 @@ const float FAHRENHEIT_SLOPE = 9.0f / 5.0f;
 const float FAHRENHEIT_OFFSET = 32.0f;
 
 MAX6675 thermocouples[2] = { // Defined here (array of objects)
-    MAX6675(THERMO_CLK_PINS[0], THERMO_CS_PINS[0], THERMO_DO_PINS[0]),
+    MAX6675(THERMO_CLK_PINS[0], THERMO_CS_Pconst int THERMO_DO_PINS[2]  = { 3,  8 }; // Data Out pins
+const int THERMO_CS_PINS[2]  = { 6, 11 }; // Chip Select pins (each sensor needs a unique CS)
+const int THERMO_CLK_PINS[2] = { 7, 12 }; // Clock pins (using separate CLK pins is safer)INS[0], THERMO_DO_PINS[0]),
     MAX6675(THERMO_CLK_PINS[1], THERMO_CS_PINS[1], THERMO_DO_PINS[1])
 };
 
@@ -242,15 +244,22 @@ void setupLoadCells() {
     scales[i].begin(LOADCELL_DOUT_PINS[i], LOADCELL_CLK_PINS[i]);
     delay(100); // Give HX711 a moment
 
-    scales[i].set_scale(LOADCELL_CALIBRATION_FACTORS[i]);
-    scales[i].tare();
+    scales[i].set_scale(LOADCELL_CALIBRATION_FACTORS[i]); // Apply calibration factor
 
-    Serial.print(F("Load Cell ")); Serial.print(i + 1); Serial.println(F(" tared."));
-    delay(50); // Small delay between taring
+
+    Serial.print(F("Load Cell ")); Serial.print(i + 1);
+    Serial.println(F(": Please place initial load on the scale NOW."));
+    Serial.println(F("Taring in 5 seconds..."));
+    delay(5000); // Wait for 5 seconds to allow user to place the load
+    // --- END ADDED ---
+
+    scales[i].tare(); // Tare the scale - this sets the current reading (with load) to zero
+
+    Serial.print(F("Load Cell ")); Serial.print(i + 1); Serial.println(F(" tared with initial load."));
+    delay(50); // Small delay between taring different sensors
   }
   Serial.print(NUM_LOADCELL_SENSORS); Serial.println(F(" Load Cells setup complete."));
 }
-
 void setupFlowSensors() {
   Serial.println(F("Setting up Flow Sensor..."));
   pinMode(FLOW_SENSOR_PIN_MEGA, INPUT);
@@ -274,10 +283,7 @@ void setupTemperatureSensors() {
   Serial.print(NUM_TEMP_SENSORS); Serial.println(F(" Temperature Sensors setup complete."));
 }
 
-// Add setup functions for other sensor types here
-/*
-void setupOtherSensors() { ... }
-*/
+
 
 // --- Flow sensor Interrupt Service Routine (ISR) ---
 void flow_increase_pulse() {
