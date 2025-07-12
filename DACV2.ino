@@ -11,7 +11,7 @@ void setup() {
   Serial.println(F("--- System Setup Starting ---"));
 
   setupPressureSensors();
-  setupLoadCells();
+  setupLoadCells(); // Will now set up 3 sensors
   setupFlowSensors();
   setupTemperatureSensors(); // Will now set up 4 sensors
 
@@ -41,14 +41,14 @@ void loop() {
     lastPressureSensorProcessTime = currentMillis;
 
     int raw_pressure_int = analogRead(PRESSURE_SENSOR_PINS[currentPressureSensorIndex]);
-    // calculatePressureSensorValues now returns PressureSensorValues { float pressure; }
+    // calculatePressureSensorValues returns PressureSensorValues { float pressure; }
     PressureSensorValues pressureData = calculatePressureSensorValues(raw_pressure_int, currentPressureSensorIndex);
-    byte pressure_id = PRESSURE_ID_START + currentPressureSensorIndex;
-    sendBinaryPacket(PRESSURE_PACKET_START_BYTE, pressure_id, &pressureData, sizeof(pressureData), PRESSURE_PACKET_END_BYTE); // sizeof(pressureData) is 4
+    byte pressure_id = PRESSURE_ID_START + currentPressureSensorIndex; // Use ID offset + index (0-5)
+    sendBinaryPacket(PRESSURE_PACKET_START_BYTE, pressure_id, &pressureData, sizeof(pressureData), PRESSURE_PACKET_END_BYTE);
 
     currentPressureSensorIndex++;
     if (currentPressureSensorIndex >= NUM_PRESSURE_SENSORS) {
-      currentPressureSensorIndex = 0;
+      currentPressureSensorIndex = 0; // Wrap around
     }
     printElapsedTime("Pressure Sensor Block");
   }
@@ -57,17 +57,17 @@ void loop() {
    if (currentMillis - lastLoadCellProcessTime >= MIN_LOADCELL_CHECK_INTERVAL_MS) {
        lastLoadCellProcessTime = currentMillis;
 
-       HX711& currentScale = scales[currentLoadCellIndex];
+       HX711& currentScale = scales[currentLoadCellIndex]; // Cycles through 0, 1, 2
 
        if (currentScale.is_ready()) {
            startTimer(); // Timer inside is_ready block
-           float raw_weight = currentScale.get_units();
+           float raw_weight = currentScale.get_units(); // Might block briefly
            LoadCellValues loadCellData = calculateLoadCellValues(raw_weight);
-           byte loadCell_id = LOADCELL_ID_START + currentLoadCellIndex;
+           byte loadCell_id = LOADCELL_ID_START + currentLoadCellIndex; // Use ID offset + index (6, 7, 8)
            sendBinaryPacket(LOADCELL_PACKET_START_BYTE, loadCell_id, &loadCellData, sizeof(loadCellData), LOADCELL_PACKET_END_BYTE);
 
-           currentLoadCellIndex++;
-           if (currentLoadCellIndex >= NUM_LOADCELL_SENSORS) {
+           currentLoadCellIndex++; // Move to the next load cell ONLY if a successful read happened
+           if (currentLoadCellIndex >= NUM_LOADCELL_SENSORS) { // NUM_LOADCELL_SENSORS is now 3
              currentLoadCellIndex = 0;
            }
             printElapsedTime("Load Cell Block (read+calc+send)"); // Name reflects action
@@ -91,7 +91,7 @@ void loop() {
        flow_pulseLast = currentPulseCount;
 
        FlowMeterValues flowData = calculateFlowMeterValues(currentPulseCount, flow_pulseLast);
-       byte flow_id = FLOW_SENSOR_ID;
+       byte flow_id = FLOW_SENSOR_ID; // ID is 9
        sendBinaryPacket(FLOW_PACKET_START_BYTE, flow_id, &flowData, sizeof(flowData), FLOW_PACKET_END_BYTE);
        printElapsedTime("Flow Sensor Block");
    }
@@ -101,9 +101,9 @@ void loop() {
     startTimer();
     lastTempProcessTime = currentMillis;
 
-    TemperatureSensorValues tempData = calculateTemperatureSensorValues(currentTempSensorIndex);
+    TemperatureSensorValues tempData = calculateTemperatureSensorValues(currentTempSensorIndex); // Cycles through 0, 1, 2, 3
 
-    byte temp_id = TEMP_ID_START + currentTempSensorIndex;
+    byte temp_id = TEMP_ID_START + currentTempSensorIndex; // Use ID offset + index (10, 11, 12, 13)
     sendBinaryPacket(TEMP_PACKET_START_BYTE, temp_id, &tempData, sizeof(tempData), TEMP_PACKET_END_BYTE);
 
     currentTempSensorIndex++; // Will now cycle through 0, 1, 2, 3
@@ -113,4 +113,23 @@ void loop() {
     printElapsedTime("Temp Sensor Block (incl. readCelsius wait)");
   }
 
- }
+  // --- Add State Machine Logic blocks for other sensor types here ---
+  /*
+  unsigned long currentMillis_Other = millis();
+  if (currentMillis_Other - lastOtherSensorProcessTime >= MIN_OTHER_INTERVAL_MS) {
+    startTimer();
+    lastOtherSensorProcessTime = currentMillis_Other;
+    // Read, Calculate, Send for currentOtherSensorIndex
+    // OtherSensorValues otherData = calculateOtherSensorValues(...);
+    // byte other_id = OTHER_ID_START + currentOtherSensorIndex;
+    // sendBinaryPacket(OTHER_PACKET_START_BYTE, other_id, &otherData, sizeof(otherData), OTHER_PACKET_END_BYTE);
+    // currentOtherSensorIndex++; if (currentOtherSensorIndex >= NUM_OTHER_SENSORS) currentOtherSensorIndex = 0;
+    printElapsedTime("Other Sensor Block");
+  }
+  */
+
+  // --- Incoming Control Signal Handling Block ---
+  // while (Serial.available() > 0) { ... read and parse command ... }
+
+  // No overall loop timing print as it's not meaningful here.
+}

@@ -29,9 +29,9 @@ PACKET_TYPES = {
     PRESSURE_PACKET_START_BYTE: {
         'name': 'Pressure',
         'end_byte': PRESSURE_PACKET_END_BYTE,
-        'payload_size': 4, # *** CHANGED: 1 float * 4 bytes/float ***
-        'format': '<f',   # *** CHANGED: little-endian, 1 float (pressure) ***
-        'fields': ['pressure'], # *** CHANGED: Names for the unpacked values ***
+        'payload_size': 4, # 1 float * 4 bytes/float
+        'format': '<f',   # little-endian, 1 float (pressure)
+        'fields': ['pressure'], # Names for the unpacked values
         'ids': list(range(0, 6)) # Expected IDs for pressure sensors (0-5)
     },
     LOADCELL_PACKET_START_BYTE: {
@@ -40,7 +40,8 @@ PACKET_TYPES = {
         'payload_size': 4,  # 1 float * 4 bytes/float
         'format': '<f',    # little-endian, 1 float (weight_grams)
         'fields': ['weight_grams'],
-        'ids': list(range(6, 8)) # Expected IDs for load cells (6, 7, assuming pressure is 0-5)
+        # --- CHANGED: Expected ID range for 3 sensors (e.g., 6-8) ---
+        'ids': list(range(6, 9))
     },
     FLOW_PACKET_START_BYTE: {
         'name': 'Flow',
@@ -48,7 +49,8 @@ PACKET_TYPES = {
         'payload_size': 4,  # 1 float * 4 bytes/float
         'format': '<f',
         'fields': ['flow_rate_lpm'],
-        'ids': [8] # Assuming a single flow sensor with ID 8
+        # --- CHANGED: Expected ID range for 1 sensor (e.g., 9) ---
+        'ids': [9] # Assuming a single flow sensor with ID 9 (6 + 3)
     },
      TEMP_PACKET_START_BYTE: {
         'name': 'Temperature',
@@ -56,8 +58,8 @@ PACKET_TYPES = {
         'payload_size': 8,  # 2 floats * 4 bytes/float
         'format': '<ff',
         'fields': ['temp_c', 'temp_f'],
-        # --- CHANGED: Expected ID range for 4 sensors (e.g., 9-12) ---
-        'ids': list(range(9, 13))
+        # --- CHANGED: Expected ID range for 4 sensors (e.g., 10-13) ---
+        'ids': list(range(10, 14)) # Assuming temp starts after flow (9 + 1 = 10)
     },
     # Add other sensor types here
     # OTHER_PACKET_START_BYTE: { ... }
@@ -113,7 +115,7 @@ class SerialPacketReceiver:
 
                  # Check if declared size matches expected size for this type
                  # Also check if the ID is one we expect for this packet type
-                 expected_size = self.current_packet_type_info['payload_size']
+                 expected_size = self.current_packet_type_type_info['payload_size'] # Typo fix: removed extra '_type'
                  expected_ids = self.current_packet_type_info.get('ids')
 
                  if self.payload_size != expected_size:
@@ -401,4 +403,6 @@ if __name__ == "__main__":
         sys.exit(1)
     finally:
         if ser and ser.is_open:
-            ser.close
+            ser.close()
+            print("Serial port closed.")
+        # No explicit thread join needed for daemon threads

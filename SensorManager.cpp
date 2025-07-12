@@ -15,7 +15,7 @@ const float PERCENT_OFFSET = -25.0;
 
 
 // --- Pressure Sensor Constants ---
-const int PRESSURE_SENSOR_PINS[6] = {A0, A1, A2, A3, A4, A5};
+const int PRESSURE_SENSOR_PINS[6] = {A0, A2, A4, A6, A8, A10};
 const float PRESSURE_MAX[6] = {16.0, 16.0, 25.0, 25.0, 40.0, 40.0};
 const int NUM_PRESSURE_SENSORS = sizeof(PRESSURE_SENSOR_PINS) / sizeof(PRESSURE_SENSOR_PINS[0]);
 
@@ -25,11 +25,14 @@ float pressure_scale_factor[6];
 
 
 // --- Load Cell Constants ---
-const byte LOADCELL_DOUT_PINS[2] = {5, 10}; // Example, adjust based on your wiring
-const byte LOADCELL_CLK_PINS[2] = {4, 9};   // Example, adjust based on your wiring
-const float LOADCELL_CALIBRATION_FACTORS[2] = {145.4f, 150.0f};
-const int NUM_LOADCELL_SENSORS = sizeof(LOADCELL_DOUT_PINS) / sizeof(LOADCELL_DOUT_PINS[0]);
-HX711 scales[2];
+// Pins for THREE Load Cells (adjust based on your wiring, using D27, D29, D37 DT and D28, D30, D38 SCK as examples)
+const byte LOADCELL_DOUT_PINS[3] = {27, 29, 37}; // Data Output lines (DT)
+const byte LOADCELL_CLK_PINS[3] = {28, 30, 38};   // Clock lines (SCK)
+const float LOADCELL_CALIBRATION_FACTORS[3] = {145.4f, 150.0f, 160.0f}; // Calibration factors for 3 sensors
+const int NUM_LOADCELL_SENSORS = sizeof(LOADCELL_DOUT_PINS) / sizeof(LOADCELL_DOUT_PINS[0]); // Should be 3
+
+// Array of HX711 objects - SIZE INCREASED TO 3
+HX711 scales[3];
 
 
 // --- Flow Sensor Constants ---
@@ -40,21 +43,19 @@ const float PULSES_TO_LPM_FACTOR = 60.0f / FLOW_PPL;
 
 // --- Temperature Sensor (MAX6675) Constants ---
 // Pins for FOUR MAX6675 sensors on Mega (adjust as needed based on your wiring)
-// ENSURE THESE PINS DO NOT CONFLICT WITH ANY OTHER SENSOR PINS!
-const int THERMO_DO_PINS[4]  = { 3,  8, 13, 22 }; // Data Out pins (D3, D8, D13, D22)
-const int THERMO_CS_PINS[4]  = { 6, 11, 20, 23 }; // Chip Select pins (D6, D11, D20, D23) - Each sensor needs a unique CS
-const int THERMO_CLK_PINS[4] = { 7, 12, 21, 24 }; // Clock pins (D7, D12, D21, D24) - Using separate CLK pins is safest
+const int THERMO_DO_PINS[4]  = { 3,  8, 13, 22 };
+const int THERMO_CS_PINS[4]  = { 6, 11, 20, 23 };
+const int THERMO_CLK_PINS[4] = { 7, 12, 21, 24 };
 const int NUM_TEMP_SENSORS = sizeof(THERMO_DO_PINS) / sizeof(THERMO_DO_PINS[0]); // Should be 4
 
 const float FAHRENHEIT_SLOPE = 9.0f / 5.0f;
 const float FAHRENHEIT_OFFSET = 32.0f;
 
-// Array of MAX6675 objects - SIZE INCREASED TO 4
 MAX6675 thermocouples[4] = {
     MAX6675(THERMO_CLK_PINS[0], THERMO_CS_PINS[0], THERMO_DO_PINS[0]),
     MAX6675(THERMO_CLK_PINS[1], THERMO_CS_PINS[1], THERMO_DO_PINS[1]),
-    MAX6675(THERMO_CLK_PINS[2], THERMO_CS_PINS[2], THERMO_DO_PINS[2]), // New object 2
-    MAX6675(THERMO_CLK_PINS[3], THERMO_CS_PINS[3], THERMO_DO_PINS[3])  // New object 3
+    MAX6675(THERMO_CLK_PINS[2], THERMO_CS_PINS[2], THERMO_DO_PINS[2]),
+    MAX6675(THERMO_CLK_PINS[3], THERMO_CS_PINS[3], THERMO_DO_PINS[3])
 };
 
 
@@ -80,13 +81,13 @@ const byte TEMP_PACKET_END_BYTE = 0xFF;
 const byte PRESSURE_ID_START = 0;
 const byte NUM_IDS_PRESSURE = NUM_PRESSURE_SENSORS;
 
-const byte LOADCELL_ID_START = PRESSURE_ID_START + NUM_IDS_PRESSURE;
-const byte NUM_IDS_LOADCELL = NUM_LOADCELL_SENSORS;
+const byte LOADCELL_ID_START = PRESSURE_ID_START + NUM_IDS_PRESSURE; // IDs 6, 7, 8 (Now 3 sensors)
+const byte NUM_IDS_LOADCELL = NUM_LOADCELL_SENSORS; // Now 3
 
-const byte FLOW_SENSOR_ID = LOADCELL_ID_START + NUM_IDS_LOADCELL;
+const byte FLOW_SENSOR_ID = LOADCELL_ID_START + NUM_IDS_LOADCELL; // Single ID for the flow sensor (e.g., 6 + 3 = 9)
 const byte NUM_IDS_FLOW = 1;
 
-const byte TEMP_ID_START = FLOW_SENSOR_ID + NUM_IDS_FLOW; // Temp IDs start after flow (e.g., 8 + 1 = 9)
+const byte TEMP_ID_START = FLOW_SENSOR_ID + NUM_IDS_FLOW;     // Temp IDs start after flow (e.g., 9 + 1 = 10)
 const byte NUM_IDS_TEMP = NUM_TEMP_SENSORS; // Now 4
 
 // Add constants for other sensor types here
@@ -103,8 +104,12 @@ int currentPressureSensorIndex = 0;
 unsigned long lastPressureSensorProcessTime = 0;
 const unsigned long MIN_PRESSURE_INTERVAL_MS = 10;
 
-int currentLoadCellIndex = 0;
+int currentLoadCellIndex = 0; // Cycles 0, 1, 2
 unsigned long lastLoadCellProcessTime = 0;
+// MIN_LOADCELL_CHECK_INTERVAL_MS needs to be adjusted for 3 sensors if you want to hit max chip rate
+// Total cycle time = 3 * MIN_LOADCELL_CHECK_INTERVAL_MS. Chip rate is ~100ms.
+// To hit 10Hz per chip, Total cycle should be 100ms. 100ms / 3 sensors = ~33ms.
+// Let's stick with 150ms check interval for less frequent updates per sensor, but adjust if needed.
 const unsigned long MIN_LOADCELL_CHECK_INTERVAL_MS = 150;
 
 volatile long flow_pulse = 0;
@@ -112,12 +117,8 @@ long flow_pulseLast = 0;
 unsigned long lastFlowProcessTime = 0;
 const unsigned long FLOW_CALCULATION_INTERVAL_MS = 1000;
 
-int currentTempSensorIndex = 0; // Which temp sensor to process next
-unsigned long lastTempProcessTime = 0; // Time last temp sensor was processed
-// MAX6675 requires >= 250ms between reads. Use a value >= 250ms for interval.
-// This interval is for how often we read and send temp for *ONE* sensor.
-// Total cycle time for all temp sensors = NUM_TEMP_SENSORS * MIN_TEMP_INTERVAL_MS
-// E.g., 4 sensors * 500ms = 2000ms per full temp scan.
+int currentTempSensorIndex = 0;
+unsigned long lastTempProcessTime = 0;
 const unsigned long MIN_TEMP_INTERVAL_MS = 500;
 
 
@@ -237,7 +238,7 @@ void setupPressureSensors() {
 
 void setupLoadCells() {
   Serial.println(F("Setting up Load Cells..."));
-  for (int i = 0; i < NUM_LOADCELL_SENSORS; i++) {
+  for (int i = 0; i < NUM_LOADCELL_SENSORS; i++) { // Loop runs 3 times
     Serial.print(F("Load Cell ")); Serial.print(i + 1);
     Serial.print(F(" on pins DOUT:")); Serial.print(LOADCELL_DOUT_PINS[i]);
     Serial.print(F(" CLK:")); Serial.println(LOADCELL_CLK_PINS[i]);
@@ -309,6 +310,7 @@ void testTimingBatchAllTypes() {
   printElapsedTime("One Pressure Sensor Block");
 
   // Measure time for one Load Cell block execution (simulating a read)
+  // This will likely block for ~100ms waiting for the sensor to be ready if it just tared/read.
   startTimer();
   HX711& testScale = scales[0]; // Get Load Cell 0
   float raw_weight = testScale.get_units(); // Read from Load Cell 0 (will wait for ready)

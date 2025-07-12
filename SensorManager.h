@@ -23,11 +23,15 @@ extern float pressure_scale_factor[6];
 
 
 // --- Load Cell Constants ---
-extern const byte LOADCELL_DOUT_PINS[2];
-extern const byte LOADCELL_CLK_PINS[2];
-extern const float LOADCELL_CALIBRATION_FACTORS[2];
-extern const int NUM_LOADCELL_SENSORS;
-extern HX711 scales[2];
+// Define arrays for pins for each of the THREE Load Cells - SIZE INCREASED TO 3
+extern const byte LOADCELL_DOUT_PINS[3];
+extern const byte LOADCELL_CLK_PINS[3];
+extern const float LOADCELL_CALIBRATION_FACTORS[3]; // Calibration factors for 3 sensors
+
+extern const int NUM_LOADCELL_SENSORS; // Will be 3
+
+// HX711 objects - Array of objects - SIZE INCREASED TO 3
+extern HX711 scales[3];
 
 
 // --- Flow Sensor Constants ---
@@ -37,18 +41,15 @@ extern const float PULSES_TO_LPM_FACTOR;
 
 
 // --- Temperature Sensor (MAX6675) Constants ---
-// Define arrays for pins for each of the FOUR MAX6675 sensors - SIZE INCREASED TO 4
 extern const int THERMO_DO_PINS[4];
 extern const int THERMO_CS_PINS[4];
-extern const int THERMO_CLK_PINS[4]; // Now holds potentially different pins
+extern const int THERMO_CLK_PINS[4];
 
-extern const int NUM_TEMP_SENSORS; // Will be 4
+extern const int NUM_TEMP_SENSORS;
 
-// Pre-calculated constants for Fahrenheit conversion (needed in calc function)
 extern const float FAHRENHEIT_SLOPE;
 extern const float FAHRENHEIT_OFFSET;
 
-// Array of MAX6675 objects - SIZE INCREASED TO 4
 extern MAX6675 thermocouples[4];
 
 
@@ -73,14 +74,14 @@ extern const byte TEMP_PACKET_END_BYTE;
 extern const byte PRESSURE_ID_START;
 extern const byte NUM_IDS_PRESSURE;
 
-extern const byte LOADCELL_ID_START;
-extern const byte NUM_IDS_LOADCELL;
+extern const byte LOADCELL_ID_START; // PRESSURE_ID_START + NUM_IDS_PRESSURE
+extern const byte NUM_IDS_LOADCELL; // Now 3
 
 extern const byte FLOW_SENSOR_ID;
 extern const byte NUM_IDS_FLOW;
 
-extern const byte TEMP_ID_START; // Temp IDs start after flow (e.g., 8 + 1 = 9)
-extern const byte NUM_IDS_TEMP; // Now 4
+extern const byte TEMP_ID_START;
+extern const byte NUM_IDS_TEMP;
 
 // Add constants for other sensor types here (packet markers, ID starts, num IDs)
 /*
@@ -120,21 +121,19 @@ extern int currentPressureSensorIndex;
 extern unsigned long lastPressureSensorProcessTime;
 extern const unsigned long MIN_PRESSURE_INTERVAL_MS;
 
-extern int currentLoadCellIndex;
+extern int currentLoadCellIndex; // Cycles 0, 1, 2
 extern unsigned long lastLoadCellProcessTime;
-extern const unsigned long MIN_LOADCELL_CHECK_INTERVAL_MS;
+extern const unsigned long MIN_LOADCELL_CHECK_INTERVAL_MS; // Consider adjusting this for 3 sensors
 
 extern volatile long flow_pulse;
 extern long flow_pulseLast;
 extern unsigned long lastFlowProcessTime;
 extern const unsigned long FLOW_CALCULATION_INTERVAL_MS;
 
-// Temperature Sensor State (for the four sensors) - SIZE INCREASED TO 4
-extern int currentTempSensorIndex; // Which temp sensor to process next
-extern unsigned long lastTempProcessTime; // Time last temp sensor was processed
-// The interval for how often to read and send temp for ONE sensor
-// Must be >= 250ms due to MAX6675 conversion time
+extern int currentTempSensorIndex;
+extern unsigned long lastTempProcessTime;
 extern const unsigned long MIN_TEMP_INTERVAL_MS;
+
 
 // Add state variables and constants for other sensor types here
 /*
@@ -169,9 +168,10 @@ void sendBinaryPacket(byte start_byte, byte id, const void* data_ptr, size_t dat
 
 // Modular Setup Functions
 void setupPressureSensors();
-void setupLoadCells();
+void setupLoadCells(); // Updated to handle 3 sensors
 void setupFlowSensors();
-void setupTemperatureSensors(); // Updated to handle 4 sensors
+void setupTemperatureSensors();
+
 
 // Add prototypes for other modular setup functions here
 /*
