@@ -31,7 +31,7 @@ float pressure_ma_factor[6];
 
 // --- Load Cell Constants ---
 // Pins for THREE Load Cells (As per table)
-const byte LOADCELL_DOUT_PINS[3] = {28, 30, 32}; // Data Output lines (DT)
+const byte LOADCELL_DOUT_PINS[3] = {26, 30, 32}; // Data Output lines (DT)
 const byte LOADCELL_CLK_PINS[3] = {29, 31, 33};   // Clock lines (SCK)
 const float LOADCELL_CALIBRATION_FACTORS[3] = {145.4f, 150.0f, 160.0f}; // Calibration factors for 3 sensors
 const int NUM_LOADCELL_SENSORS = sizeof(LOADCELL_DOUT_PINS) / sizeof(LOADCELL_DOUT_PINS[0]); // Should be 3
@@ -47,7 +47,7 @@ const int FLOW_PPL = 4215;
 
 // --- Temperature Sensor (MAX6675) Constants ---
 // Pins for FOUR MAX6675 sensors (As per table, interpreting ranges)
-const int THERMO_SHARED_CLK_PIN = 26; // D22 - Shared Clock
+const int THERMO_SHARED_CLK_PIN = 27; // D22 - Shared Clock
 const int THERMO_SHARED_DO_PIN  = 50; // D50 - Shared Data Out (MISO)
 
 const int THERMO_CS_PINS[4]  = { 22, 23, 24, 25 }; // D22-D25 - Unique Chip Selects
@@ -163,7 +163,7 @@ const unsigned long MIN_PRESSURE_INTERVAL_MS = 10;
 
 int currentLoadCellIndex = 0; // Cycles 0, 1, 2
 unsigned long lastLoadCellProcessTime = 0;
-const unsigned long MIN_LOADCELL_CHECK_INTERVAL_MS = 150;
+const unsigned long MIN_LOADCELL_CHECK_INTERVAL_MS = 110;
 
 volatile long flow_pulse = 0;
 long flow_pulseLast = 0;
@@ -173,7 +173,7 @@ unsigned long elapsed_time = 0; // Corrected to unsigned long
 
 int currentTempSensorIndex = 0; // Cycles 0, 1, 2, 3
 unsigned long lastTempProcessTime = 0;
-const unsigned long MIN_TEMP_INTERVAL_MS = 500;
+const unsigned long MIN_TEMP_INTERVAL_MS = 260;
 
 volatile unsigned long motor_pulse_count = 0;
 unsigned long motor_last_pulse_count = 0;
