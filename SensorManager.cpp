@@ -63,7 +63,7 @@ MAX6675 thermocouples[4] = { // Defined here (array of objects)
 
 // --- Relay Constants ---
 // Pins for the FOUR Relays (As per table)
-const int RELAY_PINS[4] = {33, 34, 35, 36};
+const int RELAY_PINS[4] = {34, 36, 38, 40};
 const int NUM_RELAYS = sizeof(RELAY_PINS) / sizeof(RELAY_PINS[0]);
 
 
@@ -167,7 +167,7 @@ long flow_pulseLast = 0;
 unsigned long lastFlowProcessTime = 0;
 const unsigned long FLOW_CALCULATION_INTERVAL_MS = 1000;
 float PULSES_TO_LPM_FACTOR = 0;
-unsigned long elapsed_time = 0;
+float elapsed_time = 0;
 
 
 int currentTempSensorIndex = 0; // Cycles 0, 1, 2, 3
@@ -220,12 +220,19 @@ LoadCellValues calculateLoadCellValues(float raw_weight_float) {
 }
 
 // --- Calculation Function for Flow Sensor ---
-FlowMeterValues calculateFlowMeterValues(long delta_pulse,unsigned long elapsed_time) {
+// In SensorManager.cpp
+
+FlowMeterValues calculateFlowMeterValues(unsigned long delta_pulse, unsigned long elapsed_time) {
+    // Prevent division by zero if elapsed_time happens to be 0
+    // This can occur on the very first interval or if the timer somehow resets to 0.
+    if (elapsed_time == 0) {
+        return {0.0f}; // Return 0 LPM if no time has elapsed
+    }
 
 
-    // float lpm = ;
+    float lpm = ((float)delta_pulse * 60000.0f) / (FLOW_PPL * (float)elapsed_time);
     
-    return {(delta_pulse/(elapsed_time/60000)) / FLOW_PPL};
+    return {lpm};
 }
 
 // --- Calculation Function for Temperature Sensor (MAX6675) ---

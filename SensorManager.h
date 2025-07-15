@@ -192,7 +192,7 @@ void printElapsedTime(const char* description);
 // Sensor calculation functions
 PressureSensorValues calculatePressureSensorValues(int raw_pressure_int, int index);
 LoadCellValues calculateLoadCellValues(float raw_weight_float);
-FlowMeterValues calculateFlowMeterValues(long delta_pulse,unsigned long elapsed_time);
+FlowMeterValues calculateFlowMeterValues(unsigned long delta_pulse,unsigned long elapsed_time);
 TemperatureSensorValues calculateTemperatureSensorValues(int index);
 MotorRPMValue calculateMotorRPM(unsigned long currentPulseCount, unsigned long previousPulseCount, unsigned long interval_ms);
 

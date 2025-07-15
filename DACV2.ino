@@ -171,6 +171,9 @@ void loop() {
        startTimer();
        
        elapsed_time = currentMillis - lastFlowProcessTime;
+       Serial.print("the current elapsed time is ");
+       Serial.print(elapsed_time);
+       
       
        lastFlowProcessTime = currentMillis;
 
@@ -179,7 +182,13 @@ void loop() {
        currentPulseCount = flow_pulse;
        interrupts();
 
+       Serial.print("the current pulse count ");
+       Serial.print(currentPulseCount);
+       
        long delta_pulse = currentPulseCount - flow_pulseLast;
+       Serial.print("the current delta pulse ");
+       Serial.print(delta_pulse);
+
        FlowMeterValues flowData = calculateFlowMeterValues(delta_pulse,elapsed_time);
        flow_pulseLast = currentPulseCount;
        byte flow_id = FLOW_SENSOR_ID; 
