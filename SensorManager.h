@@ -34,7 +34,6 @@ extern HX711 scales[3];
 
 // --- Flow Sensor Constants ---
 extern const int FLOW_SENSOR_PIN_MEGA; // Pin 2 (INT0)
-
 extern const int FLOW_PPL;
 
 
@@ -119,6 +118,30 @@ struct FlowMeterValues { float flow_rate_lpm; };
 struct TemperatureSensorValues { float temp_c; float temp_f; };
 struct MotorRPMValue { float rpm; };
 
+// --- NEW: Timing Data Structure ---
+struct SensorTiming {
+    byte sensor_id;
+    unsigned long start_micros;
+    unsigned long end_micros;
+    unsigned long duration_micros;
+};
+
+// --- NEW: Global Arrays to Store Timing Data ---
+const byte MAX_TIMED_PRESSURE_SENSORS = 6;
+const byte MAX_TIMED_LOADCELL_SENSORS = 3;
+const byte MAX_TIMED_TEMP_SENSORS = 4;
+const byte MAX_TIMED_FLOW_SENSORS = 1; // For the single flow sensor
+
+extern SensorTiming pressureTimingData[MAX_TIMED_PRESSURE_SENSORS];
+extern SensorTiming loadCellTimingData[MAX_TIMED_LOADCELL_SENSORS];
+extern SensorTiming tempTimingData[MAX_TIMED_TEMP_SENSORS];
+extern SensorTiming flowTimingData[MAX_TIMED_FLOW_SENSORS]; // New for flow sensor
+
+// --- NEW: Packet Constants for Timing Data ---
+extern const byte TIMING_PACKET_START_BYTE;
+extern const byte TIMING_PACKET_END_BYTE;
+extern const byte TIMING_SENSOR_OPERATION_ID; // For individual sensor timings (e.g., Pressure ID 0-5)
+extern const byte TIMING_CATEGORY_CYCLE_ID;   // For category cycle times (e.g., "All Pressures")
 
 
 // --- Serial Receive State Machine Variables and Constants ---
@@ -159,8 +182,7 @@ extern volatile long flow_pulse;
 extern long flow_pulseLast;
 extern unsigned long lastFlowProcessTime;
 extern const unsigned long FLOW_CALCULATION_INTERVAL_MS;
-extern unsigned long elapsed_time;
-
+extern unsigned long elapsed_time; // Corrected to unsigned long
 
 extern int currentTempSensorIndex; // Cycles 0, 1, 2, 3
 extern unsigned long lastTempProcessTime;
@@ -171,6 +193,11 @@ extern unsigned long motor_last_pulse_count;
 extern unsigned long lastMotorCalcTime;
 extern const unsigned long MOTOR_CALCULATION_INTERVAL_MS;
 
+// --- NEW: Timing variables for category cycles ---
+extern unsigned long pressureCategoryStartTime;
+extern unsigned long loadCellCategoryStartTime;
+extern unsigned long tempCategoryStartTime;
+extern unsigned long flowCategoryStartTime; // New for flow sensor
 
 // Add state variables and constants for other sensor types here
 /*
@@ -181,18 +208,17 @@ extern const unsigned long MIN_OTHER_INTERVAL_MS;
 
 
 // --- Timing Helper Functions ---
-extern unsigned long _timerStartTime;
-void startTimer();
-void printElapsedTime(const char* description);
-
-
+// Removed _timerStartTime as it's replaced by individual sensor timing variables
+void startSensorTimer(byte sensorId, unsigned long* startTimeVar); // Updated prototype
+void endSensorTimer(byte sensorId, unsigned long startTime, const char* description); // Updated prototype
+void sendTimingPacket(byte timing_id, const SensorTiming* data_ptr); // New function to send timing data
 
 
 // --- Function Prototypes (Declarations) ---
 // Sensor calculation functions
 PressureSensorValues calculatePressureSensorValues(int raw_pressure_int, int index);
 LoadCellValues calculateLoadCellValues(float raw_weight_float);
-FlowMeterValues calculateFlowMeterValues(unsigned long delta_pulse,unsigned long elapsed_time);
+FlowMeterValues calculateFlowMeterValues(long delta_pulse, unsigned long elapsed_time); // Corrected parameters
 TemperatureSensorValues calculateTemperatureSensorValues(int index);
 MotorRPMValue calculateMotorRPM(unsigned long currentPulseCount, unsigned long previousPulseCount, unsigned long interval_ms);
 

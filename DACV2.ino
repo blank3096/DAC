@@ -14,8 +14,8 @@ void setup() {
   setupLoadCells();
   setupFlowSensors();
   setupTemperatureSensors();
-  setupRelays(); 
-  setupDCMotor(); 
+  setupRelays();
+  setupDCMotor();
 
   // Call setup functions for other sensor types here
   /*
@@ -31,7 +31,7 @@ void setup() {
   delay(1000); // Short delay before tests
   Serial.println(F("\n--- Running Initial Timing Tests ---"));
 
- // testTimingBatchAllTypes();
+  //testTimingBatchAllTypes(); // Call the test function
 
   Serial.println(F("\n--- Initial Timing Tests Complete. Entering Main Loop ---"));
   delay(1000); // Delay before starting the continuous loop
@@ -126,55 +126,95 @@ void loop() {
 
   // --- State Machine Logic for Pressure Sensors ---
   if (currentMillis - lastPressureSensorProcessTime >= MIN_PRESSURE_INTERVAL_MS) {
-    startTimer();
-    lastPressureSensorProcessTime = currentMillis;
+    unsigned long individualSensorStartTime = 0; // Local variable for individual sensor timing
 
+    // Start category timer if this is the first sensor in the cycle
+    if (currentPressureSensorIndex == 0) {
+        pressureCategoryStartTime = micros();
+    }
+
+    // Start timer for the individual sensor operation
+    byte pressure_id = PRESSURE_ID_START + currentPressureSensorIndex;
+    startSensorTimer(pressure_id, &individualSensorStartTime); // Pass ID and address of local var
+
+    // Perform sensor reading and calculation
     int raw_pressure_int = analogRead(PRESSURE_SENSOR_PINS[currentPressureSensorIndex]);
-    // calculatePressureSensorValues returns PressureSensorValues { float pressure; }
     PressureSensorValues pressureData = calculatePressureSensorValues(raw_pressure_int, currentPressureSensorIndex);
-    byte pressure_id = PRESSURE_ID_START + currentPressureSensorIndex; // Use ID offset + index (0-5)
+
+    // Send data (existing)
     sendBinaryPacket(PRESSURE_PACKET_START_BYTE, pressure_id, &pressureData, sizeof(pressureData), PRESSURE_PACKET_END_BYTE); // sizeof(pressureData) is 4
+
+    // End timer for the individual sensor operation
+    endSensorTimer(pressure_id, individualSensorStartTime, "Pressure Sensor Block"); // Pass start time back
 
     currentPressureSensorIndex++;
     if (currentPressureSensorIndex >= NUM_PRESSURE_SENSORS) {
       currentPressureSensorIndex = 0; // Wrap around
+      // End category timer when the last sensor in the category is processed
+      unsigned long categoryDuration = micros() - pressureCategoryStartTime;
+      Serial.print(F("All Pressure Sensors Cycle Time: ")); Serial.print(categoryDuration); Serial.println(F(" us"));
+      // Send category cycle time (optional, define a specific ID for this)
+      SensorTiming categoryTiming = {TIMING_CATEGORY_CYCLE_ID, pressureCategoryStartTime, micros(), categoryDuration};
+      sendTimingPacket(TIMING_CATEGORY_CYCLE_ID, &categoryTiming); // Use a distinct ID for cycle times
     }
-    printElapsedTime("Pressure Sensor Block");
+    lastPressureSensorProcessTime = currentMillis; // Update for next interval
   }
 
   // --- State Machine Logic for Load Cells ---
    if (currentMillis - lastLoadCellProcessTime >= MIN_LOADCELL_CHECK_INTERVAL_MS) {
-       lastLoadCellProcessTime = currentMillis;
+       lastLoadCellProcessTime = currentMillis; // Update timestamp for next check
 
-       HX711& currentScale = scales[currentLoadCellIndex]; // Cycles through 0, 1, 2
+       HX711& currentScale = scales[currentLoadCellIndex]; // Get reference to current scale
 
-       if (currentScale.is_ready()) {
-           startTimer(); // Timer inside is_ready block
+       if (currentScale.is_ready()) { // Check if data is available
+           unsigned long individualSensorStartTime = 0; // Local variable for individual sensor timing
+
+           // Start category timer if this is the first sensor in the cycle
+           if (currentLoadCellIndex == 0) {
+               loadCellCategoryStartTime = micros();
+           }
+
+           // Start timer for the individual sensor operation
+           byte loadCell_id = LOADCELL_ID_START + currentLoadCellIndex;
+           startSensorTimer(loadCell_id, &individualSensorStartTime);
+
+           // Perform sensor reading and calculation
            float raw_weight = currentScale.get_units(); // Might block briefly
            LoadCellValues loadCellData = calculateLoadCellValues(raw_weight);
-           byte loadCell_id = LOADCELL_ID_START + currentLoadCellIndex; // Use ID offset + index (6, 7, 8)
+
+           // Send data (existing)
            sendBinaryPacket(LOADCELL_PACKET_START_BYTE, loadCell_id, &loadCellData, sizeof(loadCellData), LOADCELL_PACKET_END_BYTE);
 
+           // End timer for the individual sensor operation
+           endSensorTimer(loadCell_id, individualSensorStartTime, "Load Cell Block (read+calc+send)");
+
            currentLoadCellIndex++; // Move to the next load cell ONLY if a successful read happened
-           if (currentLoadCellIndex >= NUM_LOADCELL_SENSORS) { // NUM_LOADCELL_SENSORS is now 3
+           if (currentLoadCellIndex >= NUM_LOADCELL_SENSORS) {
              currentLoadCellIndex = 0;
+             // End category timer when the last sensor in the category is processed
+             unsigned long categoryDuration = micros() - loadCellCategoryStartTime;
+             Serial.print(F("All Load Cell Sensors Cycle Time: ")); Serial.print(categoryDuration); Serial.println(F(" us"));
+             SensorTiming categoryTiming = {TIMING_CATEGORY_CYCLE_ID, loadCellCategoryStartTime, micros(), categoryDuration};
+             sendTimingPacket(TIMING_CATEGORY_CYCLE_ID, &categoryTiming);
            }
-            printElapsedTime("Load Cell Block (read+calc+send)"); // Name reflects action
        }
-       // If not ready, the timer was reset, and the index was NOT moved.
-       // The next time this block fires, we check the same sensor again.
-       // No 'else' branch timing print here, as it's covered by the loop's overall execution.
    }
 
   // --- State Machine Logic for Flow Sensor ---
    if (currentMillis - lastFlowProcessTime >= FLOW_CALCULATION_INTERVAL_MS) {
-       startTimer();
-       
+       unsigned long individualSensorStartTime = 0; // Local variable for individual sensor timing
+
+       // For a single flow sensor, individual timing IS the category timing
+       flowCategoryStartTime = micros(); // Start of the flow sensor's processing cycle
+
+       byte flow_id = FLOW_SENSOR_ID;
+       startSensorTimer(flow_id, &individualSensorStartTime); // Start timer for the flow sensor's operation
+
        elapsed_time = currentMillis - lastFlowProcessTime;
        Serial.print("the current elapsed time is ");
        Serial.print(elapsed_time);
-       
-      
+
+
        lastFlowProcessTime = currentMillis;
 
        long currentPulseCount;
@@ -184,38 +224,68 @@ void loop() {
 
        Serial.print("the current pulse count ");
        Serial.print(currentPulseCount);
-       
+
        long delta_pulse = currentPulseCount - flow_pulseLast;
        Serial.print("the current delta pulse ");
        Serial.print(delta_pulse);
 
        FlowMeterValues flowData = calculateFlowMeterValues(delta_pulse,elapsed_time);
        flow_pulseLast = currentPulseCount;
-       byte flow_id = FLOW_SENSOR_ID; 
+
        sendBinaryPacket(FLOW_PACKET_START_BYTE, flow_id, &flowData, sizeof(flowData), FLOW_PACKET_END_BYTE);
-       printElapsedTime("Flow Sensor Block");
+
+       // End timer for the flow sensor's operation
+       endSensorTimer(flow_id, individualSensorStartTime, "Flow Sensor Block");
+
+       // End category timer (same as individual for single sensor)
+       unsigned long categoryDuration = micros() - flowCategoryStartTime;
+       Serial.print(F("All Flow Sensors Cycle Time: ")); Serial.print(categoryDuration); Serial.println(F(" us"));
+       SensorTiming categoryTiming = {TIMING_CATEGORY_CYCLE_ID, flowCategoryStartTime, micros(), categoryDuration};
+       sendTimingPacket(TIMING_CATEGORY_CYCLE_ID, &categoryTiming);
    }
 
   // --- State Machine Logic for Temperature Sensors (MAX6675) ---
   if (currentMillis - lastTempProcessTime >= MIN_TEMP_INTERVAL_MS) {
-    startTimer();
-    lastTempProcessTime = currentMillis;
+    unsigned long individualSensorStartTime = 0; // Local variable for individual sensor timing
 
+    // Start category timer if this is the first sensor in the cycle
+    if (currentTempSensorIndex == 0) {
+        tempCategoryStartTime = micros();
+    }
+
+    // Start timer for the individual sensor operation
+    byte temp_id = TEMP_ID_START + currentTempSensorIndex;
+    startSensorTimer(temp_id, &individualSensorStartTime);
+
+    // Perform sensor reading and calculation
     TemperatureSensorValues tempData = calculateTemperatureSensorValues(currentTempSensorIndex); // Cycles through 0, 1, 2, 3
 
-    byte temp_id = TEMP_ID_START + currentTempSensorIndex; // Use ID offset + index (10, 11, 12, 13)
+    // Send data (existing)
     sendBinaryPacket(TEMP_PACKET_START_BYTE, temp_id, &tempData, sizeof(tempData), TEMP_PACKET_END_BYTE);
 
+    // End timer for the individual sensor operation
+    endSensorTimer(temp_id, individualSensorStartTime, "Temp Sensor Block (incl. readCelsius wait)");
+
     currentTempSensorIndex++; // Will now cycle through 0, 1, 2, 3
-    if (currentTempSensorIndex >= NUM_TEMP_SENSORS) { // NUM_TEMP_SENSORS is now 4
-      currentTempSensorIndex = 0;
+    if (currentTempSensorIndex >= NUM_TEMP_SENSORS) {
+      currentTempSensorIndex = 0; // Wrap around
+      // End category timer when the last sensor in the category is processed
+      unsigned long categoryDuration = micros() - tempCategoryStartTime;
+      Serial.print(F("All Temp Sensors Cycle Time: ")); Serial.print(categoryDuration); Serial.println(F(" us"));
+      SensorTiming categoryTiming = {TIMING_CATEGORY_CYCLE_ID, tempCategoryStartTime, micros(), categoryDuration};
+      sendTimingPacket(TIMING_CATEGORY_CYCLE_ID, &categoryTiming);
     }
-    printElapsedTime("Temp Sensor Block (incl. readCelsius wait)");
+    lastTempProcessTime = currentMillis;
   }
 
    // --- State Machine Logic for Motor RPM ---
+   // This block currently uses the generic startTimer() and printElapsedTime().
+   // If you want it to also send a SensorTiming packet, you'd adapt it like the others.
    if (currentMillis - lastMotorCalcTime >= MOTOR_CALCULATION_INTERVAL_MS) {
-       startTimer(); // Start timer for THIS block
+       unsigned long individualMotorStartTime = 0; // Local variable for motor timing
+       byte motor_id = MOTOR_RPM_ID;
+       startSensorTimer(motor_id, &individualMotorStartTime); // Use new timing function
+
        unsigned long interval_ms = currentMillis - lastMotorCalcTime; // Actual interval duration
        lastMotorCalcTime = currentMillis; // Update timer
 
@@ -245,9 +315,6 @@ void loop() {
          MOTOR_RPM_PACKET_END_BYTE     // End byte for motor rpm packets
        );
 
-       printElapsedTime("Motor RPM Block"); // Print time for THIS block
+       endSensorTimer(motor_id, individualMotorStartTime, "Motor RPM Block"); // Use new timing function
    }
-
-
- 
 }
