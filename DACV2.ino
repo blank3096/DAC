@@ -14,8 +14,8 @@ void setup() {
   setupLoadCells();
   setupFlowSensors();
   setupTemperatureSensors();
-  setupRelays(); // Setup relays
-  setupDCMotor(); // Setup DC Motor
+  setupRelays(); 
+  setupDCMotor(); 
 
   // Call setup functions for other sensor types here
   /*
@@ -169,6 +169,9 @@ void loop() {
   // --- State Machine Logic for Flow Sensor ---
    if (currentMillis - lastFlowProcessTime >= FLOW_CALCULATION_INTERVAL_MS) {
        startTimer();
+       
+       elapsed_time = currentMillis - lastFlowProcessTime;
+      
        lastFlowProcessTime = currentMillis;
 
        long currentPulseCount;
@@ -177,10 +180,9 @@ void loop() {
        interrupts();
 
        long delta_pulse = currentPulseCount - flow_pulseLast;
+       FlowMeterValues flowData = calculateFlowMeterValues(delta_pulse,elapsed_time);
        flow_pulseLast = currentPulseCount;
-
-       FlowMeterValues flowData = calculateFlowMeterValues(currentPulseCount, flow_pulseLast);
-       byte flow_id = FLOW_SENSOR_ID; // ID is 9
+       byte flow_id = FLOW_SENSOR_ID; 
        sendBinaryPacket(FLOW_PACKET_START_BYTE, flow_id, &flowData, sizeof(flowData), FLOW_PACKET_END_BYTE);
        printElapsedTime("Flow Sensor Block");
    }
@@ -238,20 +240,5 @@ void loop() {
    }
 
 
-  // --- Add State Machine Logic blocks for other sensor types here ---
-  /*
-  unsigned long currentMillis_Other = millis();
-  if (currentMillis_Other - lastOtherSensorProcessTime >= MIN_OTHER_INTERVAL_MS) {
-    startTimer();
-    lastOtherSensorProcessTime = currentMillis_Other;
-    // Read, Calculate, Send for currentOtherSensorIndex
-    // OtherSensorValues otherData = calculateOtherSensorValues(...);
-    // byte other_id = OTHER_ID_START + currentOtherSensorIndex;
-    // sendBinaryPacket(OTHER_PACKET_START_BYTE, other_id, &otherData, sizeof(otherData), OTHER_PACKET_END_BYTE);
-    // currentOtherSensorIndex++; if (currentOtherSensorIndex >= NUM_OTHER_SENSORS) currentOtherSensorIndex = 0;
-    printElapsedTime("Other Sensor Block");
-  }
-  */
-
-  // No overall loop timing print as it's not meaningful here.
+ 
 }

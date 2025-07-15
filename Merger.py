@@ -130,6 +130,7 @@ class SerialPacketReceiver:
         self.payload_size = 0
         self.payload_buffer = b''
         self.latest_sensor_data = {}
+        self.relay_states = {i: 0 for i in range(CMD_TARGET_RELAY_START, CMD_TARGET_RELAY_START + 4)}  # Initialize relays 0-3 to OFF
 
     def process_byte(self, byte_data):
         """Processes a single incoming byte."""
@@ -201,13 +202,32 @@ class SerialPacketReceiver:
         self.payload_size = 0
 
     def print_all_latest_data(self):
-        """Prints the latest stored data for all known sensors."""
-        if not self.latest_sensor_data:
-            return
-        sorted_ids = sorted(self.latest_sensor_data.keys())
-        max_header_len = max(len(f"[{data['type']} ID {sid}]") for sid, data in self.latest_sensor_data.items())
+        """Prints the latest stored data for all known sensors and relay states."""
+        # Determine max header length for alignment
+        if self.latest_sensor_data:
+            sorted_ids = sorted(self.latest_sensor_data.keys())
+            max_header_len = max(len(f"[{data['type']} ID {sid}]") for sid, data in self.latest_sensor_data.items())
+        else:
+            max_header_len = 20  # Default width if no sensor data
+        max_header_len = max(max_header_len, max(len(f"[Relay ID {i}]") for i in self.relay_states))
+        max_header_len = max(max_header_len, len("[Pressure ID 0]"))  # Ensure pressure headers fit
         logger.info("-" * (max_header_len + 50))
-        for sensor_id in sorted_ids:
+
+        # Print pressure sensors (IDs 0-5)
+        for sensor_id in range(PRESSURE_ID_START, PRESSURE_ID_START + NUM_IDS_PRESSURE):
+            header = f"[Pressure ID {sensor_id}]"
+            if sensor_id in self.latest_sensor_data and self.latest_sensor_data[sensor_id]['type'] == 'Pressure':
+                data = self.latest_sensor_data[sensor_id]
+                value = data['values'][0]
+                output = f"{header:<{max_header_len}} pressure: {value:.2f} bar"
+            else:
+                output = f"{header:<{max_header_len}} pressure: No data"
+            logger.info(output)
+
+        # Print other sensor data (non-pressure)
+        for sensor_id in sorted(self.latest_sensor_data.keys()):
+            if sensor_id in range(PRESSURE_ID_START, PRESSURE_ID_START + NUM_IDS_PRESSURE):
+                continue  # Skip pressure sensors, already handled
             data = self.latest_sensor_data[sensor_id]
             packet_type = data['type']
             values = data['values']
@@ -216,9 +236,7 @@ class SerialPacketReceiver:
             output = f"{header:<{max_header_len}} "
             for i, field_name in enumerate(fields):
                 value = values[i]
-                if packet_type == 'Pressure' and field_name == 'pressure':
-                    output += f"{field_name}: {value:.2f} bar "
-                elif packet_type == 'LoadCell' and field_name == 'weight_grams':
+                if packet_type == 'LoadCell' and field_name == 'weight_grams':
                     output += f"{field_name}: {value:.3f} g "
                 elif packet_type == 'Flow' and field_name == 'flow_rate_lpm':
                     output += f"{field_name}: {value:.3f} LPM "
@@ -232,6 +250,13 @@ class SerialPacketReceiver:
                 else:
                     output += f"{field_name}: {value:.3f} "
             logger.info(output.strip())
+
+        # Print relay states
+        for relay_id in sorted(self.relay_states.keys()):
+            state = self.relay_states[relay_id]
+            header = f"[Relay ID {relay_id}]"
+            output = f"{header:<{max_header_len}} state: {'ON' if state else 'OFF'}"
+            logger.info(output)
 
 def auto_detect_arduino_port():
     """Detects Arduino Mega port, returns port name or None if not found/ambiguous."""
@@ -257,18 +282,26 @@ def auto_detect_arduino_port():
         logger.info("No Arduino port found.")
         return None
 
-def send_motor_control_command(ser, motor_id, throttle):
+def send_motor_control_command(ser, motor_id, throttle, enable=1, forward=1):
     """
     Send a motor control command to the Arduino.
     :param ser: Open serial connection
     :param motor_id: Target motor ID (0 for CMD_TARGET_MOTOR_ID)
     :param throttle: Motor throttle (0-100%)
+    :param enable: Motor enable state (0 for disabled, 1 for enabled, default: 1)
+    :param forward: Motor direction (0 for reverse, 1 for forward, default: 1)
     """
     try:
         if not (0 <= throttle <= 100):
             logger.error("Throttle must be between 0 and 100")
             return
-        payload = struct.pack('>B', throttle)
+        if enable not in (0, 1):
+            logger.error("Enable must be 0 (disabled) or 1 (enabled)")
+            return
+        if forward not in (0, 1):
+            logger.error("Forward must be 0 (reverse) or 1 (forward)")
+            return
+        payload = struct.pack('>BBB', enable, forward, throttle)
         payload_size = len(payload)
         if payload_size > MAX_COMMAND_PAYLOAD_SIZE:
             logger.error(f"Payload size {payload_size} exceeds max {MAX_COMMAND_PAYLOAD_SIZE}")
@@ -281,18 +314,19 @@ def send_motor_control_command(ser, motor_id, throttle):
         packet.extend(payload)
         packet.append(COMMAND_END_BYTE)
         ser.write(packet)
-        logger.info(f"Sent motor control command: ID={motor_id}, Throttle={throttle}%")
+        logger.info(f"Sent motor control command: ID={motor_id}, Enable={enable}, Forward={forward}, Throttle={throttle}%")
     except serial.SerialException as e:
         logger.error(f"Serial error: {e}")
     except Exception as e:
         logger.error(f"Error: {e}")
 
-def send_relay_control_command(ser, relay_id, state):
+def send_relay_control_command(ser, relay_id, state, receiver):
     """
-    Send a relay control command to the Arduino.
+    Send a relay control command to the Arduino and update relay state.
     :param ser: Open serial connection
     :param relay_id: Target relay ID (0, 1, 2, 3)
     :param state: Relay state (0 for OFF, 1 for ON)
+    :param receiver: SerialPacketReceiver instance to update relay_states
     """
     try:
         if state not in (0, 1):
@@ -311,6 +345,7 @@ def send_relay_control_command(ser, relay_id, state):
         packet.extend(payload)
         packet.append(COMMAND_END_BYTE)
         ser.write(packet)
+        receiver.relay_states[relay_id] = state
         logger.info(f"Sent relay control command: ID={relay_id}, State={'ON' if state else 'OFF'}")
     except serial.SerialException as e:
         logger.error(f"Serial error: {e}")
@@ -418,7 +453,7 @@ def main():
                 if cmd_type == 'm' and len(parts) == 2:
                     try:
                         throttle = int(parts[1])
-                        send_motor_control_command(ser, CMD_TARGET_MOTOR_ID, throttle)
+                        send_motor_control_command(ser, CMD_TARGET_MOTOR_ID, throttle, enable=1, forward=1)
                     except ValueError:
                         logger.error("Invalid input. Use a number for throttle")
                 elif cmd_type == 'r' and len(parts) == 3:
@@ -428,7 +463,7 @@ def main():
                         if relay_id not in (0, 1, 2, 3):
                             logger.error("Relay ID must be 0, 1, 2, or 3")
                         else:
-                            send_relay_control_command(ser, relay_id, state)
+                            send_relay_control_command(ser, relay_id, state, receiver)
                     except ValueError:
                         logger.error("Invalid input. Use numbers for relay_id and state")
                 else:

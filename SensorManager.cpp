@@ -27,8 +27,8 @@ float pressure_scale_factor[6];
 
 // --- Load Cell Constants ---
 // Pins for THREE Load Cells (As per table)
-const byte LOADCELL_DOUT_PINS[3] = {27, 29, 31}; // Data Output lines (DT)
-const byte LOADCELL_CLK_PINS[3] = {28, 30, 32};   // Clock lines (SCK)
+const byte LOADCELL_DOUT_PINS[3] = {28, 30, 32}; // Data Output lines (DT)
+const byte LOADCELL_CLK_PINS[3] = {29, 31, 33};   // Clock lines (SCK)
 const float LOADCELL_CALIBRATION_FACTORS[3] = {145.4f, 150.0f, 160.0f}; // Calibration factors for 3 sensors
 const int NUM_LOADCELL_SENSORS = sizeof(LOADCELL_DOUT_PINS) / sizeof(LOADCELL_DOUT_PINS[0]); // Should be 3
 
@@ -38,16 +38,16 @@ HX711 scales[3];
 
 // --- Flow Sensor Constants ---
 const int FLOW_SENSOR_PIN_MEGA = 2; // Pin 2 on Mega is External Interrupt 0 (As per table)
-const float FLOW_PPL = 4215;
-const float PULSES_TO_LPM_FACTOR = 60.0f / FLOW_PPL;
+const int FLOW_PPL = 4215;
+
 
 
 // --- Temperature Sensor (MAX6675) Constants ---
 // Pins for FOUR MAX6675 sensors (As per table, interpreting ranges)
-const int THERMO_SHARED_CLK_PIN = 22; // D22 - Shared Clock
+const int THERMO_SHARED_CLK_PIN = 26; // D22 - Shared Clock
 const int THERMO_SHARED_DO_PIN  = 50; // D50 - Shared Data Out (MISO)
 
-const int THERMO_CS_PINS[4]  = { 23, 24, 25, 26 }; // D23-D26 - Unique Chip Selects
+const int THERMO_CS_PINS[4]  = { 22, 23, 24, 25 }; // D22-D25 - Unique Chip Selects
 const int NUM_TEMP_SENSORS = sizeof(THERMO_CS_PINS) / sizeof(THERMO_CS_PINS[0]); // Should be 4
 
 const float FAHRENHEIT_SLOPE = 9.0f / 5.0f;
@@ -166,6 +166,9 @@ volatile long flow_pulse = 0;
 long flow_pulseLast = 0;
 unsigned long lastFlowProcessTime = 0;
 const unsigned long FLOW_CALCULATION_INTERVAL_MS = 1000;
+float PULSES_TO_LPM_FACTOR = 0;
+unsigned long elapsed_time = 0;
+
 
 int currentTempSensorIndex = 0; // Cycles 0, 1, 2, 3
 unsigned long lastTempProcessTime = 0;
@@ -217,10 +220,12 @@ LoadCellValues calculateLoadCellValues(float raw_weight_float) {
 }
 
 // --- Calculation Function for Flow Sensor ---
-FlowMeterValues calculateFlowMeterValues(long currentPulseCount, long previousPulseCount) {
-    long delta_pulse = currentPulseCount - previousPulseCount;
-    float lpm = (float)delta_pulse * PULSES_TO_LPM_FACTOR;
-    return {lpm};
+FlowMeterValues calculateFlowMeterValues(long delta_pulse,unsigned long elapsed_time) {
+
+
+    // float lpm = ;
+    
+    return {(delta_pulse/(elapsed_time/60000)) / FLOW_PPL};
 }
 
 // --- Calculation Function for Temperature Sensor (MAX6675) ---
@@ -285,7 +290,7 @@ void setRelayState(byte relayIndex, byte state) {
         // Optional: Send error packet back to GUI
         return;
     }
-    digitalWrite(RELAY_PINS[relayIndex], (state == 1) ? HIGH : LOW);
+    digitalWrite(RELAY_PINS[relayIndex], (state == 1) ? LOW : HIGH);
     Serial.print(F("Set Relay ")); Serial.print(relayIndex); Serial.print(F(" to ")); Serial.println((state == 1) ? F("ON") : F("OFF"));
     // Optional: Send acknowledgment packet back to GUI
 }
@@ -314,18 +319,23 @@ void setMotorDirection(byte direction) {
 void setMotorThrottle(byte throttlePercent) {
     // Clamp the received percentage to 0-100
     if (throttlePercent > 100) {
-        Serial.print(F("Warning: Clamping received throttle ")); Serial.print(throttlePercent); Serial.println(F(" to 100%."));
+        Serial.print(F("Warning: Clamping received throttle ")); 
+        Serial.print(throttlePercent); Serial.println(F(" to 100%."));
         throttlePercent = 100;
     }
 
     // Map the 0-100% duty cycle value to the timer's range (0-199 for Timer4 @ 10kHz)
     // Note: OCR4A is 16-bit, but map returns long. Cast to int or uint16_t.
+
     int dutyCycleValue = map(throttlePercent, 0, 100, 0, 199);
 
     // Set the duty cycle on Timer4's A channel (controls MOTOR_PWM_PIN = Pin 6)
     OCR4A = dutyCycleValue; // Assign to Timer4 Output Compare Register A
 
-    Serial.print(F("Set Motor Throttle to: ")); Serial.print(throttlePercent); Serial.print(F("% (Timer value: ")); Serial.print(dutyCycleValue); Serial.println(F(")"));
+    Serial.print(F("Set Motor Throttle to: "));
+     Serial.print(throttlePercent); 
+     Serial.print(F("% (Timer value: "));
+      Serial.print(dutyCycleValue); Serial.println(F(")"));
 }
 
 
@@ -457,14 +467,15 @@ void setupRelays() {
 
 void setupDCMotor() {
     Serial.println(F("Setting up DC Motor..."));
+
     // Configure Control Pins
     pinMode(MOTOR_ENABLE_PIN, OUTPUT);
     pinMode(MOTOR_DIRECTION_PIN, OUTPUT);
     pinMode(MOTOR_PWM_PIN, OUTPUT); // PWM pin needs to be an output
 
-    digitalWrite(MOTOR_ENABLE_PIN, LOW);    // Start with motor disabled
-    digitalWrite(MOTOR_DIRECTION_PIN, HIGH); // Set default direction (e.g., Forward)
-    analogWrite(MOTOR_PWM_PIN, 0);         // Set initial PWM to 0 (stopped)
+    // digitalWrite(MOTOR_ENABLE_PIN, HIGH);    // Start with motor disabled
+    // digitalWrite(MOTOR_DIRECTION_PIN, HIGH); // Set default direction (e.g., Forward)
+    //analogWrite(MOTOR_PWM_PIN, 0);         // Set initial PWM to 0 (stopped)
 
     // --- Setup PWM on Pin 6 using Timer4 for 10kHz frequency ---
     // Pin 6 is OC4A, controlled by Timer4.
@@ -472,6 +483,7 @@ void setupDCMotor() {
     // Non-inverting mode: COM4A1=1, COM4A0=0
     // Prescaler 8: CS41=1
     // Frequency = F_CPU / (Prescaler * (1 + TOP)) = 16,000,000 / (8 * (1 + 199)) = 10,000 Hz
+    
     TCCR4A = _BV(COM4A1) | _BV(WGM41); // COM4A1 non-inverting, WGM41 for Mode 14
     TCCR4B = _BV(WGM43) | _BV(WGM42) | _BV(CS41); // WGM43, WGM42 for Mode 14, CS41 for prescaler 8
     ICR4 = 199; // Sets the TOP value for the timer
@@ -537,8 +549,9 @@ void testTimingBatchAllTypes() {
   // Measure time for one Flow Sensor block execution (simulating update)
   long dummyCurrentPulse = flow_pulse + 100; // Assume 100 pulses happened since flow_pulse was 0 in setup
   long dummyLastPulse = 0; // Since flow_pulseLast was 0 in setup
+  long delta_pulse = dummyCurrentPulse - dummyLastPulse;
   startTimer();
-  FlowMeterValues fData = calculateFlowMeterValues(dummyCurrentPulse, dummyLastPulse);
+  FlowMeterValues fData = calculateFlowMeterValues(delta_pulse,0);
   sendBinaryPacket(FLOW_PACKET_START_BYTE, FLOW_SENSOR_ID, &fData, sizeof(fData), FLOW_PACKET_END_BYTE);
   printElapsedTime("One Flow Sensor Calc + Send");
 
@@ -559,7 +572,7 @@ void testTimingBatchAllTypes() {
   byte motor_id = MOTOR_RPM_ID;
   sendBinaryPacket(MOTOR_RPM_PACKET_START_BYTE, motor_id, &mData, sizeof(mData), MOTOR_RPM_PACKET_END_BYTE);
   printElapsedTime("One Motor RPM Calc + Send");
-    if (index < 0 || index >= NUM_TEMP_SENSORS) { return {0.0f, 0.0f}; }
+  //  if (index < 0 || index >= NUM_TEMP_SENSORS) { return {0.0f, 0.0f}; }
 
 
   // Add tests for other sensor types here

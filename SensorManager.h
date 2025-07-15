@@ -35,8 +35,7 @@ extern HX711 scales[3];
 // --- Flow Sensor Constants ---
 extern const int FLOW_SENSOR_PIN_MEGA; // Pin 2 (INT0)
 
-extern const float FLOW_PPL;
-extern const float PULSES_TO_LPM_FACTOR;
+extern const int FLOW_PPL;
 
 
 // --- Temperature Sensor (MAX6675) Constants ---
@@ -160,6 +159,8 @@ extern volatile long flow_pulse;
 extern long flow_pulseLast;
 extern unsigned long lastFlowProcessTime;
 extern const unsigned long FLOW_CALCULATION_INTERVAL_MS;
+extern unsigned long elapsed_time;
+
 
 extern int currentTempSensorIndex; // Cycles 0, 1, 2, 3
 extern unsigned long lastTempProcessTime;
@@ -191,7 +192,7 @@ void printElapsedTime(const char* description);
 // Sensor calculation functions
 PressureSensorValues calculatePressureSensorValues(int raw_pressure_int, int index);
 LoadCellValues calculateLoadCellValues(float raw_weight_float);
-FlowMeterValues calculateFlowMeterValues(long currentPulseCount, long previousPulseCount);
+FlowMeterValues calculateFlowMeterValues(long delta_pulse,unsigned long elapsed_time);
 TemperatureSensorValues calculateTemperatureSensorValues(int index);
 MotorRPMValue calculateMotorRPM(unsigned long currentPulseCount, unsigned long previousPulseCount, unsigned long interval_ms);
 
