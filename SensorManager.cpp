@@ -10,7 +10,7 @@
 
 // --- Common Constants ---
 const long ANALOG_REFERENCE_mV = 5000;
-const float SHUNT_OHM = 217.9;
+// const float SHUNT_OHM = 217.9; // REMOVED: Now per-sensor
 const float PERCENT_SLOPE = 6.25;
 const float PERCENT_OFFSET = -25.0;
 
@@ -21,8 +21,12 @@ const float PRESSURE_MAX[6] = {16.0, 16.0, 25.0, 25.0, 40.0, 40.0}; // Using ori
 const int NUM_PRESSURE_SENSORS = sizeof(PRESSURE_SENSOR_PINS) / sizeof(PRESSURE_SENSOR_PINS[0]);
 
 const float MV_FACTOR = (float)ANALOG_REFERENCE_mV / 1024.0f;
-const float MA_FACTOR = 1000.0f / SHUNT_OHM;
+// float MA_FACTOR = 1000.0f / SHUNT_OHM; // REMOVED: Now per-sensor, calculated in setup
 float pressure_scale_factor[6];
+// NEW: Individual shunt resistances for each pressure sensor
+const float PRESSURE_SHUNT_OHMS[6] = {220.7f, 220.9f, 218.3f, 219.4f, 220.1f, 218.3f};
+// NEW: Individual mA factors calculated from shunt resistances
+float pressure_ma_factor[6];
 
 
 // --- Load Cell Constants ---
@@ -182,12 +186,13 @@ SensorTiming pressureTimingData[MAX_TIMED_PRESSURE_SENSORS];
 SensorTiming loadCellTimingData[MAX_TIMED_LOADCELL_SENSORS];
 SensorTiming tempTimingData[MAX_TIMED_TEMP_SENSORS];
 SensorTiming flowTimingData[MAX_TIMED_FLOW_SENSORS]; // New for flow sensor
+SensorTiming motorTimingData[MAX_TIMED_MOTOR_SENSORS]; // New for motor RPM sensor
 
 
 // --- NEW: Packet Constants for Timing Data ---
 const byte TIMING_PACKET_START_BYTE = 0xDE; // Choose a unique byte
 const byte TIMING_PACKET_END_BYTE = 0xAD;   // Choose a unique byte
-const byte TIMING_SENSOR_OPERATION_ID = 0x01; // ID for individual sensor operations
+const byte TIMING_SENSOR_OPERATION_ID = 0x01; // ID for individual sensor timings
 const byte TIMING_CATEGORY_CYCLE_ID = 0x02;   // ID for full category cycle times
 
 // --- NEW: Timing variables for category cycles ---
@@ -195,6 +200,7 @@ unsigned long pressureCategoryStartTime = 0;
 unsigned long loadCellCategoryStartTime = 0;
 unsigned long tempCategoryStartTime = 0;
 unsigned long flowCategoryStartTime = 0; // New for flow sensor
+unsigned long motorCategoryStartTime = 0; // New for motor RPM sensor
 
 
 // Add state variables and constants for other sensor types here
@@ -231,25 +237,28 @@ void endSensorTimer(byte sensorId, unsigned long startTime, const char* descript
         if (index < MAX_TIMED_LOADCELL_SENSORS) {
             loadCellTimingData[index] = {sensorId, startTime, endTime, duration};
         }
-    } else if (sensorId >= TEMP_ID_START && sensorId < TEMP_ID_START + NUM_IDS_TEMP) {
-        byte index = sensorId - TEMP_ID_START;
-        if (index < MAX_TIMED_TEMP_SENSORS) {
-            tempTimingData[index] = {sensorId, startTime, endTime, duration};
-        }
-
-    }        
-
-    // }else if (sensorId == FLOW_SENSOR_ID) { // Specific check for the single flow sensor ID
+    } 
+    // else if (sensorId == FLOW_SENSOR_ID) { // Specific check for the single flow sensor ID
     //     // Flow sensor index will always be 0 as there's only one
     //     if (0 < MAX_TIMED_FLOW_SENSORS) { // Ensure bounds
     //         flowTimingData[0] = {sensorId, startTime, endTime, duration};
     //     }
-    // }
-
+    // } 
+    else if (sensorId >= TEMP_ID_START && sensorId < TEMP_ID_START + NUM_IDS_TEMP) {
+        byte index = sensorId - TEMP_ID_START;
+        if (index < MAX_TIMED_TEMP_SENSORS) {
+            tempTimingData[index] = {sensorId, startTime, endTime, duration};
+        }
+    } else if (sensorId == MOTOR_RPM_ID) { // Specific check for the single motor RPM sensor ID
+        // Motor RPM sensor index will always be 0 as there's only one
+        if (0 < MAX_TIMED_MOTOR_SENSORS) { // Ensure bounds
+            motorTimingData[0] = {sensorId, startTime, endTime, duration};
+        }
+    }
     // Add more else if blocks for other sensor types if you add them
 
-    // Serial.print(F("Time for ")); Serial.print(description); Serial.print(F(" (ID ")); Serial.print(sensorId); Serial.print(F("): "));
-    // Serial.print(duration); Serial.println(F(" us"));
+    Serial.print(F("Time for ")); Serial.print(description); Serial.print(F(" (ID ")); Serial.print(sensorId); Serial.print(F("): "));
+    Serial.print(duration); Serial.println(F(" us"));
 
     // Send this individual sensor's timing data
     SensorTiming currentSensorTiming = {sensorId, startTime, endTime, duration};
@@ -272,7 +281,8 @@ PressureSensorValues calculatePressureSensorValues(int raw_pressure_int, int ind
   float raw_pressure_f = (float)raw_pressure_int;
   float mV = raw_pressure_f * MV_FACTOR;
   float volts = mV / 1000.0f;
-  float mA = volts * MA_FACTOR;
+  // Use the specific mA factor for this sensor
+  float mA = volts * pressure_ma_factor[index]; // CHANGED: Using array for MA_FACTOR
   float percent = mA * PERCENT_SLOPE + PERCENT_OFFSET;
   float pressure = percent * pressure_scale_factor[index];
   return {pressure};
@@ -470,6 +480,8 @@ void setupPressureSensors() {
   Serial.println(F("Setting up Pressure Sensors..."));
   for (int i = 0; i < NUM_PRESSURE_SENSORS; i++) {
     pressure_scale_factor[i] = PRESSURE_MAX[i] / 100.0f;
+    // NEW: Calculate individual mA factor for each sensor
+    pressure_ma_factor[i] = 1000.0f / PRESSURE_SHUNT_OHMS[i]; // CHANGED: Calculate per sensor
     // Analog pins are inputs by default, no pinMode needed unless using as digital
   }
   Serial.print(NUM_PRESSURE_SENSORS); Serial.println(F(" Pressure Sensors setup complete."));
@@ -588,75 +600,76 @@ void motor_count_pulse() {
 // --- Test Function Definitions ---
 
 // Function to run a test batch of all sensor processing blocks once
-// void testTimingBatchAllTypes() {
-//   Serial.println(F("\n--- Running Timing Test: Batch All Types ---"));
-//   // This function calls the logic for processing one item of each type back-to-back.
-//   // It includes sensor reads that happen within the processing blocks (like analogRead, readCelsius, get_units).
-//   // It bypasses the State Machine's timers for measurement purposes.
+void testTimingBatchAllTypes() {
+  Serial.println(F("\n--- Running Timing Test: Batch All Types ---"));
+  // This function calls the logic for processing one item of each type back-to-back.
+  // It includes sensor reads that happen within the processing blocks (like analogRead, readCelsius, get_units).
+  // It bypasses the State Machine's timers for measurement purposes.
 
-//   // Measure time for one Pressure sensor block execution (simulating a read)
-//   int raw_p = analogRead(PRESSURE_SENSOR_PINS[0]); // Use sensor 0's pin for read
-//   unsigned long testStartTime;
-//   startSensorTimer(PRESSURE_ID_START + 0, &testStartTime); // Use new timing
-//   PressureSensorValues pData = calculatePressureSensorValues(raw_p, 0); // Calculate for sensor 0
-//   sendBinaryPacket(PRESSURE_PACKET_START_BYTE, PRESSURE_ID_START, &pData, sizeof(pData), PRESSURE_PACKET_END_BYTE); // Send for sensor 0
-//   endSensorTimer(PRESSURE_ID_START + 0, testStartTime, "One Pressure Sensor Block");
-
-
-//   // Measure time for one Load Cell block execution (simulating a read)
-//   testStartTime; // Reuse variable
-//   HX711& testScale = scales[0]; // Get Load Cell 0
-//   float raw_weight = testScale.get_units(); // Read from Load Cell 0 (will wait for ready)
-//   startSensorTimer(LOADCELL_ID_START + 0, &testStartTime); // Use new timing
-//   LoadCellValues loadCellData = calculateLoadCellValues(raw_weight);
-//   byte loadCell_id = LOADCELL_ID_START + 0; // ID for load cell 0
-//   sendBinaryPacket(LOADCELL_PACKET_START_BYTE, loadCell_id, &loadCellData, sizeof(loadCellData), LOADCELL_PACKET_END_BYTE);
-//   endSensorTimer(LOADCELL_ID_START + 0, testStartTime, "One Load Cell Block (incl. get_units wait)");
+  // Measure time for one Pressure sensor block execution (simulating a read)
+  int raw_p = analogRead(PRESSURE_SENSOR_PINS[0]); // Use sensor 0's pin for read
+  unsigned long testStartTime;
+  startSensorTimer(PRESSURE_ID_START + 0, &testStartTime); // Use new timing
+  PressureSensorValues pData = calculatePressureSensorValues(raw_p, 0); // Calculate for sensor 0
+  sendBinaryPacket(PRESSURE_PACKET_START_BYTE, PRESSURE_ID_START, &pData, sizeof(pData), PRESSURE_PACKET_END_BYTE); // Send for sensor 0
+  endSensorTimer(PRESSURE_ID_START + 0, testStartTime, "One Pressure Sensor Block");
 
 
-//   // Measure time for one Flow Sensor block execution (simulating update)
-//   testStartTime; // Reuse variable
-//   long dummyCurrentPulse = flow_pulse + 100; // Assume 100 pulses happened since flow_pulse was 0 in setup
-//   long dummyLastPulse = 0; // Since flow_pulseLast was 0 in setup
-//   long delta_pulse = dummyCurrentPulse - dummyLastPulse;
-//   unsigned long dummyElapsedTime = FLOW_CALCULATION_INTERVAL_MS; // Simulate an interval
+  // Measure time for one Load Cell block execution (simulating a read)
+  // testStartTime; // Reuse variable - no need to declare again
+  HX711& testScale = scales[0]; // Get Load Cell 0
+  float raw_weight = testScale.get_units(); // Read from Load Cell 0 (will wait for ready)
+  startSensorTimer(LOADCELL_ID_START + 0, &testStartTime); // Use new timing
+  LoadCellValues loadCellData = calculateLoadCellValues(raw_weight);
+  byte loadCell_id = LOADCELL_ID_START + 0; // ID for load cell 0
+  sendBinaryPacket(LOADCELL_PACKET_START_BYTE, loadCell_id, &loadCellData, sizeof(loadCellData), LOADCELL_PACKET_END_BYTE);
+  endSensorTimer(LOADCELL_ID_START + 0, testStartTime, "One Load Cell Block (incl. get_units wait)");
+
+
+  // Measure time for one Flow Sensor block execution (simulating update)
+  // testStartTime; // Reuse variable - no need to declare again
+  long dummyCurrentPulse = flow_pulse + 100; // Assume 100 pulses happened since flow_pulse was 0 in setup
+  long dummyLastPulse = 0; // Since flow_pulseLast was 0 in setup
+  long delta_pulse = dummyCurrentPulse - dummyLastPulse;
+  unsigned long dummyElapsedTime = FLOW_CALCULATION_INTERVAL_MS; // Simulate an interval
   
-//   startSensorTimer(FLOW_SENSOR_ID, &testStartTime); // Use new timing
-//   FlowMeterValues fData = calculateFlowMeterValues(delta_pulse, dummyElapsedTime);
-//   sendBinaryPacket(FLOW_PACKET_START_BYTE, FLOW_SENSOR_ID, &fData, sizeof(fData), FLOW_PACKET_END_BYTE);
-//   endSensorTimer(FLOW_SENSOR_ID, testStartTime, "One Flow Sensor Calc + Send");
+  startSensorTimer(FLOW_SENSOR_ID, &testStartTime); // Use new timing
+  FlowMeterValues fData = calculateFlowMeterValues(delta_pulse, dummyElapsedTime);
+  sendBinaryPacket(FLOW_PACKET_START_BYTE, FLOW_SENSOR_ID, &fData, sizeof(fData), FLOW_PACKET_END_BYTE);
+  endSensorTimer(FLOW_SENSOR_ID, testStartTime, "One Flow Sensor Calc + Send");
 
 
-//   // Measure time for one Temp Sensor block execution (simulating a read)
-//   testStartTime; // Reuse variable
-//   startSensorTimer(TEMP_ID_START + 0, &testStartTime); // Use new timing
-//   TemperatureSensorValues tData = calculateTemperatureSensorValues(0); // Calculate for sensor 0
-//   sendBinaryPacket(TEMP_PACKET_START_BYTE, TEMP_ID_START, &tData, sizeof(tData), TEMP_PACKET_END_BYTE);
-//   endSensorTimer(TEMP_ID_START + 0, testStartTime, "One Temp Sensor Block (incl. readCelsius wait)");
+  // Measure time for one Temp Sensor block execution (simulating a read)
+  // testStartTime; // Reuse variable - no need to declare again
+  startSensorTimer(TEMP_ID_START + 0, &testStartTime); // Use new timing
+  TemperatureSensorValues tData = calculateTemperatureSensorValues(0); // Calculate for sensor 0
+  sendBinaryPacket(TEMP_PACKET_START_BYTE, TEMP_ID_START, &tData, sizeof(tData), TEMP_PACKET_END_BYTE);
+  endSensorTimer(TEMP_ID_START + 0, testStartTime, "One Temp Sensor Block (incl. readCelsius wait)");
 
-//   // Measure time for one Motor RPM block execution (simulating update)
-//   // This still uses the old generic timing, as requested for now.
-//   unsigned long currentMillis_motor = millis();
-//   unsigned long interval_ms = MOTOR_CALCULATION_INTERVAL_MS; // Dummy interval
-//   unsigned long currentPulseCount_motor = motor_pulse_count + 50; // Assume 50 pulses
-//   unsigned long motor_last_pulse_count_test = 0; // Assume 0 at start of interval
+  // Measure time for one Motor RPM block execution (simulating update)
+  // testStartTime; // Reuse variable - no need to declare again
+  startSensorTimer(MOTOR_RPM_ID, &testStartTime); // Use new timing function
 
-//   startSensorTimer(); // Uses old generic timer
-//   MotorRPMValue mData = calculateMotorRPM(currentPulseCount_motor, motor_last_pulse_count_test, interval_ms);
-//   byte motor_id = MOTOR_RPM_ID;
-//   sendBinaryPacket(MOTOR_RPM_PACKET_START_BYTE, motor_id, &mData, sizeof(mData), MOTOR_RPM_PACKET_END_BYTE);
-//   printElapsedTime("One Motor RPM Block"); // Uses old generic timer
+  // unsigned long currentMillis_motor = micros(); // Use micros for start time consistency - not needed here, testStartTime already has it
+  unsigned long interval_ms = MOTOR_CALCULATION_INTERVAL_MS; // Dummy interval
+  unsigned long currentPulseCount_motor = motor_pulse_count + 50; // Assume 50 pulses
+  unsigned long motor_last_pulse_count_test = 0; // Assume 0 at start of interval
+
+  MotorRPMValue mData = calculateMotorRPM(currentPulseCount_motor, motor_last_pulse_count_test, interval_ms);
+  byte motor_id = MOTOR_RPM_ID;
+  sendBinaryPacket(MOTOR_RPM_PACKET_START_BYTE, motor_id, &mData, sizeof(mData), MOTOR_RPM_PACKET_END_BYTE);
+  endSensorTimer(MOTOR_RPM_ID, testStartTime, "Motor RPM Block");
 
 
-//   // Add tests for other sensor types here
-//   /*
-//   OtherSensorValues dummyOtherData = { ... };
-//   startTimer();
-//   OtherSensorValues processedOtherData = calculateOtherSensorValues(dummyOtherData);
-//   byte other_id = OTHER_ID_START + 0; // ID for other sensor 0
-//   sendBinaryPacket(OTHER_PACKET_START_BYTE, other_id, &processedOtherData, sizeof(processedOtherData), OTHER_PACKET_END_BYTE);
-//   printElapsedTime("One Other Sensor Block");
-//   */
+  // Add tests for other sensor types here
+  /*
+  OtherSensorValues dummyOtherData = { ... };
+  startTimer();
+  OtherSensorValues processedOtherData = calculateOtherSensorValues(dummyOtherData);
+  byte other_id = OTHER_ID_START + 0; // ID for other sensor 0
+  sendBinaryPacket(OTHER_PACKET_START_BYTE, other_id, &processedOtherData, sizeof(processedOtherData), OTHER_PACKET_END_BYTE);
+  printElapsedTime("One Other Sensor Block");
+  */
 
-//   Serial.println(F("--- Timing Test Batch Complete ---"));
-// }
+  Serial.println(F("--- Timing Test Batch Complete ---"));
+}

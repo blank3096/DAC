@@ -31,7 +31,7 @@ void setup() {
   delay(1000); // Short delay before tests
   Serial.println(F("\n--- Running Initial Timing Tests ---"));
 
-  //testTimingBatchAllTypes(); // Call the test function
+  testTimingBatchAllTypes(); // Call the test function
 
   Serial.println(F("\n--- Initial Timing Tests Complete. Entering Main Loop ---"));
   delay(1000); // Delay before starting the continuous loop
@@ -154,7 +154,8 @@ void loop() {
       unsigned long categoryDuration = micros() - pressureCategoryStartTime;
       Serial.print(F("All Pressure Sensors Cycle Time: ")); Serial.print(categoryDuration); Serial.println(F(" us"));
       // Send category cycle time (optional, define a specific ID for this)
-      SensorTiming categoryTiming = {TIMING_CATEGORY_CYCLE_ID, pressureCategoryStartTime, micros(), categoryDuration};
+      // IMPORTANT ARDUINO CHANGE: Use the category's starting ID in the struct's sensor_id field
+      SensorTiming categoryTiming = {PRESSURE_ID_START, pressureCategoryStartTime, micros(), categoryDuration};
       sendTimingPacket(TIMING_CATEGORY_CYCLE_ID, &categoryTiming); // Use a distinct ID for cycle times
     }
     lastPressureSensorProcessTime = currentMillis; // Update for next interval
@@ -194,7 +195,8 @@ void loop() {
              // End category timer when the last sensor in the category is processed
              unsigned long categoryDuration = micros() - loadCellCategoryStartTime;
              Serial.print(F("All Load Cell Sensors Cycle Time: ")); Serial.print(categoryDuration); Serial.println(F(" us"));
-             SensorTiming categoryTiming = {TIMING_CATEGORY_CYCLE_ID, loadCellCategoryStartTime, micros(), categoryDuration};
+             // IMPORTANT ARDUINO CHANGE: Use the category's starting ID in the struct's sensor_id field
+             SensorTiming categoryTiming = {LOADCELL_ID_START, loadCellCategoryStartTime, micros(), categoryDuration};
              sendTimingPacket(TIMING_CATEGORY_CYCLE_ID, &categoryTiming);
            }
        }
@@ -240,7 +242,8 @@ void loop() {
        // End category timer (same as individual for single sensor)
        unsigned long categoryDuration = micros() - flowCategoryStartTime;
        Serial.print(F("All Flow Sensors Cycle Time: ")); Serial.print(categoryDuration); Serial.println(F(" us"));
-       SensorTiming categoryTiming = {TIMING_CATEGORY_CYCLE_ID, flowCategoryStartTime, micros(), categoryDuration};
+       // IMPORTANT ARDUINO CHANGE: Use the category's starting ID in the struct's sensor_id field
+       SensorTiming categoryTiming = {FLOW_SENSOR_ID, flowCategoryStartTime, micros(), categoryDuration};
        sendTimingPacket(TIMING_CATEGORY_CYCLE_ID, &categoryTiming);
    }
 
@@ -272,7 +275,8 @@ void loop() {
       // End category timer when the last sensor in the category is processed
       unsigned long categoryDuration = micros() - tempCategoryStartTime;
       Serial.print(F("All Temp Sensors Cycle Time: ")); Serial.print(categoryDuration); Serial.println(F(" us"));
-      SensorTiming categoryTiming = {TIMING_CATEGORY_CYCLE_ID, tempCategoryStartTime, micros(), categoryDuration};
+      // IMPORTANT ARDUINO CHANGE: Use the category's starting ID in the struct's sensor_id field
+      SensorTiming categoryTiming = {TEMP_ID_START, tempCategoryStartTime, micros(), categoryDuration};
       sendTimingPacket(TIMING_CATEGORY_CYCLE_ID, &categoryTiming);
     }
     lastTempProcessTime = currentMillis;
@@ -283,6 +287,10 @@ void loop() {
    // If you want it to also send a SensorTiming packet, you'd adapt it like the others.
    if (currentMillis - lastMotorCalcTime >= MOTOR_CALCULATION_INTERVAL_MS) {
        unsigned long individualMotorStartTime = 0; // Local variable for motor timing
+
+       // For a single motor RPM sensor, individual timing IS the category timing
+       motorCategoryStartTime = micros(); // Start of the motor RPM sensor's processing cycle
+
        byte motor_id = MOTOR_RPM_ID;
        startSensorTimer(motor_id, &individualMotorStartTime); // Use new timing function
 
@@ -316,5 +324,12 @@ void loop() {
        );
 
        endSensorTimer(motor_id, individualMotorStartTime, "Motor RPM Block"); // Use new timing function
+
+       // End category timer (same as individual for single sensor)
+       unsigned long categoryDuration = micros() - motorCategoryStartTime;
+       Serial.print(F("All Motor RPM Sensors Cycle Time: ")); Serial.print(categoryDuration); Serial.println(F(" us"));
+       // IMPORTANT ARDUINO CHANGE: Use the category's starting ID in the struct's sensor_id field
+       SensorTiming categoryTiming = {MOTOR_RPM_ID, motorCategoryStartTime, micros(), categoryDuration};
+       sendTimingPacket(TIMING_CATEGORY_CYCLE_ID, &categoryTiming);
    }
 }

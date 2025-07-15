@@ -8,7 +8,6 @@
 
 // --- Common Constants ---
 extern const long ANALOG_REFERENCE_mV;
-extern const float SHUNT_OHM;
 extern const float PERCENT_SLOPE;
 extern const float PERCENT_OFFSET;
 
@@ -18,8 +17,9 @@ extern const int PRESSURE_SENSOR_PINS[6];
 extern const float PRESSURE_MAX[6];
 extern const int NUM_PRESSURE_SENSORS;
 extern const float MV_FACTOR;
-extern const float MA_FACTOR;
 extern float pressure_scale_factor[6];
+extern const float PRESSURE_SHUNT_OHMS[6];
+extern float pressure_ma_factor[6];
 
 
 // --- Load Cell Constants ---
@@ -120,7 +120,7 @@ struct MotorRPMValue { float rpm; };
 
 // --- NEW: Timing Data Structure ---
 struct SensorTiming {
-    byte sensor_id;
+    byte sensor_id;           // For individual sensor ID, or category ID (e.g., PRESSURE_ID_START for pressure category)
     unsigned long start_micros;
     unsigned long end_micros;
     unsigned long duration_micros;
@@ -131,11 +131,14 @@ const byte MAX_TIMED_PRESSURE_SENSORS = 6;
 const byte MAX_TIMED_LOADCELL_SENSORS = 3;
 const byte MAX_TIMED_TEMP_SENSORS = 4;
 const byte MAX_TIMED_FLOW_SENSORS = 1; // For the single flow sensor
+const byte MAX_TIMED_MOTOR_SENSORS = 1; // For the single motor RPM sensor
 
 extern SensorTiming pressureTimingData[MAX_TIMED_PRESSURE_SENSORS];
 extern SensorTiming loadCellTimingData[MAX_TIMED_LOADCELL_SENSORS];
 extern SensorTiming tempTimingData[MAX_TIMED_TEMP_SENSORS];
 extern SensorTiming flowTimingData[MAX_TIMED_FLOW_SENSORS]; // New for flow sensor
+extern SensorTiming motorTimingData[MAX_TIMED_MOTOR_SENSORS]; // New for motor RPM sensor
+
 
 // --- NEW: Packet Constants for Timing Data ---
 extern const byte TIMING_PACKET_START_BYTE;
@@ -198,6 +201,8 @@ extern unsigned long pressureCategoryStartTime;
 extern unsigned long loadCellCategoryStartTime;
 extern unsigned long tempCategoryStartTime;
 extern unsigned long flowCategoryStartTime; // New for flow sensor
+extern unsigned long motorCategoryStartTime; // New for motor RPM sensor
+
 
 // Add state variables and constants for other sensor types here
 /*
