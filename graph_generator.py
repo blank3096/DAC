@@ -1,99 +1,87 @@
+
 import pandas as pd
 import matplotlib.pyplot as plt
 import os
-import argparse
-import re
 
-def generate_graphs(csv_dir='csv_data', output_dir='graphs'):
+def generate_graphs_from_csv(input_dir):
     """
-    Reads CSV files from csv_dir and generates individual and category-wise
-    time-series graphs, saving them as PNG files in output_dir.
-    """
-    if not os.path.exists(output_dir):
-        os.makedirs(output_dir)
-        print(f"Created output directory: {output_dir}")
+    Reads all CSV files from a specified directory, generates line graphs
+    for numerical sensor data against their respective timestamps,
+    and saves them as PNG images.
 
-    csv_files = [f for f in os.listdir(csv_dir) if f.endswith('.csv')]
-    
-    # Dictionary to hold dataframes grouped by sensor category (e.g., 'pressure', 'loadcell')
-    category_data = {} 
-    
-    print(f"Generating graphs from CSVs in: {csv_dir}...")
+    Args:
+        input_dir (str): The path to the directory containing the CSV files.
+    """
+    if not os.path.exists(input_dir):
+        print(f"Error: Input directory '{input_dir}' not found.")
+        return
+
+    # Create a directory to save the generated plots
+    plots_output_dir = os.path.join(input_dir, "plots")
+    if not os.path.exists(plots_output_dir):
+        os.makedirs(plots_output_dir)
+        print(f"Created plots output directory: {plots_output_dir}")
+
+    csv_files = [f for f in os.listdir(input_dir) if f.endswith('.csv')]
+
+    if not csv_files:
+        print(f"No CSV files found in '{input_dir}'.")
+        return
 
     for csv_file in csv_files:
-        file_path = os.path.join(csv_dir, csv_file)
+        file_path = os.path.join(input_dir, csv_file)
+        print(f"Processing '{csv_file}'...")
+
         try:
-            df = pd.read_csv(file_path, index_col='Timestamp', parse_dates=True)
-            if df.empty:
-                print(f"Skipping empty CSV: {csv_file}")
+            # Read the CSV file into a pandas DataFrame
+            df = pd.read_csv(file_path)
+
+            # Ensure 'Timestamp' column exists and convert it to datetime objects
+            if 'Timestamp' not in df.columns:
+                print(f"Warning: 'Timestamp' column not found in '{csv_file}'. Skipping graph generation for this file.")
+                continue
+            df['Timestamp'] = pd.to_datetime(df['Timestamp'])
+
+            # Identify numerical columns for plotting, excluding timing data
+            # We'll plot each sensor data column against the Timestamp.
+            columns_to_plot = [
+                col for col in df.columns
+                if pd.api.types.is_numeric_dtype(df[col]) and
+                   col not in ['Start_s', 'End_s', 'Duration_s']
+            ]
+
+            if not columns_to_plot:
+                print(f"No numerical sensor data columns found in '{csv_file}' to plot. Skipping.")
                 continue
 
-            sensor_full_name = os.path.splitext(csv_file)[0].replace('_', ' ').title() # e.g., "Pressure_Id_0_Pressure" -> "Pressure Id 0 Pressure"
-            
-            # Determine sensor category (e.g., 'pressure', 'loadcell', 'temperature')
-            # Extract category from filename (e.g., 'pressure_id_0_pressure.csv' -> 'pressure')
-            category_match = re.match(r'([a-z]+)', os.path.splitext(csv_file)[0].lower())
-            sensor_category = category_match.group(1) if category_match else "other"
-            
-            # --- Individual Graph for each sensor ---
-            sensor_group_folder = os.path.join(output_dir, sensor_category.capitalize() + '_Individual')
-            if not os.path.exists(sensor_group_folder):
-                os.makedirs(sensor_group_folder)
+            # Generate a plot for each relevant numerical column
+            for col in columns_to_plot:
+                plt.figure(figsize=(12, 6)) # Set figure size for better readability
+                # Plotting sensor data against 'Timestamp'
+                plt.plot(df['Timestamp'], df[col], marker='o', linestyle='-', markersize=4)
 
-            plt.figure(figsize=(12, 6))
-            plt.plot(df.index, df['Value'], label=sensor_full_name)
-            plt.xlabel('Time')
-            plt.ylabel('Value') # Placeholder, can be refined per sensor type if needed
-            plt.title(f'{sensor_full_name} Over Time')
-            plt.grid(True)
-            plt.legend()
-            plt.tight_layout()
-            
-            graph_filename = os.path.join(sensor_group_folder, f'{os.path.splitext(csv_file)[0]}.png')
-            plt.savefig(graph_filename)
-            plt.close()
-            print(f"Generated individual graph: {graph_filename}")
+                plt.title(f'{col.replace("_", " ").title()} Over Time ({os.path.splitext(csv_file)[0].replace("_", " ").title()})')
+                plt.xlabel('Timestamp') # Reverted x-axis label
+                plt.ylabel(col.replace("_", " ").title())
+                plt.grid(True)
+                plt.tight_layout() # Adjust layout to prevent labels from overlapping
 
-            # --- Prepare for Category Graphs ---
-            if sensor_category not in category_data:
-                category_data[sensor_category] = {}
-            category_data[sensor_category][sensor_full_name] = df # Store df for category plotting
+                # Construct output filename
+                # Changed filename to reflect plotting against Timestamp again
+                plot_filename = f"{os.path.splitext(csv_file)[0]}_{col}_over_time.png"
+                plot_output_path = os.path.join(plots_output_dir, plot_filename)
+                plt.savefig(plot_output_path)
+                plt.close() # Close the plot to free memory
+                print(f"  Generated plot: {plot_output_path}")
 
         except Exception as e:
-            print(f"Error processing {csv_file}: {e}")
+            print(f"Error processing '{csv_file}': {e}")
 
-    # --- Category-wise Graphs ---
-    for category, sensor_dfs in category_data.items():
-        if not sensor_dfs:
-            continue # Skip empty categories
-
-        category_folder = os.path.join(output_dir, category.capitalize() + '_Grouped')
-        if not os.path.exists(category_folder):
-            os.makedirs(category_folder)
-
-        plt.figure(figsize=(14, 8))
-        for sensor_full_name, df in sensor_dfs.items():
-            plt.plot(df.index, df['Value'], label=sensor_full_name)
-        
-        plt.xlabel('Time')
-        plt.ylabel('Value') # Placeholder, consider refining with actual units
-        plt.title(f'All {category.capitalize()} Sensors Over Time')
-        plt.grid(True)
-        plt.legend(bbox_to_anchor=(1.05, 1), loc='upper left') # Place legend outside
-        plt.tight_layout(rect=[0, 0, 0.85, 1]) # Adjust layout to make space for legend
-        
-        graph_filename = os.path.join(category_folder, f'{category}_grouped.png')
-        plt.savefig(graph_filename)
-        plt.close()
-        print(f"Generated grouped graph for {category}: {graph_filename}")
-
-
+# --- Example Usage ---
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser(description="Generate graphs from sensor CSV data.")
-    parser.add_argument('--csv-dir', type=str, default='csv_data',
-                        help='Directory containing the CSV files.')
-    parser.add_argument('--graph-dir', type=str, default='graphs',
-                        help='Directory to save the generated graphs.')
-    args = parser.parse_args()
+    # Assuming your previous script created 'sensor_csv_output'
+    # in the same directory as this script.
+    output_folder_from_previous_script = "sensor_csv_output"
 
-    generate_graphs(args.csv_dir, args.graph_dir)
+    # Run the graph generator
+    generate_graphs_from_csv(output_folder_from_previous_script)

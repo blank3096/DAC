@@ -1,158 +1,160 @@
 import re
-import pandas as pd
+import csv
 import os
-import subprocess
-import logging # Import logging for internal messages if needed
+from collections import defaultdict
 
-# Configure a simple logger for this script's internal messages
-logging.basicConfig(level=logging.INFO, format='%(levelname)s: %(message)s')
-script_logger = logging.getLogger(__name__)
+def parse_log_to_csv(log_file_path, output_dir):
+    """
+    Parses a sensor log file, correlates sensor data with individual timing data,
+    and writes the output to separate CSV files for all sensors.
 
-def parse_log_to_csv(log_file='Work.log', output_dir='csv_data'):
+    If specific timing data for a sensor is missing, it defaults to 0.0.
+
+    Args:
+        log_file_path (str): The full path to the input log file.
+        output_dir (str): The path to the directory where CSV files will be saved.
     """
-    Parses the Work.log file to extract sensor data and saves it into
-    separate CSV files for each unique sensor.
-    """
+    # --- Regular Expressions to Parse Log Lines ---
+    line_regex = re.compile(r"^(\d{4}-\d{2}-\d{2}\s\d{2}:\d{2}:\d{2})\s-\s(.*)$")
+    id_regex = re.compile(r"\[(.*?)\s(?:ID\s)?(\d+)\]")
+    data_regex = re.compile(r"(\w+):\s*([-\d\.,]+)")
+
+    # --- Data Storage ---
+    final_data = defaultdict(list)
+    
+    # --- File Processing ---
+    try:
+        with open(log_file_path, 'r') as f:
+            block_timestamp = None
+            sensor_readings = {}
+            timing_readings = {}
+
+            # Process line by line, grouping data by timestamp
+            for line in f:
+                line_match = line_regex.match(line)
+                if not line_match:
+                    continue
+
+                current_timestamp, content = line_match.groups()
+
+                # When timestamp changes, process the completed block of data
+                if current_timestamp != block_timestamp and block_timestamp is not None:
+                    for sensor_id, sensor_info in sensor_readings.items():
+                        # **MODIFIED LOGIC**: Get timing if it exists, otherwise use a default dict.
+                        # This ensures no sensor data is ever dropped.
+                        timing_info = timing_readings.get(sensor_id, {
+                            'Start_s': 0.0, 'End_s': 0.0, 'Duration_s': 0.0
+                        })
+                        
+                        combined_record = {
+                            'Timestamp': block_timestamp,
+                            **timing_info,
+                            **sensor_info['data']
+                        }
+                        file_key = f"{sensor_info['type']}_{sensor_id}".lower().replace(' ', '_')
+                        final_data[file_key].append(combined_record)
+                    
+                    # Reset for the new block
+                    sensor_readings = {}
+                    timing_readings = {}
+
+                block_timestamp = current_timestamp
+                
+                # Parse the content of the current line
+                id_match = id_regex.search(content)
+                if not id_match:
+                    continue
+
+                item_type, item_id = id_match.groups()
+                data_payload = content[id_match.end():]
+                data_values = {key: float(val.replace(',', '')) for key, val in data_regex.findall(data_payload)}
+
+                if not data_values:
+                    continue
+
+                # Categorize and store parsed data
+                if item_type == "Timing Individual":
+                    timing_readings[item_id] = {
+                        'Start_s': data_values.get('Start', 0) / 1_000_000.0,
+                        'End_s': data_values.get('End', 0) / 1_000_000.0,
+                        'Duration_s': data_values.get('Duration', 0) / 1_000_000.0
+                    }
+                elif "Timing" not in item_type:
+                    sanitized_data = {}
+                    for key, value in data_values.items():
+                        if 'pressure' in key: new_key = f"{key}_bar"
+                        elif 'weight' in key: new_key = f"{key}_g"
+                        elif 'flow' in key: new_key = f"{key}_lpm"
+                        else: new_key = key
+                        sanitized_data[new_key] = value
+                    
+                    sensor_readings[item_id] = {'type': item_type, 'data': sanitized_data}
+            
+            # **MODIFICATION**: Process the very last block in the file after the loop finishes
+            if block_timestamp is not None:
+                for sensor_id, sensor_info in sensor_readings.items():
+                    timing_info = timing_readings.get(sensor_id, {
+                        'Start_s': 0.0, 'End_s': 0.0, 'Duration_s': 0.0
+                    })
+                    
+                    combined_record = {
+                        'Timestamp': block_timestamp,
+                        **timing_info,
+                        **sensor_info['data']
+                    }
+                    file_key = f"{sensor_info['type']}_{sensor_id}".lower().replace(' ', '_')
+                    final_data[file_key].append(combined_record)
+
+    except FileNotFoundError:
+        print(f"Error: The file '{log_file_path}' was not found.")
+        return
+    except Exception as e:
+        print(f"An error occurred: {e}")
+        return
+
+    # --- Write Collected Data to CSV Files ---
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
-        script_logger.info(f"Created output directory: {output_dir}")
+        print(f"Created output directory: {output_dir}")
 
-    sensor_data = {}
-    
-    # Updated Regex:
-    # Group 1: Timestamp (e.g., '2025-07-16 03:39:43')
-    # Group 2: Log Level (e.g., 'INFO') - added for robustness, though not strictly used
-    # Group 3: Header content (e.g., 'Pressure ID 0', 'Relay ID 0', 'Timing Category Pressure')
-    # Group 4: The rest of the line after the header (e.g., 'No data', 'pressure: 1.23 bar', 'state: CLOSE')
-    log_line_pattern = re.compile(r'^(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2},\d{3}) - (INFO|ERROR) - \[([^\]]+)\]\s*(.*)$')
-    
-    # Specific patterns for different sensor types within the captured content
-    # For 'name: value unit' (e.g., 'pressure: 1.23 bar', 'weight_grams: 100.567 g', 'flow_rate_lpm: 0.750 LPM', 'rpm: 1200.5 RPM')
-    value_unit_pattern = re.compile(r'([^:]+):\s*([-\d\.]+) (\S+)$')
-    
-    # For Temperature sensors with two values (e.g., 'temp_c: 25.1 C temp_f: 77.2 F')
-    temp_pattern = re.compile(r'temp_c:\s*([-\d\.]+) C\s*temp_f:\s*([-\d\.]+) F')
+    for file_key, records in final_data.items():
+        if not records:
+            continue
+        
+        output_file_path = os.path.join(output_dir, f"{file_key}.csv")
+        headers = records[0].keys()
 
-    script_logger.info(f"Parsing log file: {log_file}...")
-    line_count = 0
-    parsed_entries = 0
+        with open(output_file_path, 'w', newline='') as f_out:
+            writer = csv.DictWriter(f_out, fieldnames=headers)
+            writer.writeheader()
+            writer.writerows(records)
+        
+        print(f"Successfully created {output_file_path}")
 
-    with open(log_file, 'r') as f:
-        for line in f:
-            line_count += 1
-            match = log_line_pattern.match(line)
-            if match:
-                timestamp_str, log_level, header_content, rest_of_line = match.groups()
-                timestamp = pd.to_datetime(timestamp_str, format='%Y-%m-%d %H:%M:%S,%f')
-
-                # Skip lines that are not sensor data we want to plot
-                if "No data" in rest_of_line or "ERR" in rest_of_line or "RELAY STATES" in header_content or "Relay ID" in header_content or "TIMING DATA" in header_content or "Timing" in header_content:
-                    continue
-                
-                # --- Handle Temperature Sensors (two values) ---
-                temp_match = temp_pattern.match(rest_of_line)
-                if temp_match:
-                    temp_c_value = float(temp_match.group(1))
-                    temp_f_value = float(temp_match.group(2))
-
-                    sensor_name_c = f"{header_content}_temp_c"
-                    sensor_name_f = f"{header_content}_temp_f"
-
-                    if sensor_name_c not in sensor_data:
-                        sensor_data[sensor_name_c] = []
-                    sensor_data[sensor_name_c].append({'Timestamp': timestamp, 'Value': temp_c_value})
-                    
-                    if sensor_name_f not in sensor_data:
-                        sensor_data[sensor_name_f] = []
-                    sensor_data[sensor_name_f].append({'Timestamp': timestamp, 'Value': temp_f_value})
-                    parsed_entries += 2
-                    continue # Move to next line after processing temperature
-
-                # --- Handle other single-value sensors ---
-                # Split the rest_of_line by spaces to find individual 'field: value unit' pairs
-                # This handles cases like "pressure: 1.23 bar" or "rpm: 1200.5 RPM"
-                parts = rest_of_line.strip().split(' ')
-                current_measurement_name = ""
-                current_value_str = ""
-                current_unit = ""
-
-                # Iterate through parts to reconstruct field: value unit
-                for i, part in enumerate(parts):
-                    if ':' in part: # This is likely the start of a new measurement
-                        if current_measurement_name: # If we have a pending measurement, process it
-                            value_match = value_unit_pattern.match(f"{current_measurement_name}:{current_value_str} {current_unit}".strip())
-                            if value_match:
-                                try:
-                                    value = float(value_match.group(2))
-                                    # Use header_content for the sensor ID part, and the measurement name for the specific field
-                                    # e.g., "Pressure ID 0_pressure"
-                                    sensor_full_id = f"{header_content}_{value_match.group(1).strip()}"
-                                    if sensor_full_id not in sensor_data:
-                                        sensor_data[sensor_full_id] = []
-                                    sensor_data[sensor_full_id].append({'Timestamp': timestamp, 'Value': value})
-                                    parsed_entries += 1
-                                except ValueError:
-                                    script_logger.debug(f"Skipping non-numeric value: {value_match.group(2)} in line {line_count}")
-                            current_measurement_name = ""
-                            current_value_str = ""
-                            current_unit = ""
-
-                        # Start new measurement
-                        current_measurement_name = part.split(':')[0].strip()
-                        current_value_str = part.split(':')[1].strip() if len(part.split(':')) > 1 else ""
-                    else: # This is part of the value or unit for the current measurement
-                        if current_measurement_name:
-                            if current_value_str and not current_unit: # If value is set, next part is unit
-                                current_unit = part.strip()
-                            else: # Else, it's part of the value (e.g., if value has spaces, though not expected here)
-                                current_value_str += " " + part.strip()
-                
-                # Process the last measurement after the loop finishes
-                if current_measurement_name:
-                    value_match = value_unit_pattern.match(f"{current_measurement_name}:{current_value_str} {current_unit}".strip())
-                    if value_match:
-                        try:
-                            value = float(value_match.group(2))
-                            sensor_full_id = f"{header_content}_{value_match.group(1).strip()}"
-                            if sensor_full_id not in sensor_data:
-                                sensor_data[sensor_full_id] = []
-                            sensor_data[sensor_full_id].append({'Timestamp': timestamp, 'Value': value})
-                            parsed_entries += 1
-                        except ValueError:
-                            script_logger.debug(f"Skipping non-numeric value: {value_match.group(2)} in line {line_count}")
-
-            else:
-                script_logger.debug(f"Skipping non-data line: {line.strip()}")
-
-
-    # Save data to CSV files
-    if not sensor_data:
-        script_logger.warning("No sensor data found to save to CSVs.")
-        return output_dir
-
-    for sensor_name, data_points in sensor_data.items():
-        df = pd.DataFrame(data_points)
-        df.set_index('Timestamp', inplace=True)
-        # Sanitize sensor_name for filename (remove spaces, brackets, etc.)
-        # Example: "Pressure ID 0_pressure" -> "pressure_id_0_pressure.csv"
-        filename = re.sub(r'[\[\]\s:]', '_', sensor_name).strip('_').lower() + '.csv'
-        output_path = os.path.join(output_dir, filename)
-        df.to_csv(output_path)
-        script_logger.info(f"Saved {len(data_points)} entries for '{sensor_name}' to {output_path}")
-
-    script_logger.info(f"Successfully parsed {parsed_entries} sensor data entries from {line_count} lines.")
-    return output_dir
-
+# --- Example Usage ---
 if __name__ == '__main__':
-    csv_output_directory = parse_log_to_csv()
-    
-    # Call the graph generating script after CSVs are created
-    script_logger.info("\nCSV processing complete. Calling graph generation script...")
-    # Ensure graph_generator.py is in the same directory or provide its full path
-    try:
-        # Pass the csv_output_directory to the graph generator
-        subprocess.run(['python', 'graph_generator.py', '--csv-dir', csv_output_directory], check=True)
-    except FileNotFoundError:
-        script_logger.error("Error: 'graph_generator.py' not found. Make sure it's in the same directory or its path is correct.")
-    except subprocess.CalledProcessError as e:
-        script_logger.error(f"Error running graph_generator.py: {e}")
+    # Dummy log content now includes a sensor (Flow ID 9) WITHOUT matching timing data
+    # to demonstrate that the new code correctly processes it.
+    log_content = """2025-07-16 22:36:06 - --- SENSOR DATA ---
+2025-07-16 22:36:06 - [Pressure ID 0] pressure: 0.16 bar
+2025-07-16 22:36:06 - [LoadCell ID 6] weight_grams: -0.880 g
+2025-07-16 22:36:06 - [Flow ID 9] flow_rate_lpm: 1.25 LPM
+2025-07-16 22:36:06 - --- TIMING DATA (microseconds) ---
+2025-07-16 22:36:06 - [Timing Individual 0] Start: 8,034,332 us, End: 8,034,828 us, Duration: 496 us
+2025-07-16 22:36:06 - [Timing Individual 6] Start: 7,907,368 us, End: 7,908,004 us, Duration: 636 us
+2025-07-16 22:36:07 - --- SENSOR DATA ---
+2025-07-16 22:36:07 - [Pressure ID 0] pressure: 0.18 bar
+2025-07-16 22:36:07 - [Flow ID 9] flow_rate_lpm: 1.22 LPM
+2025-07-16 22:36:07 - --- TIMING DATA (microseconds) ---
+2025-07-16 22:36:07 - [Timing Individual 0] Start: 8,134,000 us, End: 8,134,500 us, Duration: 500 us
+"""
+    dummy_log_file = "sensor_log.txt"
+    with open(dummy_log_file, "w") as f:
+        f.write(log_content)
+
+    # Define the log file to use and the directory for CSVs
+    input_file ='Work.log' 
+    output_folder = "sensor_csv_output"
+
+    # Run the parser
+    parse_log_to_csv(input_file, output_folder)
