@@ -159,11 +159,11 @@ byte rxPayloadBuffer[MAX_COMMAND_PAYLOAD_SIZE];
 // --- State Machine / Round-Robin Variables and Constants (Sensor Reading) ---
 int currentPressureSensorIndex = 0;
 unsigned long lastPressureSensorProcessTime = 0;
-const unsigned long MIN_PRESSURE_INTERVAL_MS = 10;
+const unsigned long MIN_PRESSURE_INTERVAL_MS = 5;
 
 int currentLoadCellIndex = 0; // Cycles 0, 1, 2
 unsigned long lastLoadCellProcessTime = 0;
-const unsigned long MIN_LOADCELL_CHECK_INTERVAL_MS = 110;
+const unsigned long MIN_LOADCELL_CHECK_INTERVAL_MS = 10;
 
 volatile long flow_pulse = 0;
 long flow_pulseLast = 0;
