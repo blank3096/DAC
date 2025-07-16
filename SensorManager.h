@@ -59,7 +59,7 @@ extern const int NUM_RELAYS;
 // Define pins for DC Motor
 extern const int MOTOR_PWM_PIN;       // Now D6 (Timer4)
 extern const int MOTOR_ENABLE_PIN;    // D37
-extern const int MOTOR_DIRECTION_PIN; // D38
+// extern const int MOTOR_DIRECTION_PIN; // D38
 extern const int MOTOR_SPEED_SENSE_PIN; // D3 (INT1)
 
 extern const int MOTOR_PULSES_PER_REVOLUTION; // Pulses per revolution from driver

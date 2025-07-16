@@ -74,7 +74,7 @@ const int NUM_RELAYS = sizeof(RELAY_PINS) / sizeof(RELAY_PINS[0]);
 // Pins for DC Motor (As per table)
 const int MOTOR_PWM_PIN = 6;       // D6 (Timer4) <-- CHANGED TO D6
 const int MOTOR_ENABLE_PIN = 37;    // D37
-const int MOTOR_DIRECTION_PIN = 38; // D38
+// const int MOTOR_DIRECTION_PIN = 48; // D38
 const int MOTOR_SPEED_SENSE_PIN = 3;  // D3 (INT1)
 
 const int MOTOR_PULSES_PER_REVOLUTION = 12; // As per code snippet
@@ -383,14 +383,14 @@ void setMotorEnable(byte state) {
 }
 
 // Helper function to set motor direction
-void setMotorDirection(byte direction) {
-     if (direction > 1) { // Assuming direction is 0 (Reverse) or 1 (Forward)
-        Serial.print(F("Error: Invalid motor direction received: ")); Serial.println(direction);
-        return;
-    }
-    digitalWrite(MOTOR_DIRECTION_PIN, (direction == 1) ? HIGH : LOW); // Assuming HIGH is Forward based on setup
-     Serial.print(F("Set Motor Direction to: ")); Serial.println((direction == 1) ? F("Forward") : F("Reverse"));
-}
+// void setMotorDirection(byte direction) {
+//      if (direction > 1) { // Assuming direction is 0 (Reverse) or 1 (Forward)
+//         Serial.print(F("Error: Invalid motor direction received: ")); Serial.println(direction);
+//         return;
+//     }
+//     digitalWrite(MOTOR_DIRECTION_PIN, (direction == 1) ? HIGH : LOW); // Assuming HIGH is Forward based on setup
+//      Serial.print(F("Set Motor Direction to: ")); Serial.println((direction == 1) ? F("Forward") : F("Reverse"));
+// }
 
 // Helper function to set motor throttle (PWM duty cycle)
 void setMotorThrottle(byte throttlePercent) {
@@ -440,16 +440,16 @@ void handleCommand(byte commandType, byte targetId, const byte* payload, byte pa
 
         case CMD_TYPE_SET_MOTOR:
             // Expected payload size is 3 bytes (enable, direction, throttle)
-             if (payloadSize == 3) {
+             if (payloadSize == 2) {
                  // Target ID should be the motor ID
                  if (targetId == CMD_TARGET_MOTOR_ID) {
                      byte enableState = payload[0];
-                     byte directionState = payload[1];
-                     byte throttlePercent = payload[2];
+                    //  byte directionState = payload[1];
+                     byte throttlePercent = payload[1];
 
                      // Call motor control helpers
                      setMotorEnable(enableState);
-                     setMotorDirection(directionState);
+                    //  setMotorDirection(directionState);
                      setMotorThrottle(throttlePercent);
 
                  } else {
@@ -549,7 +549,7 @@ void setupDCMotor() {
 
     // Configure Control Pins
     pinMode(MOTOR_ENABLE_PIN, OUTPUT);
-    pinMode(MOTOR_DIRECTION_PIN, OUTPUT);
+    // pinMode(MOTOR_DIRECTION_PIN, OUTPUT);
     pinMode(MOTOR_PWM_PIN, OUTPUT); // PWM pin needs to be an output
 
     // digitalWrite(MOTOR_ENABLE_PIN, HIGH);    // Start with motor disabled

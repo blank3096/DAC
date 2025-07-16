@@ -382,7 +382,7 @@ def auto_detect_arduino_port():
         logger.info("No Arduino port found.")
         return None
 
-def send_motor_control_command(ser, motor_id, throttle, enable=1, forward=1):
+def send_motor_control_command(ser, motor_id, throttle, enable=1 ):
     """
     Send a motor control command to the Arduino.
     :param ser: Open serial connection
@@ -398,10 +398,7 @@ def send_motor_control_command(ser, motor_id, throttle, enable=1, forward=1):
         if enable not in (0, 1):
             logger.error("Enable must be 0 (disabled) or 1 (enabled).")
             return
-        if forward not in (0, 1):
-            logger.error("Direction must be 0 (reverse) or 1 (forward).")
-            return
-        payload = struct.pack('>BBB', enable, forward, throttle)
+        payload = struct.pack('>BBB', enable , throttle)
         payload_size = len(payload)
         if payload_size > MAX_COMMAND_PAYLOAD_SIZE:
             logger.error(f"Payload size {payload_size} exceeds max {MAX_COMMAND_PAYLOAD_SIZE}.")
