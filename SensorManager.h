@@ -38,8 +38,8 @@ extern const int FLOW_PPL;
 
 
 // --- Temperature Sensor (MAX6675) Constants ---
-extern const int THERMO_SHARED_CLK_PIN; // D22
-extern const int THERMO_SHARED_DO_PIN;  // D50
+extern const int THERMO_SHARED_CLK_PIN; // D22 - Shared Clock
+extern const int THERMO_SHARED_DO_PIN;  // D50 - Shared Data Out (MISO)
 extern const int THERMO_CS_PINS[4];
 
 extern const int NUM_TEMP_SENSORS;
@@ -57,8 +57,8 @@ extern const int NUM_RELAYS;
 
 // --- DC Motor Constants ---
 // Define pins for DC Motor
-extern const int MOTOR_PWM_PIN;       // Now D6 (Timer4)
-extern const int MOTOR_ENABLE_PIN;    // D37
+extern const int MOTOR_PWM_PIN;        // Now D6 (Timer4)
+extern const int MOTOR_ENABLE_PIN;     // D37
 // extern const int MOTOR_DIRECTION_PIN; // D38
 extern const int MOTOR_SPEED_SENSE_PIN; // D3 (INT1)
 
@@ -139,12 +139,14 @@ extern SensorTiming tempTimingData[MAX_TIMED_TEMP_SENSORS];
 extern SensorTiming flowTimingData[MAX_TIMED_FLOW_SENSORS]; // New for flow sensor
 extern SensorTiming motorTimingData[MAX_TIMED_MOTOR_SENSORS]; // New for motor RPM sensor
 
+// --- NEW: Global variable for category timing ---
+extern SensorTiming categoryTiming; // <-- ADDED THIS LINE
 
 // --- NEW: Packet Constants for Timing Data ---
 extern const byte TIMING_PACKET_START_BYTE;
 extern const byte TIMING_PACKET_END_BYTE;
 extern const byte TIMING_SENSOR_OPERATION_ID; // For individual sensor timings (e.g., Pressure ID 0-5)
-extern const byte TIMING_CATEGORY_CYCLE_ID;   // For category cycle times (e.g., "All Pressures")
+extern const byte TIMING_CATEGORY_CYCLE_ID;    // For category cycle times (e.g., "All Pressures")
 
 
 // --- Serial Receive State Machine Variables and Constants ---
@@ -245,7 +247,7 @@ void setRelayState(byte relayIndex, byte state);
 
 // Helper functions for motor control actions
 void setMotorEnable(byte state); // state: 0=OFF, 1=ON
-void setMotorDirection(byte direction); // direction: 0=Reverse, 1=Forward
+// void setMotorDirection(byte direction); // direction: 0=Reverse, 1=Forward // REMOVED from Python, so commented out here
 void setMotorThrottle(byte throttlePercent); // throttlePercent: 0-100
 
 

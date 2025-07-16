@@ -1,6 +1,6 @@
 #include "SensorManager.h" // Include your own header first
-#include <Arduino.h>     // Include Arduino.h here too
-#include <math.h>        // Required for isnan()
+#include <Arduino.h>       // Include Arduino.h here too
+#include <math.h>          // Required for isnan()
 // Add includes for other libraries needed for implementation (e.g., Wire.h)
 
 
@@ -72,7 +72,7 @@ const int NUM_RELAYS = sizeof(RELAY_PINS) / sizeof(RELAY_PINS[0]);
 
 // --- DC Motor Constants ---
 // Pins for DC Motor (As per table)
-const int MOTOR_PWM_PIN = 6;       // D6 (Timer4) <-- CHANGED TO D6
+const int MOTOR_PWM_PIN = 6;        // D6 (Timer4) <-- CHANGED TO D6
 const int MOTOR_ENABLE_PIN = 37;    // D37
 // const int MOTOR_DIRECTION_PIN = 48; // D38 <-- REMOVED
 const int MOTOR_SPEED_SENSE_PIN = 3;  // D3 (INT1)
@@ -188,19 +188,14 @@ SensorTiming tempTimingData[MAX_TIMED_TEMP_SENSORS];
 SensorTiming flowTimingData[MAX_TIMED_FLOW_SENSORS]; // New for flow sensor
 SensorTiming motorTimingData[MAX_TIMED_MOTOR_SENSORS]; // New for motor RPM sensor
 
+// --- NEW: Global variable for category timing ---
+SensorTiming categoryTiming; // <-- DEFINITION ADDED HERE
 
 // --- NEW: Packet Constants for Timing Data ---
 const byte TIMING_PACKET_START_BYTE = 0xDE; // Choose a unique byte
-const byte TIMING_PACKET_END_BYTE = 0xAD;   // Choose a unique byte
+const byte TIMING_PACKET_END_BYTE = 0xAD;    // Choose a unique byte
 const byte TIMING_SENSOR_OPERATION_ID = 0x01; // ID for individual sensor timings
-const byte TIMING_CATEGORY_CYCLE_ID = 0x02;   // ID for full category cycle times
-
-// --- NEW: Timing variables for category cycles ---
-unsigned long pressureCategoryStartTime = 0;
-unsigned long loadCellCategoryStartTime = 0;
-unsigned long tempCategoryStartTime = 0;
-unsigned long flowCategoryStartTime = 0; // New for flow sensor
-unsigned long motorCategoryStartTime = 0; // New for motor RPM sensor
+const byte TIMING_CATEGORY_CYCLE_ID = 0x02;    // ID for full category cycle times
 
 
 // Add state variables and constants for other sensor types here
