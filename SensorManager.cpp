@@ -393,27 +393,6 @@ void setMotorEnable(byte state) {
 // }
 
 // Helper function to set motor throttle (PWM duty cycle)
-void setMotorThrottle(byte throttlePercent) {
-    // Clamp the received percentage to 0-100
-    if (throttlePercent > 100) {
-        Serial.print(F("Warning: Clamping received throttle "));
-        Serial.print(throttlePercent); Serial.println(F(" to 100%."));
-        throttlePercent = 100;
-    }
-
-    // Map the 0-100% duty cycle value to the timer's range (0-199 for Timer4 @ 10kHz)
-    // Note: OCR4A is 16-bit, but map returns long. Cast to int or uint16_t.
-
-    int dutyCycleValue = map(throttlePercent, 0, 100, 0, 199);
-
-    // Set the duty cycle on Timer4's A channel (controls MOTOR_PWM_PIN = Pin 6)
-    OCR4A = dutyCycleValue; // Assign to Timer4 Output Compare Register A
-
-    Serial.print(F("Set Motor Throttle to: "));
-     Serial.print(throttlePercent);
-     Serial.print(F("% (Timer value: "));
-      Serial.print(dutyCycleValue); Serial.println(F(")"));
-}
 
 
 // --- Main Command Handling Function ---
@@ -543,6 +522,48 @@ void setupRelays() {
     }
     Serial.print(NUM_RELAYS); Serial.println(F(" Relays setup complete."));
 }
+
+void setupDCMotor() {
+    Serial.println(F("Setting up DC Motor..."));
+
+    // Configure Control Pins
+    pinMode(MOTOR_ENABLE_PIN, OUTPUT);
+    // pinMode(MOTOR_DIRECTION_PIN, OUTPUT);
+    pinMode(MOTOR_PWM_PIN, OUTPUT); // PWM pin needs to be an output
+
+    // digitalWrite(MOTOR_ENABLE_PIN, HIGH);    // Start with motor disabled
+    // digitalWrite(MOTOR_DIRECTION_PIN, HIGH); // Set default direction (e.g., Forward)
+    //analogWrite(MOTOR_PWM_PIN, 0);         // Set initial PWM to 0 (stopped)
+
+    // --- Setup PWM on Pin 6 using Timer4 for 10kHz frequency ---
+    // Pin 6 is OC4A, controlled by Timer4.
+    // Mode 14: Fast PWM, TOP=ICR4. WGM43:42:41:40 = 1110
+    // Non-inverting mode: COM4A1=1, COM4A0=0
+    // Prescaler 8: CS41=1
+    // Frequency = F_CPU / (Prescaler * (1 + TOP)) = 16,000,000 / (8 * (1 + 199)) = 10,000 Hz
+
+    TCCR4A = _BV(COM4A1) | _BV(WGM41); // COM4A1 non-inverting, WGM41 for Mode 14
+    TCCR4B = _BV(WGM43) | _BV(WGM42) | _BV(CS41); // WGM43, WGM42 for Mode 14, CS41 for prescaler 8
+    ICR4 = 199; // Sets the TOP value for the timer
+    OCR4A = 0;  // Set initial duty cycle to 0% (Pin 6)
+
+    // --- Setup for RPM Reading ---
+    pinMode(MOTOR_SPEED_SENSE_PIN, INPUT_PULLUP); // Use internal pull-up resistor
+    // Pin 3 is External Interrupt 1 on Mega
+    attachInterrupt(digitalPinToInterrupt(MOTOR_SPEED_SENSE_PIN), motor_count_pulse, RISING); // Attach ISR
+
+    // Initialize motor speed sense state variables
+    motor_pulse_count = 0;
+    motor_last_pulse_count = 0;
+    lastMotorCalcTime = millis();
+
+    Serial.println(F("DC Motor setup complete. Driver Disabled, Motor Stopped."));
+    // To enable the motor and set a speed, use the control signal handling logic in loop().
+}
+
+
+
+
 
 void setMotorThrottle(byte throttlePercent) {
     // Clamp the received percentage to 0-100
