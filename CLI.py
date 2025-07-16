@@ -389,7 +389,6 @@ def send_motor_control_command(ser, motor_id, throttle, enable=1):
     :param motor_id: Target motor ID (0 for CMD_TARGET_MOTOR_ID)
     :param throttle: Motor throttle (0-100%)
     :param enable: Motor enable state (0 for disabled, 1 for enabled, default: 1)
-    :param forward: Motor direction (0 for reverse, 1 for forward, default: 1)
     """
     try:
         if not (0 <= throttle <= 100):
@@ -398,7 +397,10 @@ def send_motor_control_command(ser, motor_id, throttle, enable=1):
         if enable not in (0, 1):
             logger.error("Enable must be 0 (disabled) or 1 (enabled).")
             return
-        payload = struct.pack('>BBB', enable , throttle)
+        # Removed 'forward' parameter and its validation
+        
+        # Payload now consists only of enable and throttle
+        payload = struct.pack('>BB', enable, throttle) # Changed from '>BBB' to '>BB'
         payload_size = len(payload)
         if payload_size > MAX_COMMAND_PAYLOAD_SIZE:
             logger.error(f"Payload size {payload_size} exceeds max {MAX_COMMAND_PAYLOAD_SIZE}.")
@@ -411,7 +413,8 @@ def send_motor_control_command(ser, motor_id, throttle, enable=1):
         packet.extend(payload)
         packet.append(COMMAND_END_BYTE)
         ser.write(packet)
-        logger.info(f"Sent motor control command: ID={motor_id}, Enable={enable},  Throttle={throttle}%")
+        # Updated logging message to remove 'Forward'
+        logger.info(f"Sent motor control command: ID={motor_id}, Enable={enable}, Throttle={throttle}%")
     except serial.SerialException as e:
         logger.error(f"Serial error when sending motor command: {e}")
     except Exception as e:
@@ -563,12 +566,12 @@ def main():
                 if cmd_type == 'q':
                     break
                 elif cmd_type == 'h' or cmd_type == 'help':
-                    # Corrected call: Use the newly implemented method
                     print_help_message(max(20, receiver.max_header_len_for_display()))
                 elif cmd_type == 'm' and len(parts) == 2:
                     try:
                         throttle = int(parts[1])
-                        send_motor_control_command(ser, CMD_TARGET_MOTOR_ID, throttle, enable=1 )
+                        # Removed 'forward' argument from the call
+                        send_motor_control_command(ser, CMD_TARGET_MOTOR_ID, throttle, enable=1)
                     except ValueError:
                         logger.error("Invalid throttle. Use an integer number (0-100).")
                 elif cmd_type == 'r' and len(parts) == 3:
@@ -604,6 +607,7 @@ def main():
         sys.exit(1)
     finally:
         if ser and ser.is_open:
+            # Removed 'forward=1' argument from the call on exit
             send_motor_control_command(ser, CMD_TARGET_MOTOR_ID, 0, enable=0)
             time.sleep(0.1)
             ser.close()

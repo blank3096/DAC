@@ -74,7 +74,7 @@ const int NUM_RELAYS = sizeof(RELAY_PINS) / sizeof(RELAY_PINS[0]);
 // Pins for DC Motor (As per table)
 const int MOTOR_PWM_PIN = 6;       // D6 (Timer4) <-- CHANGED TO D6
 const int MOTOR_ENABLE_PIN = 37;    // D37
-// const int MOTOR_DIRECTION_PIN = 48; // D38
+// const int MOTOR_DIRECTION_PIN = 48; // D38 <-- REMOVED
 const int MOTOR_SPEED_SENSE_PIN = 3;  // D3 (INT1)
 
 const int MOTOR_PULSES_PER_REVOLUTION = 12; // As per code snippet
@@ -237,14 +237,12 @@ void endSensorTimer(byte sensorId, unsigned long startTime, const char* descript
         if (index < MAX_TIMED_LOADCELL_SENSORS) {
             loadCellTimingData[index] = {sensorId, startTime, endTime, duration};
         }
-    } 
-    // else if (sensorId == FLOW_SENSOR_ID) { // Specific check for the single flow sensor ID
-    //     // Flow sensor index will always be 0 as there's only one
-    //     if (0 < MAX_TIMED_FLOW_SENSORS) { // Ensure bounds
-    //         flowTimingData[0] = {sensorId, startTime, endTime, duration};
-    //     }
-    // } 
-    else if (sensorId >= TEMP_ID_START && sensorId < TEMP_ID_START + NUM_IDS_TEMP) {
+    } else if (sensorId == FLOW_SENSOR_ID) { // Specific check for the single flow sensor ID
+        // Flow sensor index will always be 0 as there's only one
+        if (0 < MAX_TIMED_FLOW_SENSORS) { // Ensure bounds
+            flowTimingData[0] = {sensorId, startTime, endTime, duration};
+        }
+    } else if (sensorId >= TEMP_ID_START && sensorId < TEMP_ID_START + NUM_IDS_TEMP) {
         byte index = sensorId - TEMP_ID_START;
         if (index < MAX_TIMED_TEMP_SENSORS) {
             tempTimingData[index] = {sensorId, startTime, endTime, duration};
@@ -347,8 +345,6 @@ void sendBinaryPacket(byte start_byte, byte id, const void* data_ptr, size_t dat
   Serial.write((byte)data_size);
 
   Serial.write((const byte*)data_ptr, (size_t)data_size);
-  // we are at address 0x5 -> 0x100
-  // from 0x5 -> 0x10 data size = 5
   Serial.write(end_byte);
 }
 
@@ -385,14 +381,45 @@ void setMotorEnable(byte state) {
 // Helper function to set motor direction
 // void setMotorDirection(byte direction) {
 //      if (direction > 1) { // Assuming direction is 0 (Reverse) or 1 (Forward)
-//         Serial.print(F("Error: Invalid motor direction received: ")); Serial.println(direction);
-//         return;
+//          Serial.print(F("Error: Invalid motor direction received: ")); Serial.println(direction);
+//          return;
 //     }
 //     digitalWrite(MOTOR_DIRECTION_PIN, (direction == 1) ? HIGH : LOW); // Assuming HIGH is Forward based on setup
 //      Serial.print(F("Set Motor Direction to: ")); Serial.println((direction == 1) ? F("Forward") : F("Reverse"));
 // }
 
 // Helper function to set motor throttle (PWM duty cycle)
+void setMotorThrottle(byte throttlePercent) {
+    // Clamp the received percentage to 0-100
+    if (throttlePercent > 100) {
+        Serial.print(F("Warning: Clamping received throttle "));
+        Serial.print(throttlePercent); Serial.println(F(" to 100%."));
+        throttlePercent = 100;
+    }
+
+    if (throttlePercent == 0) {
+        // --- Special handling for 0% throttle: Disable PWM and set pin LOW ---
+        // Clear COM4A1 and COM4A0 bits in TCCR4A to set OC4A (Pin 6) to normal port operation (disconnected from timer)
+        TCCR4A &= ~(_BV(COM4A1) | _BV(COM4A0));
+        // Explicitly set Pin 6 (PH3) to LOW. Pin 6 is on Port H, bit 3.
+        PORTH &= ~_BV(3); // Clear bit 3 of PORTH to set pin 6 LOW
+        Serial.println(F("Motor PWM disabled, pin set LOW."));
+    } else {
+        // --- For non-zero throttle: Ensure PWM is enabled and set duty cycle ---
+        // Ensure COM4A1 is set and COM4A0 is cleared for non-inverting Fast PWM Mode 14
+        TCCR4A |= _BV(COM4A1);  // Set COM4A1
+        TCCR4A &= ~_BV(COM4A0); // Clear COM4A0
+
+        // Map the 0-100% duty cycle value to the timer's range (0-ICR4)
+        int dutyCycleValue = map(throttlePercent, 0, 100, 0, ICR4); // ICR4 is 199 for 10kHz PWM
+        OCR4A = dutyCycleValue; // Assign to Timer4 Output Compare Register A (controls Pin 6)
+
+        Serial.print(F("Set Motor Throttle to: "));
+        Serial.print(throttlePercent);
+        Serial.print(F("% (Timer value: "));
+        Serial.print(dutyCycleValue); Serial.println(F(")"));
+    }
+}
 
 
 // --- Main Command Handling Function ---
@@ -418,17 +445,17 @@ void handleCommand(byte commandType, byte targetId, const byte* payload, byte pa
             break;
 
         case CMD_TYPE_SET_MOTOR:
-            // Expected payload size is 3 bytes (enable, direction, throttle)
+            // Expected payload size is 2 bytes (enable, throttle) <-- CORRECTED COMMENT
              if (payloadSize == 2) {
                  // Target ID should be the motor ID
                  if (targetId == CMD_TARGET_MOTOR_ID) {
                      byte enableState = payload[0];
-                    //  byte directionState = payload[1];
-                     byte throttlePercent = payload[1];
+                     // byte directionState = payload[1]; <-- REMOVED
+                     byte throttlePercent = payload[1]; // Corrected index
 
                      // Call motor control helpers
                      setMotorEnable(enableState);
-                    //  setMotorDirection(directionState);
+                     // setMotorDirection(directionState); <-- REMOVED
                      setMotorThrottle(throttlePercent);
 
                  } else {
@@ -528,7 +555,7 @@ void setupDCMotor() {
 
     // Configure Control Pins
     pinMode(MOTOR_ENABLE_PIN, OUTPUT);
-    // pinMode(MOTOR_DIRECTION_PIN, OUTPUT);
+    // pinMode(MOTOR_DIRECTION_PIN, OUTPUT); <-- REMOVED
     pinMode(MOTOR_PWM_PIN, OUTPUT); // PWM pin needs to be an output
 
     // digitalWrite(MOTOR_ENABLE_PIN, HIGH);    // Start with motor disabled
@@ -559,42 +586,6 @@ void setupDCMotor() {
 
     Serial.println(F("DC Motor setup complete. Driver Disabled, Motor Stopped."));
     // To enable the motor and set a speed, use the control signal handling logic in loop().
-}
-
-
-
-
-
-void setMotorThrottle(byte throttlePercent) {
-    // Clamp the received percentage to 0-100
-    if (throttlePercent > 100) {
-        Serial.print(F("Warning: Clamping received throttle "));
-        Serial.print(throttlePercent); Serial.println(F(" to 100%."));
-        throttlePercent = 100;
-    }
-
-    if (throttlePercent == 0) {
-        // --- Special handling for 0% throttle: Disable PWM and set pin LOW ---
-        // Clear COM4A1 and COM4A0 bits in TCCR4A to set OC4A (Pin 6) to normal port operation (disconnected from timer)
-        TCCR4A &= ~(_BV(COM4A1) | _BV(COM4A0));
-        // Explicitly set Pin 6 (PH3) to LOW. Pin 6 is on Port H, bit 3.
-        PORTH &= ~_BV(3); // Clear bit 3 of PORTH to set pin 6 LOW
-        Serial.println(F("Motor PWM disabled, pin set LOW."));
-    } else {
-        // --- For non-zero throttle: Ensure PWM is enabled and set duty cycle ---
-        // Ensure COM4A1 is set and COM4A0 is cleared for non-inverting Fast PWM Mode 14
-        TCCR4A |= _BV(COM4A1);  // Set COM4A1
-        TCCR4A &= ~_BV(COM4A0); // Clear COM4A0
-
-        // Map the 0-100% duty cycle value to the timer's range (0-ICR4)
-        int dutyCycleValue = map(throttlePercent, 0, 100, 0, ICR4); // ICR4 is 199 for 10kHz PWM
-        OCR4A = dutyCycleValue; // Assign to Timer4 Output Compare Register A (controls Pin 6)
-
-        Serial.print(F("Set Motor Throttle to: "));
-        Serial.print(throttlePercent);
-        Serial.print(F("% (Timer value: "));
-        Serial.print(dutyCycleValue); Serial.println(F(")"));
-    }
 }
 
 
