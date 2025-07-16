@@ -23,7 +23,8 @@ void setup() {
   */
 
   // Initialize the Serial Receive State Machine
-  currentRxState = RX_WAITING_FOR_START; // <-- Initialize state variable
+  // currentRxState is a global variable defined in SensorManager.cpp
+  currentRxState = RX_WAITING_FOR_START; // <-- Assignment only
 
   Serial.println(F("--- System Setup Complete. Starting loop ---"));
 
@@ -31,7 +32,7 @@ void setup() {
   delay(1000); // Short delay before tests
   Serial.println(F("\n--- Running Initial Timing Tests ---"));
 
-  testTimingBatchAllTypes(); // Call the test function
+  testTimingBatchAllTypes(); // Call the test function (defined in SensorManager.cpp)
 
   Serial.println(F("\n--- Initial Timing Tests Complete. Entering Main Loop ---"));
   delay(1000); // Delay before starting the continuous loop
@@ -39,6 +40,7 @@ void setup() {
 
 void loop() {
   unsigned long currentMillis = millis(); // Get the current time
+  unsigned long categoryDuration; // Declared ONCE at the top of loop() for reuse in all blocks
 
   // --- Serial Receive State Machine Block ---
   // This block runs every loop() iteration to process any incoming serial bytes
@@ -125,17 +127,17 @@ void loop() {
 
 
   // --- Pressure Sensors (BATCH PROCESSING - Runs every loop iteration) ---
-  unsigned long pressureCategoryStartTime = micros(); // Start category timer for this batch
+  pressureCategoryStartTime = micros(); // Assignment to global variable
 
-  for(currentPressureSensorIndex = 0; currentPressureSensorIndex < NUM_PRESSURE_SENSORS; currentPressureSensorIndex++){
+  for(int i = 0; i < NUM_PRESSURE_SENSORS; i++){ // Use local 'i' for loop counter
     unsigned long individualSensorStartTime = 0; // Local variable for individual sensor timing
 
-    byte pressure_id = PRESSURE_ID_START + currentPressureSensorIndex;
+    byte pressure_id = PRESSURE_ID_START + i; // Use 'i' for ID calculation
     startSensorTimer(pressure_id, &individualSensorStartTime); // Pass ID and address of local var
 
     // Perform sensor reading and calculation
-    int raw_pressure_int = analogRead(PRESSURE_SENSOR_PINS[currentPressureSensorIndex]);
-    PressureSensorValues pressureData = calculatePressureSensorValues(raw_pressure_int, currentPressureSensorIndex);
+    int raw_pressure_int = analogRead(PRESSURE_SENSOR_PINS[i]); // Use 'i' for pin access
+    PressureSensorValues pressureData = calculatePressureSensorValues(raw_pressure_int, i); // Use 'i' for index
 
     // Send data
     sendBinaryPacket(PRESSURE_PACKET_START_BYTE, pressure_id, &pressureData, sizeof(pressureData), PRESSURE_PACKET_END_BYTE);
@@ -145,8 +147,8 @@ void loop() {
   }
   
   // End category timer AFTER the loop finishes for the entire batch
-  unsigned long categoryDuration = micros() - pressureCategoryStartTime;
-  SensorTiming categoryTiming = {PRESSURE_ID_START, pressureCategoryStartTime, micros(), categoryDuration};
+  categoryDuration = micros() - pressureCategoryStartTime; // Assignment only, no 'unsigned long'
+  categoryTiming = {PRESSURE_ID_START, pressureCategoryStartTime, micros(), categoryDuration}; // Assignment only, no 'SensorTiming'
   sendTimingPacket(TIMING_CATEGORY_CYCLE_ID, &categoryTiming);
   
   // Update lastProcessTime for consistency, though it no longer gates this loop
@@ -154,15 +156,15 @@ void loop() {
 
 
   // --- Load Cells (BATCH PROCESSING - Runs every loop iteration) ---
-  unsigned long loadCellCategoryStartTime = micros(); // Start category timer for this batch
+  loadCellCategoryStartTime = micros(); // Assignment to global variable
 
-  for(currentLoadCellIndex = 0; currentLoadCellIndex < NUM_LOADCELL_SENSORS; currentLoadCellIndex++){
-    HX711& currentScale = scales[currentLoadCellIndex]; // Get reference to current scale
+  for(int i = 0; i < NUM_LOADCELL_SENSORS; i++){ // Use local 'i' for loop counter
+    HX711& currentScale = scales[i]; // Use 'i' for array access
 
     if (currentScale.is_ready()) { // Check if data is available
       unsigned long individualSensorStartTime = 0; // Local variable for individual sensor timing
       
-      byte loadCell_id = LOADCELL_ID_START + currentLoadCellIndex;
+      byte loadCell_id = LOADCELL_ID_START + i; // Use 'i' for ID calculation
       startSensorTimer(loadCell_id, &individualSensorStartTime);
 
       // Perform sensor reading and calculation
@@ -175,13 +177,13 @@ void loop() {
       // End timer for the individual sensor operation
       endSensorTimer(loadCell_id, individualSensorStartTime, "Load Cell Block (read+calc+send)");
     } else {
-        Serial.print(F("LoadCell ID ")); Serial.print(LOADCELL_ID_START + currentLoadCellIndex); Serial.println(F(": Not ready."));
+        Serial.print(F("LoadCell ID ")); Serial.print(LOADCELL_ID_START + i); Serial.println(F(": Not ready.")); // Use 'i' for ID
     }
   }
 
   // End category timer AFTER the loop finishes for the entire batch
-  unsigned long categoryDuration = micros() - loadCellCategoryStartTime;
-  SensorTiming categoryTiming = {LOADCELL_ID_START, loadCellCategoryStartTime, micros(), categoryDuration};
+  categoryDuration = micros() - loadCellCategoryStartTime; // Assignment only, no 'unsigned long'
+  categoryTiming = {LOADCELL_ID_START, loadCellCategoryStartTime, micros(), categoryDuration}; // Assignment only, no 'SensorTiming'
   sendTimingPacket(TIMING_CATEGORY_CYCLE_ID, &categoryTiming);
 
   // Update lastProcessTime for consistency, though it no longer gates this loop
@@ -193,7 +195,7 @@ void loop() {
     unsigned long individualSensorStartTime = 0; // Local variable for individual sensor timing
 
     // For a single flow sensor, individual timing IS the category timing
-    flowCategoryStartTime = micros(); // Start of the flow sensor's processing cycle
+    flowCategoryStartTime = micros(); // Assignment to global variable
 
     byte flow_id = FLOW_SENSOR_ID;
     startSensorTimer(flow_id, &individualSensorStartTime); // Start timer for the flow sensor's operation
@@ -218,8 +220,8 @@ void loop() {
     endSensorTimer(flow_id, individualSensorStartTime, "Flow Sensor Block");
 
     // End category timer (same as individual for single sensor)
-    unsigned long categoryDuration = micros() - flowCategoryStartTime;
-    SensorTiming categoryTiming = {FLOW_SENSOR_ID, flowCategoryStartTime, micros(), categoryDuration};
+    categoryDuration = micros() - flowCategoryStartTime; // Assignment only, no 'unsigned long'
+    categoryTiming = {FLOW_SENSOR_ID, flowCategoryStartTime, micros(), categoryDuration}; // Assignment only, no 'SensorTiming'
     sendTimingPacket(TIMING_CATEGORY_CYCLE_ID, &categoryTiming);
   }
 
@@ -230,7 +232,7 @@ void loop() {
 
     // Start category timer if this is the first sensor in the cycle
     if (currentTempSensorIndex == 0) {
-        tempCategoryStartTime = micros();
+        tempCategoryStartTime = micros(); // Assignment to global variable
     }
 
     // Start timer for the individual sensor operation
@@ -250,8 +252,8 @@ void loop() {
     if (currentTempSensorIndex >= NUM_TEMP_SENSORS) {
       currentTempSensorIndex = 0; // Wrap around
       // End category timer when the last sensor in the category is processed
-      unsigned long categoryDuration = micros() - tempCategoryStartTime;
-      SensorTiming categoryTiming = {TEMP_ID_START, tempCategoryStartTime, micros(), categoryDuration};
+      categoryDuration = micros() - tempCategoryStartTime; // Assignment only, no 'unsigned long'
+      categoryTiming = {TEMP_ID_START, tempCategoryStartTime, micros(), categoryDuration}; // Assignment only, no 'SensorTiming'
       sendTimingPacket(TIMING_CATEGORY_CYCLE_ID, &categoryTiming);
     }
     lastTempProcessTime = currentMillis;
@@ -260,10 +262,10 @@ void loop() {
     // --- State Machine Logic for Motor RPM ---
     // This block remains as originally provided by you.
     if (currentMillis - lastMotorCalcTime >= MOTOR_CALCULATION_INTERVAL_MS) {
-      unsigned long individualMotorStartTime = 0; // Local variable for motor timing
+      unsigned long individualMotorStartTime = 0; // Local variable for individual sensor timing
 
       // For a single motor RPM sensor, individual timing IS the category timing
-      motorCategoryStartTime = micros(); // Start of the motor RPM sensor's processing cycle
+      motorCategoryStartTime = micros(); // Assignment to global variable
 
       byte motor_id = MOTOR_RPM_ID;
       startSensorTimer(motor_id, &individualMotorStartTime); // Use new timing function
@@ -300,8 +302,8 @@ void loop() {
       endSensorTimer(motor_id, individualMotorStartTime, "Motor RPM Block");
 
       // End category timer (same as individual for single sensor)
-      unsigned long categoryDuration = micros() - motorCategoryStartTime;
-      SensorTiming categoryTiming = {MOTOR_RPM_ID, motorCategoryStartTime, micros(), categoryDuration};
+      categoryDuration = micros() - motorCategoryStartTime; // Assignment only, no 'unsigned long'
+      categoryTiming = {MOTOR_RPM_ID, motorCategoryStartTime, micros(), categoryDuration}; // Assignment only, no 'SensorTiming'
       sendTimingPacket(TIMING_CATEGORY_CYCLE_ID, &categoryTiming);
     }
 }
