@@ -8,9 +8,9 @@ import argparse
 import math
 import queue
 import logging
-import os # Added for screen clearing
+import os
 
-# Configure logging to write to Work.log and console with timestamps
+# Configure logging (rest of your logging config)
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(message)s',
@@ -22,13 +22,13 @@ logging.basicConfig(
 )
 logger = logging.getLogger()
 
-# Redirect stderr to logger
+# Redirect stderr to logger (your StdErrToLogger class)
 class StdErrToLogger:
     def __init__(self, logger):
         self.logger = logger
 
     def write(self, message):
-        if message.strip():  # Avoid logging empty lines
+        if message.strip():
             self.logger.error(message.strip())
 
     def flush(self):
@@ -37,13 +37,13 @@ class StdErrToLogger:
 sys.stderr = StdErrToLogger(logger)
 
 # --- Constants (matched to Arduino SensorManager.cpp/h) ---
-COMMAND_START_BYTE = 0xFC  # Start byte for command packets
-COMMAND_END_BYTE = 0xFD    # End byte for command packets
-CMD_TYPE_SET_MOTOR = 0x02  # Command type for motor control
-CMD_TYPE_SET_RELAY = 0x01  # Command type for relay control
-CMD_TARGET_MOTOR_ID = 0    # Target ID for motor
-CMD_TARGET_RELAY_START = 0 # Starting ID for relays (0, 1, 2, 3)
-MAX_COMMAND_PAYLOAD_SIZE = 32 # Maximum payload size
+COMMAND_START_BYTE = 0xFC
+COMMAND_END_BYTE = 0xFD
+CMD_TYPE_SET_MOTOR = 0x02
+CMD_TYPE_SET_RELAY = 0x01
+CMD_TARGET_MOTOR_ID = 0
+CMD_TARGET_RELAY_START = 0
+MAX_COMMAND_PAYLOAD_SIZE = 32
 
 # Sensor data packet constants
 PRESSURE_PACKET_START_BYTE = 0xAA
@@ -72,23 +72,23 @@ MOTOR_RPM_PACKET_END_BYTE = 0xF1
 # --- NEW: Timing Packet Constants (matched to Arduino SensorManager.cpp/h) ---
 TIMING_PACKET_START_BYTE = 0xDE
 TIMING_PACKET_END_BYTE = 0xAD
-TIMING_SENSOR_OPERATION_ID = 0x01 # ID for individual sensor timings
-TIMING_CATEGORY_CYCLE_ID = 0x02   # ID for category cycle times (this is the 'timing_id' parameter to sendTimingPacket)
+TIMING_SENSOR_OPERATION_ID = 0x01
+TIMING_CATEGORY_CYCLE_ID = 0x02
 
 # Define expected payload structures and sizes for ALL packet types
 PACKET_TYPES = {
     PRESSURE_PACKET_START_BYTE: {
         'name': 'Pressure',
         'end_byte': PRESSURE_PACKET_END_BYTE,
-        'payload_size': 4,  # 1 float * 4 bytes/float
-        'format': '<f',    # little-endian, 1 float (pressure)
+        'payload_size': 4,
+        'format': '<f',
         'fields': ['pressure'],
         'ids': list(range(PRESSURE_ID_START, PRESSURE_ID_START + NUM_IDS_PRESSURE))
     },
     LOADCELL_PACKET_START_BYTE: {
         'name': 'LoadCell',
         'end_byte': LOADCELL_PACKET_END_BYTE,
-        'payload_size': 4,  # 1 float * 4 bytes/float
+        'payload_size': 4,
         'format': '<f',
         'fields': ['weight_grams'],
         'ids': list(range(LOADCELL_ID_START, LOADCELL_ID_START + NUM_IDS_LOADCELL))
@@ -96,7 +96,7 @@ PACKET_TYPES = {
     FLOW_PACKET_START_BYTE: {
         'name': 'Flow',
         'end_byte': FLOW_PACKET_END_BYTE,
-        'payload_size': 4,  # 1 float * 4 bytes/float
+        'payload_size': 4,
         'format': '<f',
         'fields': ['flow_rate_lpm'],
         'ids': [FLOW_SENSOR_ID]
@@ -104,7 +104,7 @@ PACKET_TYPES = {
     TEMP_PACKET_START_BYTE: {
         'name': 'Temperature',
         'end_byte': TEMP_PACKET_END_BYTE,
-        'payload_size': 8,  # 2 floats * 4 bytes/float
+        'payload_size': 8,
         'format': '<ff',
         'fields': ['temp_c', 'temp_f'],
         'ids': list(range(TEMP_ID_START, TEMP_ID_START + NUM_IDS_TEMP))
@@ -112,20 +112,17 @@ PACKET_TYPES = {
     MOTOR_RPM_PACKET_START_BYTE: {
         'name': 'MotorRPM',
         'end_byte': MOTOR_RPM_PACKET_END_BYTE,
-        'payload_size': 4,  # 1 float * 4 bytes/float
+        'payload_size': 4,
         'format': '<f',
         'fields': ['rpm'],
         'ids': [MOTOR_RPM_ID]
     },
-    # --- NEW: Timing Packet Definition ---
     TIMING_PACKET_START_BYTE: {
         'name': 'Timing',
         'end_byte': TIMING_PACKET_END_BYTE,
-        'payload_size': 13, # 1 byte (sensor_id) + 3 * 4 bytes (unsigned long/unsigned int)
-        'format': '<BIII',  # little-endian, 1 byte, 3 unsigned 32-bit integers
+        'payload_size': 13,
+        'format': '<BIII',
         'fields': ['sensor_id_in_payload', 'start_micros', 'end_micros', 'duration_micros'],
-        # IDs for timing packets are TIMING_SENSOR_OPERATION_ID or TIMING_CATEGORY_CYCLE_ID
-        # The 'sensor_id_in_payload' field within the struct will differentiate further.
         'ids': [TIMING_SENSOR_OPERATION_ID, TIMING_CATEGORY_CYCLE_ID]
     }
 }
@@ -135,7 +132,7 @@ ID_TO_PACKET_INFO = {}
 
 # Parsing State Machine
 STATE_WAITING_FOR_START = 0
-STATE_READING_HEADER = 1  # ID, Size
+STATE_READING_HEADER = 1
 STATE_READING_PAYLOAD = 2
 STATE_READING_END = 3
 
@@ -144,12 +141,12 @@ class SerialPacketReceiver:
         self.state = STATE_WAITING_FOR_START
         self.current_packet_type_info = None
         self.current_start_byte = None
-        self.current_id = None # This is the ID *after* the start byte (e.g., sensor_id for data, or TIMING_OP_ID/CATEGORY_ID for timing)
+        self.current_id = None
         self.payload_size = 0
         self.payload_buffer = b''
         self.latest_sensor_data = {}
-        self.latest_timing_data = {} # Dictionary to store latest timing data
-        self.relay_states = {i: 0 for i in range(CMD_TARGET_RELAY_START, CMD_TARGET_RELAY_START + 4)}  # Initialize relays 0-3 to OFF
+        self.latest_timing_data = {}
+        self.relay_states = {i: 0 for i in range(CMD_TARGET_RELAY_START, CMD_TARGET_RELAY_START + 4)}
 
     def process_byte(self, byte_data):
         """Processes a single incoming byte."""
@@ -170,25 +167,20 @@ class SerialPacketReceiver:
                 self.payload_buffer += bytes([byte_data])
                 
                 expected_size = self.current_packet_type_info['payload_size']
-                # For timing packets, the 'id' field in PACKET_TYPES is about the type of timing packet (individual vs category cycle)
-                # For sensor data packets, it's the specific sensor ID.
-                expected_ids = self.current_packet_type_info.get('ids') 
+                expected_ids = self.current_packet_type_info.get('ids')
 
-                # Validate payload size
                 if self.payload_size != expected_size:
                     logger.warning(f"Packet {self.current_packet_type_info['name']} (start {self.current_start_byte:02X}) - Declared size ({self.payload_size}) != expected ({expected_size}). Discarding. Payload buffer: {self.payload_buffer.hex()}")
                     self._reset_state()
-                # Validate the ID (only for non-timing packets, or for the timing type ID itself)
                 elif self.current_start_byte != TIMING_PACKET_START_BYTE and \
                      expected_ids is not None and self.current_id not in expected_ids:
                     logger.warning(f"Packet {self.current_packet_type_info['name']} (start {self.current_start_byte:02X}) - Unexpected ID ({self.current_id}). Discarding. Payload buffer: {self.payload_buffer.hex()}")
                     self._reset_state()
-                # For timing packets, current_id must be TIMING_SENSOR_OPERATION_ID or TIMING_CATEGORY_CYCLE_ID
                 elif self.current_start_byte == TIMING_PACKET_START_BYTE and \
                      self.current_id not in [TIMING_SENSOR_OPERATION_ID, TIMING_CATEGORY_CYCLE_ID]:
                     logger.warning(f"Timing Packet (start {self.current_start_byte:02X}) - Unexpected Timing Type ID ({self.current_id}). Discarding. Payload buffer: {self.payload_buffer.hex()}")
                     self._reset_state()
-                elif self.payload_size == 0: # Handle empty payload packets (e.g., simple ACKs, though not used here)
+                elif self.payload_size == 0:
                     self.state = STATE_READING_END
                     self.payload_buffer = b''
                 else:
@@ -215,25 +207,22 @@ class SerialPacketReceiver:
             values = struct.unpack(packet_info['format'], self.payload_buffer)
             
             if packet_info['name'] == 'Timing':
-                # Unpack timing data: sensor_id_in_payload, start_micros, end_micros, duration_micros
                 sensor_id_in_payload, start_micros, end_micros, duration_micros = values
-                timing_type_id = self.current_id # This is TIMING_SENSOR_OPERATION_ID or TIMING_CATEGORY_CYCLE_ID
+                timing_type_id = self.current_id
 
                 if timing_type_id == TIMING_SENSOR_OPERATION_ID:
-                    # Individual sensor timing
                     self.latest_timing_data[('individual', sensor_id_in_payload)] = {
                         'start': start_micros,
                         'end': end_micros,
                         'duration': duration_micros
                     }
                 elif timing_type_id == TIMING_CATEGORY_CYCLE_ID:
-                    # Category cycle timing - sensor_id_in_payload now indicates the category
                     category_name = "Unknown"
                     if sensor_id_in_payload == PRESSURE_ID_START: category_name = "Pressure"
                     elif sensor_id_in_payload == LOADCELL_ID_START: category_name = "LoadCell"
                     elif sensor_id_in_payload == FLOW_SENSOR_ID: category_name = "Flow"
                     elif sensor_id_in_payload == TEMP_ID_START: category_name = "Temperature"
-                    elif sensor_id_in_payload == MOTOR_RPM_ID: category_name = "MotorRPM" # If motor is also timed as a category
+                    elif sensor_id_in_payload == MOTOR_RPM_ID: category_name = "MotorRPM"
 
                     self.latest_timing_data[('category', category_name)] = {
                         'start': start_micros,
@@ -262,73 +251,95 @@ class SerialPacketReceiver:
         self.current_id = None
         self.payload_size = 0
 
+    def get_all_sensor_ids_and_types(self):
+        """Returns a list of (sensor_id, sensor_type_name) for all known sensors."""
+        all_sensors_info = []
+        for start_byte, info in PACKET_TYPES.items():
+            # Skip timing and command packets, only interested in sensor data here
+            if start_byte in [TIMING_PACKET_START_BYTE, COMMAND_START_BYTE]:
+                continue
+            sensor_type_name = info['name']
+            for sensor_id in info.get('ids', []):
+                all_sensors_info.append((sensor_id, sensor_type_name))
+        # Sort by ID for consistent display order
+        return sorted(all_sensors_info, key=lambda x: x[0])
+
+    def max_header_len_for_display(self):
+        """Calculates the maximum header length needed for display, considering all sensors, relays, and timing."""
+        max_len = 20 # Default minimum width
+
+        # Sensor data headers
+        for sensor_id, sensor_type in self.get_all_sensor_ids_and_types():
+            header_str = f"[{sensor_type} ID {sensor_id}]"
+            max_len = max(max_len, len(header_str))
+        
+        # Timing data headers
+        for timing_key in self.latest_timing_data.keys():
+            timing_type, identifier = timing_key
+            header_str = f"[Timing {timing_type.capitalize()} {identifier}]"
+            max_len = max(max_len, len(header_str))
+
+        # Relay state headers
+        if self.relay_states:
+            for relay_id in self.relay_states.keys():
+                header_str = f"[Relay ID {relay_id}]"
+                max_len = max(max_len, len(header_str))
+        
+        return max_len
+
     def print_all_latest_data(self):
         """Prints the latest stored data for all known sensors, relay states, and timing info."""
-        # Determine max header length for alignment
-        max_header_len = 20 # Default width
-        if self.latest_sensor_data:
-            max_header_len = max(max_header_len, max(len(f"[{data['type']} ID {sid}]") for sid, data in self.latest_sensor_data.items()))
-        if self.latest_timing_data:
-            max_header_len = max(max_header_len, max(len(f"[Timing {t[0].capitalize()} {t[1]}]") for t in self.latest_timing_data.keys()))
-        if self.relay_states: # Ensure there are relays before checking max length
-            max_header_len = max(max_header_len, max(len(f"[Relay ID {i}]") for i in self.relay_states))
-        max_header_len = max(max_header_len, len("[Pressure ID 0]")) # Ensure pressure headers fit
-       
+        max_header_len = self.max_header_len_for_display() # Use the new helper method
+        
         # Clear screen for a dashboard-like view
         os.system('cls' if os.name == 'nt' else 'clear')
 
         logger.info("-" * (max_header_len + 50))
         logger.info(f"{'--- SENSOR DATA ---':<{max_header_len + 50}}")
 
-        # Print pressure sensors (IDs 0-5)
-        for sensor_id in range(PRESSURE_ID_START, PRESSURE_ID_START + NUM_IDS_PRESSURE):
-            header = f"[Pressure ID {sensor_id}]"
-            if sensor_id in self.latest_sensor_data and self.latest_sensor_data[sensor_id]['type'] == 'Pressure':
-                data = self.latest_sensor_data[sensor_id]
-                value = data['values'][0]
-                output = f"{header:<{max_header_len}} pressure: {value:.2f} bar"
-            else:
-                output = f"{header:<{max_header_len}} pressure: No data"
-            logger.info(output)
-
-        # Print other sensor data (non-pressure)
-        for sensor_id in sorted(self.latest_sensor_data.keys()):
-            if sensor_id in range(PRESSURE_ID_START, PRESSURE_ID_START + NUM_IDS_PRESSURE):
-                continue  # Skip pressure sensors, already handled
-            data = self.latest_sensor_data[sensor_id]
-            packet_type = data['type']
-            values = data['values']
-            fields = data['fields']
+        # Iterate through all known sensor IDs and print their data
+        for sensor_id, packet_type in self.get_all_sensor_ids_and_types():
             header = f"[{packet_type} ID {sensor_id}]"
-            output = f"{header:<{max_header_len}} "
-            for i, field_name in enumerate(fields):
-                value = values[i]
-                if packet_type == 'LoadCell' and field_name == 'weight_grams':
-                    output += f"{field_name}: {value:.3f} g "
-                elif packet_type == 'Flow' and field_name == 'flow_rate_lpm':
-                    output += f"{field_name}: {value:.3f} LPM "
-                elif packet_type == 'Temperature':
-                    if field_name == 'temp_c':
-                        output += f"{field_name}: {'ERR (Open TC)' if math.isnan(value) else f'{value:.1f} C'} "
-                    elif field_name == 'temp_f':
-                        output += f"{field_name}: {'ERR (Open TC)' if math.isnan(value) else f'{value:.1f} F'} "
-                elif packet_type == 'MotorRPM' and field_name == 'rpm':
-                    output += f"{field_name}: {value:.1f} RPM "
-                else:
-                    output += f"{field_name}: {value:.3f} "
-            logger.info(output.strip())
+            
+            if sensor_id in self.latest_sensor_data:
+                data = self.latest_sensor_data[sensor_id]
+                values = data['values']
+                fields = data['fields']
+                output = f"{header:<{max_header_len}} "
+                
+                # Apply specific formatting based on the packet type and field name
+                for i, field_name in enumerate(fields):
+                    value = values[i]
+                    if packet_type == 'Pressure' and field_name == 'pressure':
+                        output += f"{field_name}: {value:.2f} bar "
+                    elif packet_type == 'LoadCell' and field_name == 'weight_grams':
+                        output += f"{field_name}: {value:.3f} g "
+                    elif packet_type == 'Flow' and field_name == 'flow_rate_lpm':
+                        output += f"{field_name}: {value:.3f} LPM "
+                    elif packet_type == 'Temperature':
+                        if field_name == 'temp_c':
+                            output += f"{field_name}: {'ERR (Open TC)' if math.isnan(value) else f'{value:.1f} C'} "
+                        elif field_name == 'temp_f':
+                            output += f"{field_name}: {'ERR (Open TC)' if math.isnan(value) else f'{value:.1f} F'} "
+                    elif packet_type == 'MotorRPM' and field_name == 'rpm':
+                        output += f"{field_name}: {value:.1f} RPM "
+                    else:
+                        output += f"{field_name}: {value:.3f} " # Default for any other type/field
+                logger.info(output.strip())
+            else:
+                # If no data, print "No data"
+                logger.info(f"{header:<{max_header_len}} No data")
 
-        # Print relay states
+        # Print relay states (unchanged)
         logger.info(f"\n{'--- RELAY STATES ---':<{max_header_len + 50}}")
         for relay_id in sorted(self.relay_states.keys()):
             state = self.relay_states[relay_id]
             header = f"[Relay ID {relay_id}]"
-            output = f"{header:<{max_header_len}} state: {'ON' if state else 'OFF'}"
+            output = f"{header:<{max_header_len}} state: {'OPEN' if state else 'CLOSE'}"
             logger.info(output)
 
-        # Print timing data
+        # Print timing data (unchanged)
         logger.info(f"\n{'--- TIMING DATA (microseconds) ---':<{max_header_len + 50}}")
-        # Sort keys to ensure consistent order: categories first, then individual by sensor ID
         sorted_timing_keys = sorted(self.latest_timing_data.keys(), key=lambda x: (0 if x[0] == 'category' else 1, x[1]))
 
         if not sorted_timing_keys:
@@ -345,7 +356,8 @@ class SerialPacketReceiver:
                           f"Duration: {timing_data['duration']:,} us")
                 logger.info(output)
 
-
+# --- (Rest of your code, including auto_detect_arduino_port, send_motor_control_command,
+# send_relay_control_command, serial_reader_thread, command_input_thread, print_help_message, main) ---
 def auto_detect_arduino_port():
     """Detects Arduino Mega port, returns port name or None if not found/ambiguous."""
     arduino_ports = []
@@ -465,10 +477,10 @@ def command_input_thread(command_queue):
     logger.info("Command input thread started.")
     while True:
         try:
-            command = input("CLI> ").strip() # Added a distinct prompt for user input
+            command = input("CLI> ").strip()
             command_queue.put(command)
         except EOFError:
-            command_queue.put('q')  # Signal exit on EOF (Ctrl+D/Ctrl+Z)
+            command_queue.put('q')
             break
         except Exception as e:
             logger.error(f"Error in command input thread: {e}")
@@ -477,13 +489,12 @@ def command_input_thread(command_queue):
 
 def print_help_message(max_header_len):
     """Prints the available commands and their syntax."""
-    # This function is now dynamic, ensuring it's always available
     logger.info(f"\n{'--- COMMANDS ---':<{max_header_len + 50}}")
-    logger.info("  'm <throttle>'      : Set motor throttle (0-100%). E.g., 'm 50'")
-    logger.info("  'r <id> <state>'    : Set relay state (id: 0-3, state: 0=OFF, 1=ON). E.g., 'r 0 1'")
-    logger.info("  'u <interval>'      : Set sensor data update interval in seconds (e.g., 'u 0.5')")
-    logger.info("  'h' or 'help'       : Display this help message.")
-    logger.info("  'q'                 : Quit the application.")
+    logger.info("  'm <throttle>'       : Set motor throttle (0-100%). E.g., 'm 50'")
+    logger.info("  'r <id> <state>'     : Set relay state (id: 0-3, state: 0=OFF, 1=ON). E.g., 'r 0 1'")
+    logger.info("  'u <interval>'       : Set sensor data update interval in seconds (e.g., 'u 0.5')")
+    logger.info("  'h' or 'help'        : Display this help message.")
+    logger.info("  'q'                  : Quit the application.")
     logger.info("-" * (max_header_len + 50))
 
 
@@ -491,7 +502,7 @@ def main():
     # Build ID_TO_PACKET_INFO lookup table for non-timing packets
     for start_byte, info in PACKET_TYPES.items():
         if start_byte == TIMING_PACKET_START_BYTE:
-            continue # Skip timing packets for this lookup
+            continue
         for sensor_id in info.get('ids', []):
             if sensor_id in ID_TO_PACKET_INFO:
                 existing_start_byte = ID_TO_PACKET_INFO[sensor_id]
@@ -514,7 +525,7 @@ def main():
 
     BAUDRATE = args.baudrate
     READ_TIMEOUT = args.timeout
-    UPDATE_INTERVAL = args.update_interval # This is now mutable via 'u' command
+    UPDATE_INTERVAL = args.update_interval
 
     receiver = SerialPacketReceiver()
     command_queue = queue.Queue()
@@ -526,7 +537,7 @@ def main():
         logger.info(f"Opening serial port {SERIAL_PORT} at {BAUDRATE} baud...")
         ser = serial.Serial(SERIAL_PORT, BAUDRATE, timeout=READ_TIMEOUT)
         logger.info("Serial port opened successfully.")
-        time.sleep(2)  # Allow Arduino to reset
+        time.sleep(2)
 
         serial_thread = threading.Thread(target=serial_reader_thread, args=(ser, receiver), daemon=True)
         serial_thread.start()
@@ -535,8 +546,7 @@ def main():
         input_thread.start()
 
         logger.info(f"Connected to Arduino Mega on {SERIAL_PORT}")
-        # Initial help message
-        print_help_message(20) # Pass a default max_header_len for initial display
+        print_help_message(20)
         last_print_time = time.time()
 
         while True:
@@ -546,18 +556,17 @@ def main():
                 last_print_time = current_time
 
             try:
-                # Check for commands in the queue (non-blocking)
                 command = command_queue.get_nowait()
                 parts = command.split()
                 if not parts:
-                    continue # Ignore empty commands
+                    continue
                 
                 cmd_type = parts[0].lower()
 
                 if cmd_type == 'q':
                     break
                 elif cmd_type == 'h' or cmd_type == 'help':
-                    # Recalculate max_header_len for help, or pass a reasonable default
+                    # Corrected call: Use the newly implemented method
                     print_help_message(max(20, receiver.max_header_len_for_display()))
                 elif cmd_type == 'm' and len(parts) == 2:
                     try:
@@ -585,8 +594,8 @@ def main():
                 else:
                     logger.error(f"Unknown command: '{command}'. Type 'h' for help.")
             except queue.Empty:
-                pass  # No command available, continue loop
-            time.sleep(0.01) # Reduced sleep to be more responsive to commands and serial data
+                pass
+            time.sleep(0.01)
 
     except serial.SerialException as e:
         logger.error(f"Could not open serial port {SERIAL_PORT}: {e}")
@@ -598,9 +607,8 @@ def main():
         sys.exit(1)
     finally:
         if ser and ser.is_open:
-            # Send a motor stop command on exit
             send_motor_control_command(ser, CMD_TARGET_MOTOR_ID, 0, enable=0, forward=1)
-            time.sleep(0.1) # Give time for command to send
+            time.sleep(0.1)
             ser.close()
             logger.info("Serial port closed.")
 

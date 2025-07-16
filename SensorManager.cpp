@@ -110,7 +110,7 @@ const byte CMD_TYPE_SET_RELAY = 0x01; // Command to set a relay state
 const byte CMD_TYPE_SET_MOTOR = 0x02; // Command to set motor state (enable, direction, throttle)
 
 // Target ID definitions for commands
-const byte CMD_TARGET_RELAY_START = 0; // Relays targeted by their 0-3 index
+const byte CMD_TARGET_RELAY_START = 1; // Relays targeted by their 0-3 index
 const byte CMD_TARGET_MOTOR_ID = 0;    // Motor targeted by ID 0
 
 
@@ -347,6 +347,8 @@ void sendBinaryPacket(byte start_byte, byte id, const void* data_ptr, size_t dat
   Serial.write((byte)data_size);
 
   Serial.write((const byte*)data_ptr, (size_t)data_size);
+  // we are at address 0x5 -> 0x100
+  // from 0x5 -> 0x10 data size = 5
   Serial.write(end_byte);
 }
 

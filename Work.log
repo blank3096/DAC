@@ -1,0 +1,2014 @@
+2025-07-16 03:39:39 - Searching for Arduino port...
+2025-07-16 03:39:39 - Automatically selected port: /dev/ttyUSB0
+2025-07-16 03:39:39 - Opening serial port /dev/ttyUSB0 at 115200 baud...
+2025-07-16 03:39:39 - Serial port opened successfully.
+2025-07-16 03:39:41 - Serial reading thread started.
+2025-07-16 03:39:41 - Command input thread started.
+2025-07-16 03:39:41 - Connected to Arduino Mega on /dev/ttyUSB0
+2025-07-16 03:39:42 - 
+--- COMMANDS ---                                                      
+2025-07-16 03:39:42 -   'm <throttle>'       : Set motor throttle (0-100%). E.g., 'm 50'
+2025-07-16 03:39:42 -   'r <id> <state>'     : Set relay state (id: 0-3, state: 0=OFF, 1=ON). E.g., 'r 0 1'
+2025-07-16 03:39:42 -   'u <interval>'       : Set sensor data update interval in seconds (e.g., 'u 0.5')
+2025-07-16 03:39:42 -   'h' or 'help'        : Display this help message.
+2025-07-16 03:39:42 -   'q'                  : Quit the application.
+2025-07-16 03:39:42 - ----------------------------------------------------------------------
+2025-07-16 03:39:43 - ----------------------------------------------------------------------
+2025-07-16 03:39:43 - --- SENSOR DATA ---                                                   
+2025-07-16 03:39:43 - [Pressure ID 0]      No data
+2025-07-16 03:39:43 - [Pressure ID 1]      No data
+2025-07-16 03:39:43 - [Pressure ID 2]      No data
+2025-07-16 03:39:43 - [Pressure ID 3]      No data
+2025-07-16 03:39:43 - [Pressure ID 4]      No data
+2025-07-16 03:39:43 - [Pressure ID 5]      No data
+2025-07-16 03:39:43 - [LoadCell ID 6]      No data
+2025-07-16 03:39:43 - [LoadCell ID 7]      No data
+2025-07-16 03:39:43 - [LoadCell ID 8]      No data
+2025-07-16 03:39:43 - [Flow ID 9]          No data
+2025-07-16 03:39:43 - [Temperature ID 10]  No data
+2025-07-16 03:39:43 - [Temperature ID 11]  No data
+2025-07-16 03:39:43 - [Temperature ID 12]  No data
+2025-07-16 03:39:43 - [Temperature ID 13]  No data
+2025-07-16 03:39:43 - [MotorRPM ID 14]     No data
+2025-07-16 03:39:43 - 
+--- RELAY STATES ---                                                  
+2025-07-16 03:39:43 - [Relay ID 0]         state: CLOSE
+2025-07-16 03:39:43 - [Relay ID 1]         state: CLOSE
+2025-07-16 03:39:43 - [Relay ID 2]         state: CLOSE
+2025-07-16 03:39:43 - [Relay ID 3]         state: CLOSE
+2025-07-16 03:39:43 - 
+--- TIMING DATA (microseconds) ---                                    
+2025-07-16 03:39:43 - No timing data received yet.                                          
+2025-07-16 03:39:44 - ----------------------------------------------------------------------
+2025-07-16 03:39:44 - --- SENSOR DATA ---                                                   
+2025-07-16 03:39:44 - [Pressure ID 0]      No data
+2025-07-16 03:39:44 - [Pressure ID 1]      No data
+2025-07-16 03:39:44 - [Pressure ID 2]      No data
+2025-07-16 03:39:44 - [Pressure ID 3]      No data
+2025-07-16 03:39:44 - [Pressure ID 4]      No data
+2025-07-16 03:39:44 - [Pressure ID 5]      No data
+2025-07-16 03:39:44 - [LoadCell ID 6]      No data
+2025-07-16 03:39:44 - [LoadCell ID 7]      No data
+2025-07-16 03:39:44 - [LoadCell ID 8]      No data
+2025-07-16 03:39:44 - [Flow ID 9]          No data
+2025-07-16 03:39:44 - [Temperature ID 10]  No data
+2025-07-16 03:39:44 - [Temperature ID 11]  No data
+2025-07-16 03:39:44 - [Temperature ID 12]  No data
+2025-07-16 03:39:44 - [Temperature ID 13]  No data
+2025-07-16 03:39:44 - [MotorRPM ID 14]     No data
+2025-07-16 03:39:44 - 
+--- RELAY STATES ---                                                  
+2025-07-16 03:39:44 - [Relay ID 0]         state: CLOSE
+2025-07-16 03:39:44 - [Relay ID 1]         state: CLOSE
+2025-07-16 03:39:44 - [Relay ID 2]         state: CLOSE
+2025-07-16 03:39:44 - [Relay ID 3]         state: CLOSE
+2025-07-16 03:39:44 - 
+--- TIMING DATA (microseconds) ---                                    
+2025-07-16 03:39:44 - No timing data received yet.                                          
+2025-07-16 03:39:45 - ----------------------------------------------------------------------
+2025-07-16 03:39:45 - --- SENSOR DATA ---                                                   
+2025-07-16 03:39:45 - [Pressure ID 0]      No data
+2025-07-16 03:39:45 - [Pressure ID 1]      No data
+2025-07-16 03:39:45 - [Pressure ID 2]      No data
+2025-07-16 03:39:45 - [Pressure ID 3]      No data
+2025-07-16 03:39:45 - [Pressure ID 4]      No data
+2025-07-16 03:39:45 - [Pressure ID 5]      No data
+2025-07-16 03:39:45 - [LoadCell ID 6]      No data
+2025-07-16 03:39:45 - [LoadCell ID 7]      No data
+2025-07-16 03:39:45 - [LoadCell ID 8]      No data
+2025-07-16 03:39:45 - [Flow ID 9]          No data
+2025-07-16 03:39:45 - [Temperature ID 10]  No data
+2025-07-16 03:39:45 - [Temperature ID 11]  No data
+2025-07-16 03:39:45 - [Temperature ID 12]  No data
+2025-07-16 03:39:45 - [Temperature ID 13]  No data
+2025-07-16 03:39:45 - [MotorRPM ID 14]     No data
+2025-07-16 03:39:45 - 
+--- RELAY STATES ---                                                  
+2025-07-16 03:39:45 - [Relay ID 0]         state: CLOSE
+2025-07-16 03:39:45 - [Relay ID 1]         state: CLOSE
+2025-07-16 03:39:45 - [Relay ID 2]         state: CLOSE
+2025-07-16 03:39:45 - [Relay ID 3]         state: CLOSE
+2025-07-16 03:39:45 - 
+--- TIMING DATA (microseconds) ---                                    
+2025-07-16 03:39:45 - No timing data received yet.                                          
+2025-07-16 03:39:46 - ----------------------------------------------------------------------
+2025-07-16 03:39:46 - --- SENSOR DATA ---                                                   
+2025-07-16 03:39:46 - [Pressure ID 0]      No data
+2025-07-16 03:39:46 - [Pressure ID 1]      No data
+2025-07-16 03:39:46 - [Pressure ID 2]      No data
+2025-07-16 03:39:46 - [Pressure ID 3]      No data
+2025-07-16 03:39:46 - [Pressure ID 4]      No data
+2025-07-16 03:39:46 - [Pressure ID 5]      No data
+2025-07-16 03:39:46 - [LoadCell ID 6]      No data
+2025-07-16 03:39:46 - [LoadCell ID 7]      No data
+2025-07-16 03:39:46 - [LoadCell ID 8]      No data
+2025-07-16 03:39:46 - [Flow ID 9]          No data
+2025-07-16 03:39:46 - [Temperature ID 10]  No data
+2025-07-16 03:39:46 - [Temperature ID 11]  No data
+2025-07-16 03:39:46 - [Temperature ID 12]  No data
+2025-07-16 03:39:46 - [Temperature ID 13]  No data
+2025-07-16 03:39:46 - [MotorRPM ID 14]     No data
+2025-07-16 03:39:46 - 
+--- RELAY STATES ---                                                  
+2025-07-16 03:39:46 - [Relay ID 0]         state: CLOSE
+2025-07-16 03:39:46 - [Relay ID 1]         state: CLOSE
+2025-07-16 03:39:46 - [Relay ID 2]         state: CLOSE
+2025-07-16 03:39:46 - [Relay ID 3]         state: CLOSE
+2025-07-16 03:39:46 - 
+--- TIMING DATA (microseconds) ---                                    
+2025-07-16 03:39:46 - No timing data received yet.                                          
+2025-07-16 03:39:47 - ----------------------------------------------------------------------
+2025-07-16 03:39:47 - --- SENSOR DATA ---                                                   
+2025-07-16 03:39:47 - [Pressure ID 0]      No data
+2025-07-16 03:39:47 - [Pressure ID 1]      No data
+2025-07-16 03:39:47 - [Pressure ID 2]      No data
+2025-07-16 03:39:47 - [Pressure ID 3]      No data
+2025-07-16 03:39:47 - [Pressure ID 4]      No data
+2025-07-16 03:39:47 - [Pressure ID 5]      No data
+2025-07-16 03:39:47 - [LoadCell ID 6]      No data
+2025-07-16 03:39:47 - [LoadCell ID 7]      No data
+2025-07-16 03:39:47 - [LoadCell ID 8]      No data
+2025-07-16 03:39:47 - [Flow ID 9]          No data
+2025-07-16 03:39:47 - [Temperature ID 10]  No data
+2025-07-16 03:39:47 - [Temperature ID 11]  No data
+2025-07-16 03:39:47 - [Temperature ID 12]  No data
+2025-07-16 03:39:47 - [Temperature ID 13]  No data
+2025-07-16 03:39:47 - [MotorRPM ID 14]     No data
+2025-07-16 03:39:47 - 
+--- RELAY STATES ---                                                  
+2025-07-16 03:39:47 - [Relay ID 0]         state: CLOSE
+2025-07-16 03:39:47 - [Relay ID 1]         state: CLOSE
+2025-07-16 03:39:47 - [Relay ID 2]         state: CLOSE
+2025-07-16 03:39:47 - [Relay ID 3]         state: CLOSE
+2025-07-16 03:39:47 - 
+--- TIMING DATA (microseconds) ---                                    
+2025-07-16 03:39:47 - No timing data received yet.                                          
+2025-07-16 03:39:48 - ----------------------------------------------------------------------
+2025-07-16 03:39:48 - --- SENSOR DATA ---                                                   
+2025-07-16 03:39:48 - [Pressure ID 0]      No data
+2025-07-16 03:39:48 - [Pressure ID 1]      No data
+2025-07-16 03:39:48 - [Pressure ID 2]      No data
+2025-07-16 03:39:48 - [Pressure ID 3]      No data
+2025-07-16 03:39:48 - [Pressure ID 4]      No data
+2025-07-16 03:39:48 - [Pressure ID 5]      No data
+2025-07-16 03:39:48 - [LoadCell ID 6]      No data
+2025-07-16 03:39:48 - [LoadCell ID 7]      No data
+2025-07-16 03:39:48 - [LoadCell ID 8]      No data
+2025-07-16 03:39:48 - [Flow ID 9]          No data
+2025-07-16 03:39:48 - [Temperature ID 10]  No data
+2025-07-16 03:39:48 - [Temperature ID 11]  No data
+2025-07-16 03:39:48 - [Temperature ID 12]  No data
+2025-07-16 03:39:48 - [Temperature ID 13]  No data
+2025-07-16 03:39:48 - [MotorRPM ID 14]     No data
+2025-07-16 03:39:48 - 
+--- RELAY STATES ---                                                  
+2025-07-16 03:39:48 - [Relay ID 0]         state: CLOSE
+2025-07-16 03:39:48 - [Relay ID 1]         state: CLOSE
+2025-07-16 03:39:48 - [Relay ID 2]         state: CLOSE
+2025-07-16 03:39:48 - [Relay ID 3]         state: CLOSE
+2025-07-16 03:39:48 - 
+--- TIMING DATA (microseconds) ---                                    
+2025-07-16 03:39:48 - No timing data received yet.                                          
+2025-07-16 03:39:49 - ----------------------------------------------------------------------
+2025-07-16 03:39:49 - --- SENSOR DATA ---                                                   
+2025-07-16 03:39:49 - [Pressure ID 0]      No data
+2025-07-16 03:39:49 - [Pressure ID 1]      No data
+2025-07-16 03:39:49 - [Pressure ID 2]      No data
+2025-07-16 03:39:49 - [Pressure ID 3]      No data
+2025-07-16 03:39:49 - [Pressure ID 4]      No data
+2025-07-16 03:39:49 - [Pressure ID 5]      No data
+2025-07-16 03:39:49 - [LoadCell ID 6]      No data
+2025-07-16 03:39:49 - [LoadCell ID 7]      No data
+2025-07-16 03:39:49 - [LoadCell ID 8]      No data
+2025-07-16 03:39:49 - [Flow ID 9]          No data
+2025-07-16 03:39:49 - [Temperature ID 10]  No data
+2025-07-16 03:39:49 - [Temperature ID 11]  No data
+2025-07-16 03:39:49 - [Temperature ID 12]  No data
+2025-07-16 03:39:49 - [Temperature ID 13]  No data
+2025-07-16 03:39:49 - [MotorRPM ID 14]     No data
+2025-07-16 03:39:49 - 
+--- RELAY STATES ---                                                  
+2025-07-16 03:39:49 - [Relay ID 0]         state: CLOSE
+2025-07-16 03:39:49 - [Relay ID 1]         state: CLOSE
+2025-07-16 03:39:49 - [Relay ID 2]         state: CLOSE
+2025-07-16 03:39:49 - [Relay ID 3]         state: CLOSE
+2025-07-16 03:39:49 - 
+--- TIMING DATA (microseconds) ---                                    
+2025-07-16 03:39:49 - No timing data received yet.                                          
+2025-07-16 03:39:50 - ----------------------------------------------------------------------
+2025-07-16 03:39:50 - --- SENSOR DATA ---                                                   
+2025-07-16 03:39:50 - [Pressure ID 0]      No data
+2025-07-16 03:39:50 - [Pressure ID 1]      No data
+2025-07-16 03:39:50 - [Pressure ID 2]      No data
+2025-07-16 03:39:50 - [Pressure ID 3]      No data
+2025-07-16 03:39:50 - [Pressure ID 4]      No data
+2025-07-16 03:39:50 - [Pressure ID 5]      No data
+2025-07-16 03:39:50 - [LoadCell ID 6]      No data
+2025-07-16 03:39:50 - [LoadCell ID 7]      No data
+2025-07-16 03:39:50 - [LoadCell ID 8]      No data
+2025-07-16 03:39:50 - [Flow ID 9]          No data
+2025-07-16 03:39:50 - [Temperature ID 10]  No data
+2025-07-16 03:39:50 - [Temperature ID 11]  No data
+2025-07-16 03:39:50 - [Temperature ID 12]  No data
+2025-07-16 03:39:50 - [Temperature ID 13]  No data
+2025-07-16 03:39:50 - [MotorRPM ID 14]     No data
+2025-07-16 03:39:50 - 
+--- RELAY STATES ---                                                  
+2025-07-16 03:39:50 - [Relay ID 0]         state: CLOSE
+2025-07-16 03:39:50 - [Relay ID 1]         state: CLOSE
+2025-07-16 03:39:50 - [Relay ID 2]         state: CLOSE
+2025-07-16 03:39:50 - [Relay ID 3]         state: CLOSE
+2025-07-16 03:39:50 - 
+--- TIMING DATA (microseconds) ---                                    
+2025-07-16 03:39:50 - No timing data received yet.                                          
+2025-07-16 03:39:51 - ----------------------------------------------------------------------
+2025-07-16 03:39:51 - --- SENSOR DATA ---                                                   
+2025-07-16 03:39:51 - [Pressure ID 0]      No data
+2025-07-16 03:39:51 - [Pressure ID 1]      No data
+2025-07-16 03:39:51 - [Pressure ID 2]      No data
+2025-07-16 03:39:51 - [Pressure ID 3]      No data
+2025-07-16 03:39:51 - [Pressure ID 4]      No data
+2025-07-16 03:39:51 - [Pressure ID 5]      No data
+2025-07-16 03:39:51 - [LoadCell ID 6]      No data
+2025-07-16 03:39:51 - [LoadCell ID 7]      No data
+2025-07-16 03:39:51 - [LoadCell ID 8]      No data
+2025-07-16 03:39:51 - [Flow ID 9]          No data
+2025-07-16 03:39:51 - [Temperature ID 10]  No data
+2025-07-16 03:39:51 - [Temperature ID 11]  No data
+2025-07-16 03:39:51 - [Temperature ID 12]  No data
+2025-07-16 03:39:51 - [Temperature ID 13]  No data
+2025-07-16 03:39:51 - [MotorRPM ID 14]     No data
+2025-07-16 03:39:51 - 
+--- RELAY STATES ---                                                  
+2025-07-16 03:39:51 - [Relay ID 0]         state: CLOSE
+2025-07-16 03:39:51 - [Relay ID 1]         state: CLOSE
+2025-07-16 03:39:51 - [Relay ID 2]         state: CLOSE
+2025-07-16 03:39:51 - [Relay ID 3]         state: CLOSE
+2025-07-16 03:39:51 - 
+--- TIMING DATA (microseconds) ---                                    
+2025-07-16 03:39:51 - No timing data received yet.                                          
+2025-07-16 03:39:51 - Unexpected error: 'SerialPacketReceiver' object has no attribute 'get_all_sensor_ids_and_types_for_max_len'
+2025-07-16 03:39:51 - Sent motor control command: ID=0, Enable=0, Forward=1, Throttle=0%
+2025-07-16 03:39:51 - Serial port closed.
+2025-07-16 03:40:03 - Searching for Arduino port...
+2025-07-16 03:40:03 - Automatically selected port: /dev/ttyUSB0
+2025-07-16 03:40:03 - Opening serial port /dev/ttyUSB0 at 115200 baud...
+2025-07-16 03:40:03 - Serial port opened successfully.
+2025-07-16 03:40:05 - Serial reading thread started.
+2025-07-16 03:40:05 - Command input thread started.
+2025-07-16 03:40:05 - Connected to Arduino Mega on /dev/ttyUSB0
+2025-07-16 03:40:05 - 
+--- COMMANDS ---                                                      
+2025-07-16 03:40:05 -   'm <throttle>'       : Set motor throttle (0-100%). E.g., 'm 50'
+2025-07-16 03:40:05 -   'r <id> <state>'     : Set relay state (id: 0-3, state: 0=OFF, 1=ON). E.g., 'r 0 1'
+2025-07-16 03:40:05 -   'u <interval>'       : Set sensor data update interval in seconds (e.g., 'u 0.5')
+2025-07-16 03:40:05 -   'h' or 'help'        : Display this help message.
+2025-07-16 03:40:05 -   'q'                  : Quit the application.
+2025-07-16 03:40:05 - ----------------------------------------------------------------------
+2025-07-16 03:40:05 - Unexpected error: 'SerialPacketReceiver' object has no attribute 'get_all_sensor_ids_and_types_for_max_len'
+2025-07-16 03:40:05 - Sent motor control command: ID=0, Enable=0, Forward=1, Throttle=0%
+2025-07-16 03:40:05 - Serial port closed.
+2025-07-16 03:40:27 - Searching for Arduino port...
+2025-07-16 03:40:27 - Automatically selected port: /dev/ttyUSB0
+2025-07-16 03:40:27 - Opening serial port /dev/ttyUSB0 at 115200 baud...
+2025-07-16 03:40:27 - Serial port opened successfully.
+2025-07-16 03:40:29 - Serial reading thread started.
+2025-07-16 03:40:29 - Command input thread started.
+2025-07-16 03:40:29 - Connected to Arduino Mega on /dev/ttyUSB0
+2025-07-16 03:40:29 - 
+--- COMMANDS ---                                                      
+2025-07-16 03:40:29 -   'm <throttle>'       : Set motor throttle (0-100%). E.g., 'm 50'
+2025-07-16 03:40:29 -   'r <id> <state>'     : Set relay state (id: 0-3, state: 0=OFF, 1=ON). E.g., 'r 0 1'
+2025-07-16 03:40:29 -   'u <interval>'       : Set sensor data update interval in seconds (e.g., 'u 0.5')
+2025-07-16 03:40:29 -   'h' or 'help'        : Display this help message.
+2025-07-16 03:40:29 -   'q'                  : Quit the application.
+2025-07-16 03:40:29 - ----------------------------------------------------------------------
+2025-07-16 03:40:30 - ----------------------------------------------------------------------
+2025-07-16 03:40:30 - --- SENSOR DATA ---                                                   
+2025-07-16 03:40:30 - [Pressure ID 0]      No data
+2025-07-16 03:40:30 - [Pressure ID 1]      No data
+2025-07-16 03:40:30 - [Pressure ID 2]      No data
+2025-07-16 03:40:30 - [Pressure ID 3]      No data
+2025-07-16 03:40:30 - [Pressure ID 4]      No data
+2025-07-16 03:40:30 - [Pressure ID 5]      No data
+2025-07-16 03:40:30 - [LoadCell ID 6]      No data
+2025-07-16 03:40:30 - [LoadCell ID 7]      No data
+2025-07-16 03:40:30 - [LoadCell ID 8]      No data
+2025-07-16 03:40:30 - [Flow ID 9]          No data
+2025-07-16 03:40:30 - [Temperature ID 10]  No data
+2025-07-16 03:40:30 - [Temperature ID 11]  No data
+2025-07-16 03:40:30 - [Temperature ID 12]  No data
+2025-07-16 03:40:30 - [Temperature ID 13]  No data
+2025-07-16 03:40:30 - [MotorRPM ID 14]     No data
+2025-07-16 03:40:30 - 
+--- RELAY STATES ---                                                  
+2025-07-16 03:40:30 - [Relay ID 0]         state: CLOSE
+2025-07-16 03:40:30 - [Relay ID 1]         state: CLOSE
+2025-07-16 03:40:30 - [Relay ID 2]         state: CLOSE
+2025-07-16 03:40:30 - [Relay ID 3]         state: CLOSE
+2025-07-16 03:40:30 - 
+--- TIMING DATA (microseconds) ---                                    
+2025-07-16 03:40:30 - No timing data received yet.                                          
+2025-07-16 03:40:31 - ----------------------------------------------------------------------
+2025-07-16 03:40:31 - --- SENSOR DATA ---                                                   
+2025-07-16 03:40:31 - [Pressure ID 0]      No data
+2025-07-16 03:40:31 - [Pressure ID 1]      No data
+2025-07-16 03:40:31 - [Pressure ID 2]      No data
+2025-07-16 03:40:31 - [Pressure ID 3]      No data
+2025-07-16 03:40:31 - [Pressure ID 4]      No data
+2025-07-16 03:40:31 - [Pressure ID 5]      No data
+2025-07-16 03:40:31 - [LoadCell ID 6]      No data
+2025-07-16 03:40:31 - [LoadCell ID 7]      No data
+2025-07-16 03:40:31 - [LoadCell ID 8]      No data
+2025-07-16 03:40:31 - [Flow ID 9]          No data
+2025-07-16 03:40:31 - [Temperature ID 10]  No data
+2025-07-16 03:40:31 - [Temperature ID 11]  No data
+2025-07-16 03:40:31 - [Temperature ID 12]  No data
+2025-07-16 03:40:31 - [Temperature ID 13]  No data
+2025-07-16 03:40:31 - [MotorRPM ID 14]     No data
+2025-07-16 03:40:31 - 
+--- RELAY STATES ---                                                  
+2025-07-16 03:40:31 - [Relay ID 0]         state: CLOSE
+2025-07-16 03:40:31 - [Relay ID 1]         state: CLOSE
+2025-07-16 03:40:31 - [Relay ID 2]         state: CLOSE
+2025-07-16 03:40:31 - [Relay ID 3]         state: CLOSE
+2025-07-16 03:40:31 - 
+--- TIMING DATA (microseconds) ---                                    
+2025-07-16 03:40:31 - No timing data received yet.                                          
+2025-07-16 03:40:31 - Sent relay control command: ID=1, State=OFF
+2025-07-16 03:40:32 - ----------------------------------------------------------------------
+2025-07-16 03:40:32 - --- SENSOR DATA ---                                                   
+2025-07-16 03:40:32 - [Pressure ID 0]      No data
+2025-07-16 03:40:32 - [Pressure ID 1]      No data
+2025-07-16 03:40:32 - [Pressure ID 2]      No data
+2025-07-16 03:40:32 - [Pressure ID 3]      No data
+2025-07-16 03:40:32 - [Pressure ID 4]      No data
+2025-07-16 03:40:32 - [Pressure ID 5]      No data
+2025-07-16 03:40:32 - [LoadCell ID 6]      No data
+2025-07-16 03:40:32 - [LoadCell ID 7]      No data
+2025-07-16 03:40:32 - [LoadCell ID 8]      No data
+2025-07-16 03:40:32 - [Flow ID 9]          No data
+2025-07-16 03:40:32 - [Temperature ID 10]  No data
+2025-07-16 03:40:32 - [Temperature ID 11]  No data
+2025-07-16 03:40:32 - [Temperature ID 12]  No data
+2025-07-16 03:40:32 - [Temperature ID 13]  No data
+2025-07-16 03:40:32 - [MotorRPM ID 14]     No data
+2025-07-16 03:40:32 - 
+--- RELAY STATES ---                                                  
+2025-07-16 03:40:32 - [Relay ID 0]         state: CLOSE
+2025-07-16 03:40:32 - [Relay ID 1]         state: CLOSE
+2025-07-16 03:40:32 - [Relay ID 2]         state: CLOSE
+2025-07-16 03:40:32 - [Relay ID 3]         state: CLOSE
+2025-07-16 03:40:32 - 
+--- TIMING DATA (microseconds) ---                                    
+2025-07-16 03:40:32 - No timing data received yet.                                          
+2025-07-16 03:40:33 - ----------------------------------------------------------------------
+2025-07-16 03:40:33 - --- SENSOR DATA ---                                                   
+2025-07-16 03:40:33 - [Pressure ID 0]      No data
+2025-07-16 03:40:33 - [Pressure ID 1]      No data
+2025-07-16 03:40:33 - [Pressure ID 2]      No data
+2025-07-16 03:40:33 - [Pressure ID 3]      No data
+2025-07-16 03:40:33 - [Pressure ID 4]      No data
+2025-07-16 03:40:33 - [Pressure ID 5]      No data
+2025-07-16 03:40:33 - [LoadCell ID 6]      No data
+2025-07-16 03:40:33 - [LoadCell ID 7]      No data
+2025-07-16 03:40:33 - [LoadCell ID 8]      No data
+2025-07-16 03:40:33 - [Flow ID 9]          No data
+2025-07-16 03:40:33 - [Temperature ID 10]  No data
+2025-07-16 03:40:33 - [Temperature ID 11]  No data
+2025-07-16 03:40:33 - [Temperature ID 12]  No data
+2025-07-16 03:40:33 - [Temperature ID 13]  No data
+2025-07-16 03:40:33 - [MotorRPM ID 14]     No data
+2025-07-16 03:40:33 - 
+--- RELAY STATES ---                                                  
+2025-07-16 03:40:33 - [Relay ID 0]         state: CLOSE
+2025-07-16 03:40:33 - [Relay ID 1]         state: CLOSE
+2025-07-16 03:40:33 - [Relay ID 2]         state: CLOSE
+2025-07-16 03:40:33 - [Relay ID 3]         state: CLOSE
+2025-07-16 03:40:33 - 
+--- TIMING DATA (microseconds) ---                                    
+2025-07-16 03:40:33 - No timing data received yet.                                          
+2025-07-16 03:40:34 - ----------------------------------------------------------------------
+2025-07-16 03:40:34 - --- SENSOR DATA ---                                                   
+2025-07-16 03:40:34 - [Pressure ID 0]      No data
+2025-07-16 03:40:34 - [Pressure ID 1]      No data
+2025-07-16 03:40:34 - [Pressure ID 2]      No data
+2025-07-16 03:40:34 - [Pressure ID 3]      No data
+2025-07-16 03:40:34 - [Pressure ID 4]      No data
+2025-07-16 03:40:34 - [Pressure ID 5]      No data
+2025-07-16 03:40:34 - [LoadCell ID 6]      No data
+2025-07-16 03:40:34 - [LoadCell ID 7]      No data
+2025-07-16 03:40:34 - [LoadCell ID 8]      No data
+2025-07-16 03:40:34 - [Flow ID 9]          No data
+2025-07-16 03:40:34 - [Temperature ID 10]  No data
+2025-07-16 03:40:34 - [Temperature ID 11]  No data
+2025-07-16 03:40:34 - [Temperature ID 12]  No data
+2025-07-16 03:40:34 - [Temperature ID 13]  No data
+2025-07-16 03:40:34 - [MotorRPM ID 14]     No data
+2025-07-16 03:40:34 - 
+--- RELAY STATES ---                                                  
+2025-07-16 03:40:34 - [Relay ID 0]         state: CLOSE
+2025-07-16 03:40:34 - [Relay ID 1]         state: CLOSE
+2025-07-16 03:40:34 - [Relay ID 2]         state: CLOSE
+2025-07-16 03:40:34 - [Relay ID 3]         state: CLOSE
+2025-07-16 03:40:34 - 
+--- TIMING DATA (microseconds) ---                                    
+2025-07-16 03:40:34 - No timing data received yet.                                          
+2025-07-16 03:40:35 - ----------------------------------------------------------------------
+2025-07-16 03:40:35 - --- SENSOR DATA ---                                                   
+2025-07-16 03:40:35 - [Pressure ID 0]      No data
+2025-07-16 03:40:35 - [Pressure ID 1]      No data
+2025-07-16 03:40:35 - [Pressure ID 2]      No data
+2025-07-16 03:40:35 - [Pressure ID 3]      No data
+2025-07-16 03:40:35 - [Pressure ID 4]      No data
+2025-07-16 03:40:35 - [Pressure ID 5]      No data
+2025-07-16 03:40:35 - [LoadCell ID 6]      No data
+2025-07-16 03:40:35 - [LoadCell ID 7]      No data
+2025-07-16 03:40:35 - [LoadCell ID 8]      No data
+2025-07-16 03:40:35 - [Flow ID 9]          No data
+2025-07-16 03:40:35 - [Temperature ID 10]  No data
+2025-07-16 03:40:35 - [Temperature ID 11]  No data
+2025-07-16 03:40:35 - [Temperature ID 12]  No data
+2025-07-16 03:40:35 - [Temperature ID 13]  No data
+2025-07-16 03:40:35 - [MotorRPM ID 14]     No data
+2025-07-16 03:40:35 - 
+--- RELAY STATES ---                                                  
+2025-07-16 03:40:35 - [Relay ID 0]         state: CLOSE
+2025-07-16 03:40:35 - [Relay ID 1]         state: CLOSE
+2025-07-16 03:40:35 - [Relay ID 2]         state: CLOSE
+2025-07-16 03:40:35 - [Relay ID 3]         state: CLOSE
+2025-07-16 03:40:35 - 
+--- TIMING DATA (microseconds) ---                                    
+2025-07-16 03:40:35 - No timing data received yet.                                          
+2025-07-16 03:40:36 - ----------------------------------------------------------------------
+2025-07-16 03:40:36 - --- SENSOR DATA ---                                                   
+2025-07-16 03:40:36 - [Pressure ID 0]      No data
+2025-07-16 03:40:36 - [Pressure ID 1]      No data
+2025-07-16 03:40:36 - [Pressure ID 2]      No data
+2025-07-16 03:40:36 - [Pressure ID 3]      No data
+2025-07-16 03:40:36 - [Pressure ID 4]      No data
+2025-07-16 03:40:36 - [Pressure ID 5]      No data
+2025-07-16 03:40:36 - [LoadCell ID 6]      No data
+2025-07-16 03:40:36 - [LoadCell ID 7]      No data
+2025-07-16 03:40:36 - [LoadCell ID 8]      No data
+2025-07-16 03:40:36 - [Flow ID 9]          No data
+2025-07-16 03:40:36 - [Temperature ID 10]  No data
+2025-07-16 03:40:36 - [Temperature ID 11]  No data
+2025-07-16 03:40:36 - [Temperature ID 12]  No data
+2025-07-16 03:40:36 - [Temperature ID 13]  No data
+2025-07-16 03:40:36 - [MotorRPM ID 14]     No data
+2025-07-16 03:40:36 - 
+--- RELAY STATES ---                                                  
+2025-07-16 03:40:36 - [Relay ID 0]         state: CLOSE
+2025-07-16 03:40:36 - [Relay ID 1]         state: CLOSE
+2025-07-16 03:40:36 - [Relay ID 2]         state: CLOSE
+2025-07-16 03:40:36 - [Relay ID 3]         state: CLOSE
+2025-07-16 03:40:36 - 
+--- TIMING DATA (microseconds) ---                                    
+2025-07-16 03:40:36 - No timing data received yet.                                          
+2025-07-16 03:40:37 - ----------------------------------------------------------------------
+2025-07-16 03:40:37 - --- SENSOR DATA ---                                                   
+2025-07-16 03:40:37 - [Pressure ID 0]      No data
+2025-07-16 03:40:37 - [Pressure ID 1]      No data
+2025-07-16 03:40:37 - [Pressure ID 2]      No data
+2025-07-16 03:40:37 - [Pressure ID 3]      No data
+2025-07-16 03:40:37 - [Pressure ID 4]      No data
+2025-07-16 03:40:37 - [Pressure ID 5]      No data
+2025-07-16 03:40:37 - [LoadCell ID 6]      No data
+2025-07-16 03:40:37 - [LoadCell ID 7]      No data
+2025-07-16 03:40:37 - [LoadCell ID 8]      No data
+2025-07-16 03:40:37 - [Flow ID 9]          No data
+2025-07-16 03:40:37 - [Temperature ID 10]  No data
+2025-07-16 03:40:37 - [Temperature ID 11]  No data
+2025-07-16 03:40:37 - [Temperature ID 12]  No data
+2025-07-16 03:40:37 - [Temperature ID 13]  No data
+2025-07-16 03:40:37 - [MotorRPM ID 14]     No data
+2025-07-16 03:40:37 - 
+--- RELAY STATES ---                                                  
+2025-07-16 03:40:37 - [Relay ID 0]         state: CLOSE
+2025-07-16 03:40:37 - [Relay ID 1]         state: CLOSE
+2025-07-16 03:40:37 - [Relay ID 2]         state: CLOSE
+2025-07-16 03:40:37 - [Relay ID 3]         state: CLOSE
+2025-07-16 03:40:37 - 
+--- TIMING DATA (microseconds) ---                                    
+2025-07-16 03:40:37 - No timing data received yet.                                          
+2025-07-16 03:40:37 - Unknown command: 'r0r 1 0'. Type 'h' for help.
+2025-07-16 03:40:38 - ----------------------------------------------------------------------
+2025-07-16 03:40:38 - --- SENSOR DATA ---                                                   
+2025-07-16 03:40:38 - [Pressure ID 0]      No data
+2025-07-16 03:40:38 - [Pressure ID 1]      No data
+2025-07-16 03:40:38 - [Pressure ID 2]      No data
+2025-07-16 03:40:38 - [Pressure ID 3]      No data
+2025-07-16 03:40:38 - [Pressure ID 4]      No data
+2025-07-16 03:40:38 - [Pressure ID 5]      No data
+2025-07-16 03:40:38 - [LoadCell ID 6]      No data
+2025-07-16 03:40:38 - [LoadCell ID 7]      No data
+2025-07-16 03:40:38 - [LoadCell ID 8]      No data
+2025-07-16 03:40:38 - [Flow ID 9]          No data
+2025-07-16 03:40:38 - [Temperature ID 10]  No data
+2025-07-16 03:40:38 - [Temperature ID 11]  No data
+2025-07-16 03:40:38 - [Temperature ID 12]  No data
+2025-07-16 03:40:38 - [Temperature ID 13]  No data
+2025-07-16 03:40:38 - [MotorRPM ID 14]     No data
+2025-07-16 03:40:38 - 
+--- RELAY STATES ---                                                  
+2025-07-16 03:40:38 - [Relay ID 0]         state: CLOSE
+2025-07-16 03:40:38 - [Relay ID 1]         state: CLOSE
+2025-07-16 03:40:38 - [Relay ID 2]         state: CLOSE
+2025-07-16 03:40:38 - [Relay ID 3]         state: CLOSE
+2025-07-16 03:40:38 - 
+--- TIMING DATA (microseconds) ---                                    
+2025-07-16 03:40:38 - No timing data received yet.                                          
+2025-07-16 03:40:39 - ----------------------------------------------------------------------
+2025-07-16 03:40:39 - --- SENSOR DATA ---                                                   
+2025-07-16 03:40:39 - [Pressure ID 0]      No data
+2025-07-16 03:40:39 - [Pressure ID 1]      No data
+2025-07-16 03:40:39 - [Pressure ID 2]      No data
+2025-07-16 03:40:39 - [Pressure ID 3]      No data
+2025-07-16 03:40:39 - [Pressure ID 4]      No data
+2025-07-16 03:40:39 - [Pressure ID 5]      No data
+2025-07-16 03:40:39 - [LoadCell ID 6]      No data
+2025-07-16 03:40:39 - [LoadCell ID 7]      No data
+2025-07-16 03:40:39 - [LoadCell ID 8]      No data
+2025-07-16 03:40:39 - [Flow ID 9]          No data
+2025-07-16 03:40:39 - [Temperature ID 10]  No data
+2025-07-16 03:40:39 - [Temperature ID 11]  No data
+2025-07-16 03:40:39 - [Temperature ID 12]  No data
+2025-07-16 03:40:39 - [Temperature ID 13]  No data
+2025-07-16 03:40:39 - [MotorRPM ID 14]     No data
+2025-07-16 03:40:39 - 
+--- RELAY STATES ---                                                  
+2025-07-16 03:40:39 - [Relay ID 0]         state: CLOSE
+2025-07-16 03:40:39 - [Relay ID 1]         state: CLOSE
+2025-07-16 03:40:39 - [Relay ID 2]         state: CLOSE
+2025-07-16 03:40:39 - [Relay ID 3]         state: CLOSE
+2025-07-16 03:40:39 - 
+--- TIMING DATA (microseconds) ---                                    
+2025-07-16 03:40:39 - No timing data received yet.                                          
+2025-07-16 03:40:40 - ----------------------------------------------------------------------
+2025-07-16 03:40:40 - --- SENSOR DATA ---                                                   
+2025-07-16 03:40:40 - [Pressure ID 0]      No data
+2025-07-16 03:40:40 - [Pressure ID 1]      No data
+2025-07-16 03:40:40 - [Pressure ID 2]      No data
+2025-07-16 03:40:40 - [Pressure ID 3]      No data
+2025-07-16 03:40:40 - [Pressure ID 4]      No data
+2025-07-16 03:40:40 - [Pressure ID 5]      No data
+2025-07-16 03:40:40 - [LoadCell ID 6]      No data
+2025-07-16 03:40:40 - [LoadCell ID 7]      No data
+2025-07-16 03:40:40 - [LoadCell ID 8]      No data
+2025-07-16 03:40:40 - [Flow ID 9]          No data
+2025-07-16 03:40:40 - [Temperature ID 10]  No data
+2025-07-16 03:40:40 - [Temperature ID 11]  No data
+2025-07-16 03:40:40 - [Temperature ID 12]  No data
+2025-07-16 03:40:40 - [Temperature ID 13]  No data
+2025-07-16 03:40:40 - [MotorRPM ID 14]     No data
+2025-07-16 03:40:40 - 
+--- RELAY STATES ---                                                  
+2025-07-16 03:40:40 - [Relay ID 0]         state: CLOSE
+2025-07-16 03:40:40 - [Relay ID 1]         state: CLOSE
+2025-07-16 03:40:40 - [Relay ID 2]         state: CLOSE
+2025-07-16 03:40:40 - [Relay ID 3]         state: CLOSE
+2025-07-16 03:40:40 - 
+--- TIMING DATA (microseconds) ---                                    
+2025-07-16 03:40:40 - No timing data received yet.                                          
+2025-07-16 03:40:40 - Exiting due to user interrupt.
+2025-07-16 03:40:40 - Sent motor control command: ID=0, Enable=0, Forward=1, Throttle=0%
+2025-07-16 03:40:40 - Serial port closed.
+2025-07-16 03:41:10 - Searching for Arduino port...
+2025-07-16 03:41:10 - Automatically selected port: /dev/ttyUSB0
+2025-07-16 03:41:10 - Opening serial port /dev/ttyUSB0 at 115200 baud...
+2025-07-16 03:41:10 - Serial port opened successfully.
+2025-07-16 03:41:12 - Serial reading thread started.
+2025-07-16 03:41:12 - Command input thread started.
+2025-07-16 03:41:12 - Connected to Arduino Mega on /dev/ttyUSB0
+2025-07-16 03:41:12 - 
+--- COMMANDS ---                                                      
+2025-07-16 03:41:12 -   'm <throttle>'       : Set motor throttle (0-100%). E.g., 'm 50'
+2025-07-16 03:41:12 -   'r <id> <state>'     : Set relay state (id: 0-3, state: 0=OFF, 1=ON). E.g., 'r 0 1'
+2025-07-16 03:41:12 -   'u <interval>'       : Set sensor data update interval in seconds (e.g., 'u 0.5')
+2025-07-16 03:41:12 -   'h' or 'help'        : Display this help message.
+2025-07-16 03:41:12 -   'q'                  : Quit the application.
+2025-07-16 03:41:12 - ----------------------------------------------------------------------
+2025-07-16 03:41:13 - ----------------------------------------------------------------------
+2025-07-16 03:41:13 - --- SENSOR DATA ---                                                   
+2025-07-16 03:41:13 - [Pressure ID 0]      No data
+2025-07-16 03:41:13 - [Pressure ID 1]      No data
+2025-07-16 03:41:13 - [Pressure ID 2]      No data
+2025-07-16 03:41:13 - [Pressure ID 3]      No data
+2025-07-16 03:41:13 - [Pressure ID 4]      No data
+2025-07-16 03:41:13 - [Pressure ID 5]      No data
+2025-07-16 03:41:13 - [LoadCell ID 6]      No data
+2025-07-16 03:41:13 - [LoadCell ID 7]      No data
+2025-07-16 03:41:13 - [LoadCell ID 8]      No data
+2025-07-16 03:41:13 - [Flow ID 9]          No data
+2025-07-16 03:41:13 - [Temperature ID 10]  No data
+2025-07-16 03:41:13 - [Temperature ID 11]  No data
+2025-07-16 03:41:13 - [Temperature ID 12]  No data
+2025-07-16 03:41:13 - [Temperature ID 13]  No data
+2025-07-16 03:41:13 - [MotorRPM ID 14]     No data
+2025-07-16 03:41:13 - 
+--- RELAY STATES ---                                                  
+2025-07-16 03:41:13 - [Relay ID 0]         state: CLOSE
+2025-07-16 03:41:13 - [Relay ID 1]         state: CLOSE
+2025-07-16 03:41:13 - [Relay ID 2]         state: CLOSE
+2025-07-16 03:41:13 - [Relay ID 3]         state: CLOSE
+2025-07-16 03:41:13 - 
+--- TIMING DATA (microseconds) ---                                    
+2025-07-16 03:41:13 - No timing data received yet.                                          
+2025-07-16 03:41:14 - ----------------------------------------------------------------------
+2025-07-16 03:41:14 - --- SENSOR DATA ---                                                   
+2025-07-16 03:41:14 - [Pressure ID 0]      No data
+2025-07-16 03:41:14 - [Pressure ID 1]      No data
+2025-07-16 03:41:14 - [Pressure ID 2]      No data
+2025-07-16 03:41:14 - [Pressure ID 3]      No data
+2025-07-16 03:41:14 - [Pressure ID 4]      No data
+2025-07-16 03:41:14 - [Pressure ID 5]      No data
+2025-07-16 03:41:14 - [LoadCell ID 6]      No data
+2025-07-16 03:41:14 - [LoadCell ID 7]      No data
+2025-07-16 03:41:14 - [LoadCell ID 8]      No data
+2025-07-16 03:41:14 - [Flow ID 9]          No data
+2025-07-16 03:41:14 - [Temperature ID 10]  No data
+2025-07-16 03:41:14 - [Temperature ID 11]  No data
+2025-07-16 03:41:14 - [Temperature ID 12]  No data
+2025-07-16 03:41:14 - [Temperature ID 13]  No data
+2025-07-16 03:41:14 - [MotorRPM ID 14]     No data
+2025-07-16 03:41:14 - 
+--- RELAY STATES ---                                                  
+2025-07-16 03:41:14 - [Relay ID 0]         state: CLOSE
+2025-07-16 03:41:14 - [Relay ID 1]         state: CLOSE
+2025-07-16 03:41:14 - [Relay ID 2]         state: CLOSE
+2025-07-16 03:41:14 - [Relay ID 3]         state: CLOSE
+2025-07-16 03:41:14 - 
+--- TIMING DATA (microseconds) ---                                    
+2025-07-16 03:41:14 - No timing data received yet.                                          
+2025-07-16 03:41:15 - Sent relay control command: ID=0, State=ON
+2025-07-16 03:41:15 - ----------------------------------------------------------------------
+2025-07-16 03:41:15 - --- SENSOR DATA ---                                                   
+2025-07-16 03:41:15 - [Pressure ID 0]      No data
+2025-07-16 03:41:15 - [Pressure ID 1]      No data
+2025-07-16 03:41:15 - [Pressure ID 2]      No data
+2025-07-16 03:41:15 - [Pressure ID 3]      No data
+2025-07-16 03:41:15 - [Pressure ID 4]      No data
+2025-07-16 03:41:15 - [Pressure ID 5]      No data
+2025-07-16 03:41:15 - [LoadCell ID 6]      No data
+2025-07-16 03:41:15 - [LoadCell ID 7]      No data
+2025-07-16 03:41:15 - [LoadCell ID 8]      No data
+2025-07-16 03:41:15 - [Flow ID 9]          No data
+2025-07-16 03:41:15 - [Temperature ID 10]  No data
+2025-07-16 03:41:15 - [Temperature ID 11]  No data
+2025-07-16 03:41:15 - [Temperature ID 12]  No data
+2025-07-16 03:41:15 - [Temperature ID 13]  No data
+2025-07-16 03:41:15 - [MotorRPM ID 14]     No data
+2025-07-16 03:41:15 - 
+--- RELAY STATES ---                                                  
+2025-07-16 03:41:15 - [Relay ID 0]         state: OPEN
+2025-07-16 03:41:15 - [Relay ID 1]         state: CLOSE
+2025-07-16 03:41:15 - [Relay ID 2]         state: CLOSE
+2025-07-16 03:41:15 - [Relay ID 3]         state: CLOSE
+2025-07-16 03:41:15 - 
+--- TIMING DATA (microseconds) ---                                    
+2025-07-16 03:41:15 - No timing data received yet.                                          
+2025-07-16 03:41:16 - ----------------------------------------------------------------------
+2025-07-16 03:41:16 - --- SENSOR DATA ---                                                   
+2025-07-16 03:41:16 - [Pressure ID 0]      No data
+2025-07-16 03:41:16 - [Pressure ID 1]      No data
+2025-07-16 03:41:16 - [Pressure ID 2]      No data
+2025-07-16 03:41:16 - [Pressure ID 3]      No data
+2025-07-16 03:41:16 - [Pressure ID 4]      No data
+2025-07-16 03:41:16 - [Pressure ID 5]      No data
+2025-07-16 03:41:16 - [LoadCell ID 6]      No data
+2025-07-16 03:41:16 - [LoadCell ID 7]      No data
+2025-07-16 03:41:16 - [LoadCell ID 8]      No data
+2025-07-16 03:41:16 - [Flow ID 9]          No data
+2025-07-16 03:41:16 - [Temperature ID 10]  No data
+2025-07-16 03:41:16 - [Temperature ID 11]  No data
+2025-07-16 03:41:16 - [Temperature ID 12]  No data
+2025-07-16 03:41:16 - [Temperature ID 13]  No data
+2025-07-16 03:41:16 - [MotorRPM ID 14]     No data
+2025-07-16 03:41:16 - 
+--- RELAY STATES ---                                                  
+2025-07-16 03:41:16 - [Relay ID 0]         state: OPEN
+2025-07-16 03:41:16 - [Relay ID 1]         state: CLOSE
+2025-07-16 03:41:16 - [Relay ID 2]         state: CLOSE
+2025-07-16 03:41:16 - [Relay ID 3]         state: CLOSE
+2025-07-16 03:41:16 - 
+--- TIMING DATA (microseconds) ---                                    
+2025-07-16 03:41:16 - No timing data received yet.                                          
+2025-07-16 03:41:17 - ----------------------------------------------------------------------
+2025-07-16 03:41:17 - --- SENSOR DATA ---                                                   
+2025-07-16 03:41:17 - [Pressure ID 0]      No data
+2025-07-16 03:41:17 - [Pressure ID 1]      No data
+2025-07-16 03:41:17 - [Pressure ID 2]      No data
+2025-07-16 03:41:17 - [Pressure ID 3]      No data
+2025-07-16 03:41:17 - [Pressure ID 4]      No data
+2025-07-16 03:41:17 - [Pressure ID 5]      No data
+2025-07-16 03:41:17 - [LoadCell ID 6]      No data
+2025-07-16 03:41:17 - [LoadCell ID 7]      No data
+2025-07-16 03:41:17 - [LoadCell ID 8]      No data
+2025-07-16 03:41:17 - [Flow ID 9]          No data
+2025-07-16 03:41:17 - [Temperature ID 10]  No data
+2025-07-16 03:41:17 - [Temperature ID 11]  No data
+2025-07-16 03:41:17 - [Temperature ID 12]  No data
+2025-07-16 03:41:17 - [Temperature ID 13]  No data
+2025-07-16 03:41:17 - [MotorRPM ID 14]     No data
+2025-07-16 03:41:17 - 
+--- RELAY STATES ---                                                  
+2025-07-16 03:41:17 - [Relay ID 0]         state: OPEN
+2025-07-16 03:41:17 - [Relay ID 1]         state: CLOSE
+2025-07-16 03:41:17 - [Relay ID 2]         state: CLOSE
+2025-07-16 03:41:17 - [Relay ID 3]         state: CLOSE
+2025-07-16 03:41:17 - 
+--- TIMING DATA (microseconds) ---                                    
+2025-07-16 03:41:17 - No timing data received yet.                                          
+2025-07-16 03:41:18 - Sent relay control command: ID=0, State=ON
+2025-07-16 03:41:18 - ----------------------------------------------------------------------
+2025-07-16 03:41:18 - --- SENSOR DATA ---                                                   
+2025-07-16 03:41:18 - [Pressure ID 0]      No data
+2025-07-16 03:41:18 - [Pressure ID 1]      No data
+2025-07-16 03:41:18 - [Pressure ID 2]      No data
+2025-07-16 03:41:18 - [Pressure ID 3]      No data
+2025-07-16 03:41:18 - [Pressure ID 4]      No data
+2025-07-16 03:41:18 - [Pressure ID 5]      No data
+2025-07-16 03:41:18 - [LoadCell ID 6]      No data
+2025-07-16 03:41:18 - [LoadCell ID 7]      No data
+2025-07-16 03:41:18 - [LoadCell ID 8]      No data
+2025-07-16 03:41:18 - [Flow ID 9]          No data
+2025-07-16 03:41:18 - [Temperature ID 10]  No data
+2025-07-16 03:41:18 - [Temperature ID 11]  No data
+2025-07-16 03:41:18 - [Temperature ID 12]  No data
+2025-07-16 03:41:18 - [Temperature ID 13]  No data
+2025-07-16 03:41:18 - [MotorRPM ID 14]     No data
+2025-07-16 03:41:18 - 
+--- RELAY STATES ---                                                  
+2025-07-16 03:41:18 - [Relay ID 0]         state: OPEN
+2025-07-16 03:41:18 - [Relay ID 1]         state: CLOSE
+2025-07-16 03:41:18 - [Relay ID 2]         state: CLOSE
+2025-07-16 03:41:18 - [Relay ID 3]         state: CLOSE
+2025-07-16 03:41:18 - 
+--- TIMING DATA (microseconds) ---                                    
+2025-07-16 03:41:18 - No timing data received yet.                                          
+2025-07-16 03:41:19 - ----------------------------------------------------------------------
+2025-07-16 03:41:19 - --- SENSOR DATA ---                                                   
+2025-07-16 03:41:19 - [Pressure ID 0]      No data
+2025-07-16 03:41:19 - [Pressure ID 1]      No data
+2025-07-16 03:41:19 - [Pressure ID 2]      No data
+2025-07-16 03:41:19 - [Pressure ID 3]      No data
+2025-07-16 03:41:19 - [Pressure ID 4]      No data
+2025-07-16 03:41:19 - [Pressure ID 5]      No data
+2025-07-16 03:41:19 - [LoadCell ID 6]      No data
+2025-07-16 03:41:19 - [LoadCell ID 7]      No data
+2025-07-16 03:41:19 - [LoadCell ID 8]      No data
+2025-07-16 03:41:19 - [Flow ID 9]          No data
+2025-07-16 03:41:19 - [Temperature ID 10]  No data
+2025-07-16 03:41:19 - [Temperature ID 11]  No data
+2025-07-16 03:41:19 - [Temperature ID 12]  No data
+2025-07-16 03:41:19 - [Temperature ID 13]  No data
+2025-07-16 03:41:19 - [MotorRPM ID 14]     No data
+2025-07-16 03:41:19 - 
+--- RELAY STATES ---                                                  
+2025-07-16 03:41:19 - [Relay ID 0]         state: OPEN
+2025-07-16 03:41:19 - [Relay ID 1]         state: CLOSE
+2025-07-16 03:41:19 - [Relay ID 2]         state: CLOSE
+2025-07-16 03:41:19 - [Relay ID 3]         state: CLOSE
+2025-07-16 03:41:19 - 
+--- TIMING DATA (microseconds) ---                                    
+2025-07-16 03:41:19 - No timing data received yet.                                          
+2025-07-16 03:41:20 - ----------------------------------------------------------------------
+2025-07-16 03:41:20 - --- SENSOR DATA ---                                                   
+2025-07-16 03:41:20 - [Pressure ID 0]      No data
+2025-07-16 03:41:20 - [Pressure ID 1]      No data
+2025-07-16 03:41:20 - [Pressure ID 2]      No data
+2025-07-16 03:41:20 - [Pressure ID 3]      No data
+2025-07-16 03:41:20 - [Pressure ID 4]      No data
+2025-07-16 03:41:20 - [Pressure ID 5]      No data
+2025-07-16 03:41:20 - [LoadCell ID 6]      No data
+2025-07-16 03:41:20 - [LoadCell ID 7]      No data
+2025-07-16 03:41:20 - [LoadCell ID 8]      No data
+2025-07-16 03:41:20 - [Flow ID 9]          No data
+2025-07-16 03:41:20 - [Temperature ID 10]  No data
+2025-07-16 03:41:20 - [Temperature ID 11]  No data
+2025-07-16 03:41:20 - [Temperature ID 12]  No data
+2025-07-16 03:41:20 - [Temperature ID 13]  No data
+2025-07-16 03:41:20 - [MotorRPM ID 14]     No data
+2025-07-16 03:41:20 - 
+--- RELAY STATES ---                                                  
+2025-07-16 03:41:20 - [Relay ID 0]         state: OPEN
+2025-07-16 03:41:20 - [Relay ID 1]         state: CLOSE
+2025-07-16 03:41:20 - [Relay ID 2]         state: CLOSE
+2025-07-16 03:41:20 - [Relay ID 3]         state: CLOSE
+2025-07-16 03:41:20 - 
+--- TIMING DATA (microseconds) ---                                    
+2025-07-16 03:41:20 - No timing data received yet.                                          
+2025-07-16 03:41:20 - Exiting due to user interrupt.
+2025-07-16 03:41:20 - Sent motor control command: ID=0, Enable=0, Forward=1, Throttle=0%
+2025-07-16 03:41:20 - Serial port closed.
+2025-07-16 03:41:46 - Searching for Arduino port...
+2025-07-16 03:41:46 - Automatically selected port: /dev/ttyUSB0
+2025-07-16 03:41:46 - Opening serial port /dev/ttyUSB0 at 115200 baud...
+2025-07-16 03:41:46 - Serial port opened successfully.
+2025-07-16 03:41:48 - Serial reading thread started.
+2025-07-16 03:41:48 - Command input thread started.
+2025-07-16 03:41:48 - Connected to Arduino Mega on /dev/ttyUSB0
+2025-07-16 03:41:48 - 
+--- COMMANDS ---                                                      
+2025-07-16 03:41:48 -   'm <throttle>'       : Set motor throttle (0-100%). E.g., 'm 50'
+2025-07-16 03:41:48 -   'r <id> <state>'     : Set relay state (id: 0-3, state: 0=OFF, 1=ON). E.g., 'r 0 1'
+2025-07-16 03:41:48 -   'u <interval>'       : Set sensor data update interval in seconds (e.g., 'u 0.5')
+2025-07-16 03:41:48 -   'h' or 'help'        : Display this help message.
+2025-07-16 03:41:48 -   'q'                  : Quit the application.
+2025-07-16 03:41:48 - ----------------------------------------------------------------------
+2025-07-16 03:41:48 - Unknown command: 'k'. Type 'h' for help.
+2025-07-16 03:41:49 - ----------------------------------------------------------------------
+2025-07-16 03:41:49 - --- SENSOR DATA ---                                                   
+2025-07-16 03:41:49 - [Pressure ID 0]      No data
+2025-07-16 03:41:49 - [Pressure ID 1]      No data
+2025-07-16 03:41:49 - [Pressure ID 2]      No data
+2025-07-16 03:41:49 - [Pressure ID 3]      No data
+2025-07-16 03:41:49 - [Pressure ID 4]      No data
+2025-07-16 03:41:49 - [Pressure ID 5]      No data
+2025-07-16 03:41:49 - [LoadCell ID 6]      No data
+2025-07-16 03:41:49 - [LoadCell ID 7]      No data
+2025-07-16 03:41:49 - [LoadCell ID 8]      No data
+2025-07-16 03:41:49 - [Flow ID 9]          No data
+2025-07-16 03:41:49 - [Temperature ID 10]  No data
+2025-07-16 03:41:49 - [Temperature ID 11]  No data
+2025-07-16 03:41:49 - [Temperature ID 12]  No data
+2025-07-16 03:41:49 - [Temperature ID 13]  No data
+2025-07-16 03:41:49 - [MotorRPM ID 14]     No data
+2025-07-16 03:41:49 - 
+--- RELAY STATES ---                                                  
+2025-07-16 03:41:49 - [Relay ID 0]         state: CLOSE
+2025-07-16 03:41:49 - [Relay ID 1]         state: CLOSE
+2025-07-16 03:41:49 - [Relay ID 2]         state: CLOSE
+2025-07-16 03:41:49 - [Relay ID 3]         state: CLOSE
+2025-07-16 03:41:49 - 
+--- TIMING DATA (microseconds) ---                                    
+2025-07-16 03:41:49 - No timing data received yet.                                          
+2025-07-16 03:41:50 - ----------------------------------------------------------------------
+2025-07-16 03:41:50 - --- SENSOR DATA ---                                                   
+2025-07-16 03:41:50 - [Pressure ID 0]      No data
+2025-07-16 03:41:50 - [Pressure ID 1]      No data
+2025-07-16 03:41:50 - [Pressure ID 2]      No data
+2025-07-16 03:41:50 - [Pressure ID 3]      No data
+2025-07-16 03:41:50 - [Pressure ID 4]      No data
+2025-07-16 03:41:50 - [Pressure ID 5]      No data
+2025-07-16 03:41:50 - [LoadCell ID 6]      No data
+2025-07-16 03:41:50 - [LoadCell ID 7]      No data
+2025-07-16 03:41:50 - [LoadCell ID 8]      No data
+2025-07-16 03:41:50 - [Flow ID 9]          No data
+2025-07-16 03:41:50 - [Temperature ID 10]  No data
+2025-07-16 03:41:50 - [Temperature ID 11]  No data
+2025-07-16 03:41:50 - [Temperature ID 12]  No data
+2025-07-16 03:41:50 - [Temperature ID 13]  No data
+2025-07-16 03:41:50 - [MotorRPM ID 14]     No data
+2025-07-16 03:41:50 - 
+--- RELAY STATES ---                                                  
+2025-07-16 03:41:50 - [Relay ID 0]         state: CLOSE
+2025-07-16 03:41:50 - [Relay ID 1]         state: CLOSE
+2025-07-16 03:41:50 - [Relay ID 2]         state: CLOSE
+2025-07-16 03:41:50 - [Relay ID 3]         state: CLOSE
+2025-07-16 03:41:50 - 
+--- TIMING DATA (microseconds) ---                                    
+2025-07-16 03:41:50 - No timing data received yet.                                          
+2025-07-16 03:41:50 - Unknown command: 'k'. Type 'h' for help.
+2025-07-16 03:41:51 - ----------------------------------------------------------------------
+2025-07-16 03:41:51 - --- SENSOR DATA ---                                                   
+2025-07-16 03:41:51 - [Pressure ID 0]      No data
+2025-07-16 03:41:51 - [Pressure ID 1]      No data
+2025-07-16 03:41:51 - [Pressure ID 2]      No data
+2025-07-16 03:41:51 - [Pressure ID 3]      No data
+2025-07-16 03:41:51 - [Pressure ID 4]      No data
+2025-07-16 03:41:51 - [Pressure ID 5]      No data
+2025-07-16 03:41:51 - [LoadCell ID 6]      No data
+2025-07-16 03:41:51 - [LoadCell ID 7]      No data
+2025-07-16 03:41:51 - [LoadCell ID 8]      No data
+2025-07-16 03:41:51 - [Flow ID 9]          No data
+2025-07-16 03:41:51 - [Temperature ID 10]  No data
+2025-07-16 03:41:51 - [Temperature ID 11]  No data
+2025-07-16 03:41:51 - [Temperature ID 12]  No data
+2025-07-16 03:41:51 - [Temperature ID 13]  No data
+2025-07-16 03:41:51 - [MotorRPM ID 14]     No data
+2025-07-16 03:41:51 - 
+--- RELAY STATES ---                                                  
+2025-07-16 03:41:51 - [Relay ID 0]         state: CLOSE
+2025-07-16 03:41:51 - [Relay ID 1]         state: CLOSE
+2025-07-16 03:41:51 - [Relay ID 2]         state: CLOSE
+2025-07-16 03:41:51 - [Relay ID 3]         state: CLOSE
+2025-07-16 03:41:51 - 
+--- TIMING DATA (microseconds) ---                                    
+2025-07-16 03:41:51 - No timing data received yet.                                          
+2025-07-16 03:41:52 - ----------------------------------------------------------------------
+2025-07-16 03:41:52 - --- SENSOR DATA ---                                                   
+2025-07-16 03:41:52 - [Pressure ID 0]      No data
+2025-07-16 03:41:52 - [Pressure ID 1]      No data
+2025-07-16 03:41:52 - [Pressure ID 2]      No data
+2025-07-16 03:41:52 - [Pressure ID 3]      No data
+2025-07-16 03:41:52 - [Pressure ID 4]      No data
+2025-07-16 03:41:52 - [Pressure ID 5]      No data
+2025-07-16 03:41:52 - [LoadCell ID 6]      No data
+2025-07-16 03:41:52 - [LoadCell ID 7]      No data
+2025-07-16 03:41:52 - [LoadCell ID 8]      No data
+2025-07-16 03:41:52 - [Flow ID 9]          No data
+2025-07-16 03:41:52 - [Temperature ID 10]  No data
+2025-07-16 03:41:52 - [Temperature ID 11]  No data
+2025-07-16 03:41:52 - [Temperature ID 12]  No data
+2025-07-16 03:41:52 - [Temperature ID 13]  No data
+2025-07-16 03:41:52 - [MotorRPM ID 14]     No data
+2025-07-16 03:41:52 - 
+--- RELAY STATES ---                                                  
+2025-07-16 03:41:52 - [Relay ID 0]         state: CLOSE
+2025-07-16 03:41:52 - [Relay ID 1]         state: CLOSE
+2025-07-16 03:41:52 - [Relay ID 2]         state: CLOSE
+2025-07-16 03:41:52 - [Relay ID 3]         state: CLOSE
+2025-07-16 03:41:52 - 
+--- TIMING DATA (microseconds) ---                                    
+2025-07-16 03:41:52 - No timing data received yet.                                          
+2025-07-16 03:41:53 - ----------------------------------------------------------------------
+2025-07-16 03:41:53 - --- SENSOR DATA ---                                                   
+2025-07-16 03:41:53 - [Pressure ID 0]      No data
+2025-07-16 03:41:53 - [Pressure ID 1]      No data
+2025-07-16 03:41:53 - [Pressure ID 2]      No data
+2025-07-16 03:41:53 - [Pressure ID 3]      No data
+2025-07-16 03:41:53 - [Pressure ID 4]      No data
+2025-07-16 03:41:53 - [Pressure ID 5]      No data
+2025-07-16 03:41:53 - [LoadCell ID 6]      No data
+2025-07-16 03:41:53 - [LoadCell ID 7]      No data
+2025-07-16 03:41:53 - [LoadCell ID 8]      No data
+2025-07-16 03:41:53 - [Flow ID 9]          No data
+2025-07-16 03:41:53 - [Temperature ID 10]  No data
+2025-07-16 03:41:53 - [Temperature ID 11]  No data
+2025-07-16 03:41:53 - [Temperature ID 12]  No data
+2025-07-16 03:41:53 - [Temperature ID 13]  No data
+2025-07-16 03:41:53 - [MotorRPM ID 14]     No data
+2025-07-16 03:41:53 - 
+--- RELAY STATES ---                                                  
+2025-07-16 03:41:53 - [Relay ID 0]         state: CLOSE
+2025-07-16 03:41:53 - [Relay ID 1]         state: CLOSE
+2025-07-16 03:41:53 - [Relay ID 2]         state: CLOSE
+2025-07-16 03:41:53 - [Relay ID 3]         state: CLOSE
+2025-07-16 03:41:53 - 
+--- TIMING DATA (microseconds) ---                                    
+2025-07-16 03:41:53 - No timing data received yet.                                          
+2025-07-16 03:41:53 - Unknown command: 'hhh'. Type 'h' for help.
+2025-07-16 03:41:54 - ----------------------------------------------------------------------
+2025-07-16 03:41:54 - --- SENSOR DATA ---                                                   
+2025-07-16 03:41:54 - [Pressure ID 0]      No data
+2025-07-16 03:41:54 - [Pressure ID 1]      No data
+2025-07-16 03:41:54 - [Pressure ID 2]      No data
+2025-07-16 03:41:54 - [Pressure ID 3]      No data
+2025-07-16 03:41:54 - [Pressure ID 4]      No data
+2025-07-16 03:41:54 - [Pressure ID 5]      No data
+2025-07-16 03:41:54 - [LoadCell ID 6]      No data
+2025-07-16 03:41:54 - [LoadCell ID 7]      No data
+2025-07-16 03:41:54 - [LoadCell ID 8]      No data
+2025-07-16 03:41:54 - [Flow ID 9]          No data
+2025-07-16 03:41:54 - [Temperature ID 10]  No data
+2025-07-16 03:41:54 - [Temperature ID 11]  No data
+2025-07-16 03:41:54 - [Temperature ID 12]  No data
+2025-07-16 03:41:54 - [Temperature ID 13]  No data
+2025-07-16 03:41:54 - [MotorRPM ID 14]     No data
+2025-07-16 03:41:54 - 
+--- RELAY STATES ---                                                  
+2025-07-16 03:41:54 - [Relay ID 0]         state: CLOSE
+2025-07-16 03:41:54 - [Relay ID 1]         state: CLOSE
+2025-07-16 03:41:54 - [Relay ID 2]         state: CLOSE
+2025-07-16 03:41:54 - [Relay ID 3]         state: CLOSE
+2025-07-16 03:41:54 - 
+--- TIMING DATA (microseconds) ---                                    
+2025-07-16 03:41:54 - No timing data received yet.                                          
+2025-07-16 03:41:55 - Unexpected error: 'SerialPacketReceiver' object has no attribute 'get_all_sensor_ids_and_types_for_max_len'
+2025-07-16 03:41:55 - Sent motor control command: ID=0, Enable=0, Forward=1, Throttle=0%
+2025-07-16 03:41:55 - Serial port closed.
+2025-07-16 03:42:00 - Searching for Arduino port...
+2025-07-16 03:42:00 - Automatically selected port: /dev/ttyUSB0
+2025-07-16 03:42:00 - Opening serial port /dev/ttyUSB0 at 115200 baud...
+2025-07-16 03:42:00 - Serial port opened successfully.
+2025-07-16 03:42:02 - Serial reading thread started.
+2025-07-16 03:42:02 - Command input thread started.
+2025-07-16 03:42:02 - Connected to Arduino Mega on /dev/ttyUSB0
+2025-07-16 03:42:02 - 
+--- COMMANDS ---                                                      
+2025-07-16 03:42:02 -   'm <throttle>'       : Set motor throttle (0-100%). E.g., 'm 50'
+2025-07-16 03:42:02 -   'r <id> <state>'     : Set relay state (id: 0-3, state: 0=OFF, 1=ON). E.g., 'r 0 1'
+2025-07-16 03:42:02 -   'u <interval>'       : Set sensor data update interval in seconds (e.g., 'u 0.5')
+2025-07-16 03:42:02 -   'h' or 'help'        : Display this help message.
+2025-07-16 03:42:02 -   'q'                  : Quit the application.
+2025-07-16 03:42:02 - ----------------------------------------------------------------------
+2025-07-16 03:42:02 - Unexpected error: 'SerialPacketReceiver' object has no attribute 'get_all_sensor_ids_and_types_for_max_len'
+2025-07-16 03:42:02 - Sent motor control command: ID=0, Enable=0, Forward=1, Throttle=0%
+2025-07-16 03:42:02 - Serial port closed.
+2025-07-16 03:46:14 - Searching for Arduino port...
+2025-07-16 03:46:14 - Automatically selected port: /dev/ttyUSB0
+2025-07-16 03:46:14 - Opening serial port /dev/ttyUSB0 at 115200 baud...
+2025-07-16 03:46:14 - Serial port opened successfully.
+2025-07-16 03:46:16 - Serial reading thread started.
+2025-07-16 03:46:16 - Command input thread started.
+2025-07-16 03:46:16 - Connected to Arduino Mega on /dev/ttyUSB0
+2025-07-16 03:46:16 - 
+--- COMMANDS ---                                                      
+2025-07-16 03:46:16 -   'm <throttle>'       : Set motor throttle (0-100%). E.g., 'm 50'
+2025-07-16 03:46:16 -   'r <id> <state>'     : Set relay state (id: 0-3, state: 0=OFF, 1=ON). E.g., 'r 0 1'
+2025-07-16 03:46:16 -   'u <interval>'       : Set sensor data update interval in seconds (e.g., 'u 0.5')
+2025-07-16 03:46:16 -   'h' or 'help'        : Display this help message.
+2025-07-16 03:46:16 -   'q'                  : Quit the application.
+2025-07-16 03:46:16 - ----------------------------------------------------------------------
+2025-07-16 03:46:17 - ----------------------------------------------------------------------
+2025-07-16 03:46:17 - --- SENSOR DATA ---                                                   
+2025-07-16 03:46:17 - [Pressure ID 0]      No data
+2025-07-16 03:46:17 - [Pressure ID 1]      No data
+2025-07-16 03:46:17 - [Pressure ID 2]      No data
+2025-07-16 03:46:17 - [Pressure ID 3]      No data
+2025-07-16 03:46:17 - [Pressure ID 4]      No data
+2025-07-16 03:46:17 - [Pressure ID 5]      No data
+2025-07-16 03:46:17 - [LoadCell ID 6]      No data
+2025-07-16 03:46:17 - [LoadCell ID 7]      No data
+2025-07-16 03:46:17 - [LoadCell ID 8]      No data
+2025-07-16 03:46:17 - [Flow ID 9]          No data
+2025-07-16 03:46:17 - [Temperature ID 10]  No data
+2025-07-16 03:46:17 - [Temperature ID 11]  No data
+2025-07-16 03:46:17 - [Temperature ID 12]  No data
+2025-07-16 03:46:17 - [Temperature ID 13]  No data
+2025-07-16 03:46:17 - [MotorRPM ID 14]     No data
+2025-07-16 03:46:17 - 
+--- RELAY STATES ---                                                  
+2025-07-16 03:46:17 - [Relay ID 0]         state: CLOSE
+2025-07-16 03:46:17 - [Relay ID 1]         state: CLOSE
+2025-07-16 03:46:17 - [Relay ID 2]         state: CLOSE
+2025-07-16 03:46:17 - [Relay ID 3]         state: CLOSE
+2025-07-16 03:46:17 - 
+--- TIMING DATA (microseconds) ---                                    
+2025-07-16 03:46:17 - No timing data received yet.                                          
+2025-07-16 03:46:18 - ----------------------------------------------------------------------
+2025-07-16 03:46:18 - --- SENSOR DATA ---                                                   
+2025-07-16 03:46:18 - [Pressure ID 0]      No data
+2025-07-16 03:46:18 - [Pressure ID 1]      No data
+2025-07-16 03:46:18 - [Pressure ID 2]      No data
+2025-07-16 03:46:18 - [Pressure ID 3]      No data
+2025-07-16 03:46:18 - [Pressure ID 4]      No data
+2025-07-16 03:46:18 - [Pressure ID 5]      No data
+2025-07-16 03:46:18 - [LoadCell ID 6]      No data
+2025-07-16 03:46:18 - [LoadCell ID 7]      No data
+2025-07-16 03:46:18 - [LoadCell ID 8]      No data
+2025-07-16 03:46:18 - [Flow ID 9]          No data
+2025-07-16 03:46:18 - [Temperature ID 10]  No data
+2025-07-16 03:46:18 - [Temperature ID 11]  No data
+2025-07-16 03:46:18 - [Temperature ID 12]  No data
+2025-07-16 03:46:18 - [Temperature ID 13]  No data
+2025-07-16 03:46:18 - [MotorRPM ID 14]     No data
+2025-07-16 03:46:18 - 
+--- RELAY STATES ---                                                  
+2025-07-16 03:46:18 - [Relay ID 0]         state: CLOSE
+2025-07-16 03:46:18 - [Relay ID 1]         state: CLOSE
+2025-07-16 03:46:18 - [Relay ID 2]         state: CLOSE
+2025-07-16 03:46:18 - [Relay ID 3]         state: CLOSE
+2025-07-16 03:46:18 - 
+--- TIMING DATA (microseconds) ---                                    
+2025-07-16 03:46:18 - No timing data received yet.                                          
+2025-07-16 03:46:19 - ----------------------------------------------------------------------
+2025-07-16 03:46:19 - --- SENSOR DATA ---                                                   
+2025-07-16 03:46:19 - [Pressure ID 0]      No data
+2025-07-16 03:46:19 - [Pressure ID 1]      No data
+2025-07-16 03:46:19 - [Pressure ID 2]      No data
+2025-07-16 03:46:19 - [Pressure ID 3]      No data
+2025-07-16 03:46:19 - [Pressure ID 4]      No data
+2025-07-16 03:46:19 - [Pressure ID 5]      No data
+2025-07-16 03:46:19 - [LoadCell ID 6]      No data
+2025-07-16 03:46:19 - [LoadCell ID 7]      No data
+2025-07-16 03:46:19 - [LoadCell ID 8]      No data
+2025-07-16 03:46:19 - [Flow ID 9]          No data
+2025-07-16 03:46:19 - [Temperature ID 10]  No data
+2025-07-16 03:46:19 - [Temperature ID 11]  No data
+2025-07-16 03:46:19 - [Temperature ID 12]  No data
+2025-07-16 03:46:19 - [Temperature ID 13]  No data
+2025-07-16 03:46:19 - [MotorRPM ID 14]     No data
+2025-07-16 03:46:19 - 
+--- RELAY STATES ---                                                  
+2025-07-16 03:46:19 - [Relay ID 0]         state: CLOSE
+2025-07-16 03:46:19 - [Relay ID 1]         state: CLOSE
+2025-07-16 03:46:19 - [Relay ID 2]         state: CLOSE
+2025-07-16 03:46:19 - [Relay ID 3]         state: CLOSE
+2025-07-16 03:46:19 - 
+--- TIMING DATA (microseconds) ---                                    
+2025-07-16 03:46:19 - No timing data received yet.                                          
+2025-07-16 03:46:20 - 
+--- COMMANDS ---                                                      
+2025-07-16 03:46:20 -   'm <throttle>'       : Set motor throttle (0-100%). E.g., 'm 50'
+2025-07-16 03:46:20 -   'r <id> <state>'     : Set relay state (id: 0-3, state: 0=OFF, 1=ON). E.g., 'r 0 1'
+2025-07-16 03:46:20 -   'u <interval>'       : Set sensor data update interval in seconds (e.g., 'u 0.5')
+2025-07-16 03:46:20 -   'h' or 'help'        : Display this help message.
+2025-07-16 03:46:20 -   'q'                  : Quit the application.
+2025-07-16 03:46:20 - ----------------------------------------------------------------------
+2025-07-16 03:46:20 - ----------------------------------------------------------------------
+2025-07-16 03:46:20 - --- SENSOR DATA ---                                                   
+2025-07-16 03:46:20 - [Pressure ID 0]      No data
+2025-07-16 03:46:20 - [Pressure ID 1]      No data
+2025-07-16 03:46:20 - [Pressure ID 2]      No data
+2025-07-16 03:46:20 - [Pressure ID 3]      No data
+2025-07-16 03:46:20 - [Pressure ID 4]      No data
+2025-07-16 03:46:20 - [Pressure ID 5]      No data
+2025-07-16 03:46:20 - [LoadCell ID 6]      No data
+2025-07-16 03:46:20 - [LoadCell ID 7]      No data
+2025-07-16 03:46:20 - [LoadCell ID 8]      No data
+2025-07-16 03:46:20 - [Flow ID 9]          No data
+2025-07-16 03:46:20 - [Temperature ID 10]  No data
+2025-07-16 03:46:20 - [Temperature ID 11]  No data
+2025-07-16 03:46:20 - [Temperature ID 12]  No data
+2025-07-16 03:46:20 - [Temperature ID 13]  No data
+2025-07-16 03:46:20 - [MotorRPM ID 14]     No data
+2025-07-16 03:46:20 - 
+--- RELAY STATES ---                                                  
+2025-07-16 03:46:20 - [Relay ID 0]         state: CLOSE
+2025-07-16 03:46:20 - [Relay ID 1]         state: CLOSE
+2025-07-16 03:46:20 - [Relay ID 2]         state: CLOSE
+2025-07-16 03:46:20 - [Relay ID 3]         state: CLOSE
+2025-07-16 03:46:20 - 
+--- TIMING DATA (microseconds) ---                                    
+2025-07-16 03:46:20 - No timing data received yet.                                          
+2025-07-16 03:46:21 - 
+--- COMMANDS ---                                                      
+2025-07-16 03:46:21 -   'm <throttle>'       : Set motor throttle (0-100%). E.g., 'm 50'
+2025-07-16 03:46:21 -   'r <id> <state>'     : Set relay state (id: 0-3, state: 0=OFF, 1=ON). E.g., 'r 0 1'
+2025-07-16 03:46:21 -   'u <interval>'       : Set sensor data update interval in seconds (e.g., 'u 0.5')
+2025-07-16 03:46:21 -   'h' or 'help'        : Display this help message.
+2025-07-16 03:46:21 -   'q'                  : Quit the application.
+2025-07-16 03:46:21 - ----------------------------------------------------------------------
+2025-07-16 03:46:21 - ----------------------------------------------------------------------
+2025-07-16 03:46:21 - --- SENSOR DATA ---                                                   
+2025-07-16 03:46:21 - [Pressure ID 0]      No data
+2025-07-16 03:46:21 - [Pressure ID 1]      No data
+2025-07-16 03:46:21 - [Pressure ID 2]      No data
+2025-07-16 03:46:21 - [Pressure ID 3]      No data
+2025-07-16 03:46:21 - [Pressure ID 4]      No data
+2025-07-16 03:46:21 - [Pressure ID 5]      No data
+2025-07-16 03:46:21 - [LoadCell ID 6]      No data
+2025-07-16 03:46:21 - [LoadCell ID 7]      No data
+2025-07-16 03:46:21 - [LoadCell ID 8]      No data
+2025-07-16 03:46:21 - [Flow ID 9]          No data
+2025-07-16 03:46:21 - [Temperature ID 10]  No data
+2025-07-16 03:46:21 - [Temperature ID 11]  No data
+2025-07-16 03:46:21 - [Temperature ID 12]  No data
+2025-07-16 03:46:21 - [Temperature ID 13]  No data
+2025-07-16 03:46:21 - [MotorRPM ID 14]     No data
+2025-07-16 03:46:21 - 
+--- RELAY STATES ---                                                  
+2025-07-16 03:46:21 - [Relay ID 0]         state: CLOSE
+2025-07-16 03:46:21 - [Relay ID 1]         state: CLOSE
+2025-07-16 03:46:21 - [Relay ID 2]         state: CLOSE
+2025-07-16 03:46:21 - [Relay ID 3]         state: CLOSE
+2025-07-16 03:46:21 - 
+--- TIMING DATA (microseconds) ---                                    
+2025-07-16 03:46:21 - No timing data received yet.                                          
+2025-07-16 03:46:22 - ----------------------------------------------------------------------
+2025-07-16 03:46:22 - --- SENSOR DATA ---                                                   
+2025-07-16 03:46:22 - [Pressure ID 0]      No data
+2025-07-16 03:46:22 - [Pressure ID 1]      No data
+2025-07-16 03:46:22 - [Pressure ID 2]      No data
+2025-07-16 03:46:22 - [Pressure ID 3]      No data
+2025-07-16 03:46:22 - [Pressure ID 4]      No data
+2025-07-16 03:46:22 - [Pressure ID 5]      No data
+2025-07-16 03:46:22 - [LoadCell ID 6]      No data
+2025-07-16 03:46:22 - [LoadCell ID 7]      No data
+2025-07-16 03:46:22 - [LoadCell ID 8]      No data
+2025-07-16 03:46:22 - [Flow ID 9]          No data
+2025-07-16 03:46:22 - [Temperature ID 10]  No data
+2025-07-16 03:46:22 - [Temperature ID 11]  No data
+2025-07-16 03:46:22 - [Temperature ID 12]  No data
+2025-07-16 03:46:22 - [Temperature ID 13]  No data
+2025-07-16 03:46:22 - [MotorRPM ID 14]     No data
+2025-07-16 03:46:22 - 
+--- RELAY STATES ---                                                  
+2025-07-16 03:46:22 - [Relay ID 0]         state: CLOSE
+2025-07-16 03:46:22 - [Relay ID 1]         state: CLOSE
+2025-07-16 03:46:22 - [Relay ID 2]         state: CLOSE
+2025-07-16 03:46:22 - [Relay ID 3]         state: CLOSE
+2025-07-16 03:46:22 - 
+--- TIMING DATA (microseconds) ---                                    
+2025-07-16 03:46:22 - No timing data received yet.                                          
+2025-07-16 03:46:23 - Unknown command: 'hh'. Type 'h' for help.
+2025-07-16 03:46:23 - ----------------------------------------------------------------------
+2025-07-16 03:46:23 - --- SENSOR DATA ---                                                   
+2025-07-16 03:46:23 - [Pressure ID 0]      No data
+2025-07-16 03:46:23 - [Pressure ID 1]      No data
+2025-07-16 03:46:23 - [Pressure ID 2]      No data
+2025-07-16 03:46:23 - [Pressure ID 3]      No data
+2025-07-16 03:46:23 - [Pressure ID 4]      No data
+2025-07-16 03:46:23 - [Pressure ID 5]      No data
+2025-07-16 03:46:23 - [LoadCell ID 6]      No data
+2025-07-16 03:46:23 - [LoadCell ID 7]      No data
+2025-07-16 03:46:23 - [LoadCell ID 8]      No data
+2025-07-16 03:46:23 - [Flow ID 9]          No data
+2025-07-16 03:46:23 - [Temperature ID 10]  No data
+2025-07-16 03:46:23 - [Temperature ID 11]  No data
+2025-07-16 03:46:23 - [Temperature ID 12]  No data
+2025-07-16 03:46:23 - [Temperature ID 13]  No data
+2025-07-16 03:46:23 - [MotorRPM ID 14]     No data
+2025-07-16 03:46:23 - 
+--- RELAY STATES ---                                                  
+2025-07-16 03:46:23 - [Relay ID 0]         state: CLOSE
+2025-07-16 03:46:23 - [Relay ID 1]         state: CLOSE
+2025-07-16 03:46:23 - [Relay ID 2]         state: CLOSE
+2025-07-16 03:46:23 - [Relay ID 3]         state: CLOSE
+2025-07-16 03:46:23 - 
+--- TIMING DATA (microseconds) ---                                    
+2025-07-16 03:46:23 - No timing data received yet.                                          
+2025-07-16 03:46:24 - 
+--- COMMANDS ---                                                      
+2025-07-16 03:46:24 -   'm <throttle>'       : Set motor throttle (0-100%). E.g., 'm 50'
+2025-07-16 03:46:24 -   'r <id> <state>'     : Set relay state (id: 0-3, state: 0=OFF, 1=ON). E.g., 'r 0 1'
+2025-07-16 03:46:24 -   'u <interval>'       : Set sensor data update interval in seconds (e.g., 'u 0.5')
+2025-07-16 03:46:24 -   'h' or 'help'        : Display this help message.
+2025-07-16 03:46:24 -   'q'                  : Quit the application.
+2025-07-16 03:46:24 - ----------------------------------------------------------------------
+2025-07-16 03:46:24 - ----------------------------------------------------------------------
+2025-07-16 03:46:24 - --- SENSOR DATA ---                                                   
+2025-07-16 03:46:24 - [Pressure ID 0]      No data
+2025-07-16 03:46:24 - [Pressure ID 1]      No data
+2025-07-16 03:46:24 - [Pressure ID 2]      No data
+2025-07-16 03:46:24 - [Pressure ID 3]      No data
+2025-07-16 03:46:24 - [Pressure ID 4]      No data
+2025-07-16 03:46:24 - [Pressure ID 5]      No data
+2025-07-16 03:46:24 - [LoadCell ID 6]      No data
+2025-07-16 03:46:24 - [LoadCell ID 7]      No data
+2025-07-16 03:46:24 - [LoadCell ID 8]      No data
+2025-07-16 03:46:24 - [Flow ID 9]          No data
+2025-07-16 03:46:24 - [Temperature ID 10]  No data
+2025-07-16 03:46:24 - [Temperature ID 11]  No data
+2025-07-16 03:46:24 - [Temperature ID 12]  No data
+2025-07-16 03:46:24 - [Temperature ID 13]  No data
+2025-07-16 03:46:24 - [MotorRPM ID 14]     No data
+2025-07-16 03:46:24 - 
+--- RELAY STATES ---                                                  
+2025-07-16 03:46:24 - [Relay ID 0]         state: CLOSE
+2025-07-16 03:46:24 - [Relay ID 1]         state: CLOSE
+2025-07-16 03:46:24 - [Relay ID 2]         state: CLOSE
+2025-07-16 03:46:24 - [Relay ID 3]         state: CLOSE
+2025-07-16 03:46:24 - 
+--- TIMING DATA (microseconds) ---                                    
+2025-07-16 03:46:24 - No timing data received yet.                                          
+2025-07-16 03:46:25 - 
+--- COMMANDS ---                                                      
+2025-07-16 03:46:25 -   'm <throttle>'       : Set motor throttle (0-100%). E.g., 'm 50'
+2025-07-16 03:46:25 -   'r <id> <state>'     : Set relay state (id: 0-3, state: 0=OFF, 1=ON). E.g., 'r 0 1'
+2025-07-16 03:46:25 -   'u <interval>'       : Set sensor data update interval in seconds (e.g., 'u 0.5')
+2025-07-16 03:46:25 -   'h' or 'help'        : Display this help message.
+2025-07-16 03:46:25 -   'q'                  : Quit the application.
+2025-07-16 03:46:25 - ----------------------------------------------------------------------
+2025-07-16 03:46:25 - ----------------------------------------------------------------------
+2025-07-16 03:46:25 - --- SENSOR DATA ---                                                   
+2025-07-16 03:46:25 - [Pressure ID 0]      No data
+2025-07-16 03:46:25 - [Pressure ID 1]      No data
+2025-07-16 03:46:25 - [Pressure ID 2]      No data
+2025-07-16 03:46:25 - [Pressure ID 3]      No data
+2025-07-16 03:46:25 - [Pressure ID 4]      No data
+2025-07-16 03:46:25 - [Pressure ID 5]      No data
+2025-07-16 03:46:25 - [LoadCell ID 6]      No data
+2025-07-16 03:46:25 - [LoadCell ID 7]      No data
+2025-07-16 03:46:25 - [LoadCell ID 8]      No data
+2025-07-16 03:46:25 - [Flow ID 9]          No data
+2025-07-16 03:46:25 - [Temperature ID 10]  No data
+2025-07-16 03:46:25 - [Temperature ID 11]  No data
+2025-07-16 03:46:25 - [Temperature ID 12]  No data
+2025-07-16 03:46:25 - [Temperature ID 13]  No data
+2025-07-16 03:46:25 - [MotorRPM ID 14]     No data
+2025-07-16 03:46:25 - 
+--- RELAY STATES ---                                                  
+2025-07-16 03:46:25 - [Relay ID 0]         state: CLOSE
+2025-07-16 03:46:25 - [Relay ID 1]         state: CLOSE
+2025-07-16 03:46:25 - [Relay ID 2]         state: CLOSE
+2025-07-16 03:46:25 - [Relay ID 3]         state: CLOSE
+2025-07-16 03:46:26 - 
+--- TIMING DATA (microseconds) ---                                    
+2025-07-16 03:46:26 - No timing data received yet.                                          
+2025-07-16 03:46:26 - 
+--- COMMANDS ---                                                      
+2025-07-16 03:46:26 -   'm <throttle>'       : Set motor throttle (0-100%). E.g., 'm 50'
+2025-07-16 03:46:26 -   'r <id> <state>'     : Set relay state (id: 0-3, state: 0=OFF, 1=ON). E.g., 'r 0 1'
+2025-07-16 03:46:26 -   'u <interval>'       : Set sensor data update interval in seconds (e.g., 'u 0.5')
+2025-07-16 03:46:26 -   'h' or 'help'        : Display this help message.
+2025-07-16 03:46:26 -   'q'                  : Quit the application.
+2025-07-16 03:46:26 - ----------------------------------------------------------------------
+2025-07-16 03:46:26 - ----------------------------------------------------------------------
+2025-07-16 03:46:26 - --- SENSOR DATA ---                                                   
+2025-07-16 03:46:26 - [Pressure ID 0]      No data
+2025-07-16 03:46:26 - [Pressure ID 1]      No data
+2025-07-16 03:46:26 - [Pressure ID 2]      No data
+2025-07-16 03:46:26 - [Pressure ID 3]      No data
+2025-07-16 03:46:26 - [Pressure ID 4]      No data
+2025-07-16 03:46:26 - [Pressure ID 5]      No data
+2025-07-16 03:46:26 - [LoadCell ID 6]      No data
+2025-07-16 03:46:26 - [LoadCell ID 7]      No data
+2025-07-16 03:46:26 - [LoadCell ID 8]      No data
+2025-07-16 03:46:27 - [Flow ID 9]          No data
+2025-07-16 03:46:27 - [Temperature ID 10]  No data
+2025-07-16 03:46:27 - [Temperature ID 11]  No data
+2025-07-16 03:46:27 - [Temperature ID 12]  No data
+2025-07-16 03:46:27 - [Temperature ID 13]  No data
+2025-07-16 03:46:27 - [MotorRPM ID 14]     No data
+2025-07-16 03:46:27 - 
+--- RELAY STATES ---                                                  
+2025-07-16 03:46:27 - [Relay ID 0]         state: CLOSE
+2025-07-16 03:46:27 - [Relay ID 1]         state: CLOSE
+2025-07-16 03:46:27 - [Relay ID 2]         state: CLOSE
+2025-07-16 03:46:27 - [Relay ID 3]         state: CLOSE
+2025-07-16 03:46:27 - 
+--- TIMING DATA (microseconds) ---                                    
+2025-07-16 03:46:27 - No timing data received yet.                                          
+2025-07-16 03:46:27 - 
+--- COMMANDS ---                                                      
+2025-07-16 03:46:27 -   'm <throttle>'       : Set motor throttle (0-100%). E.g., 'm 50'
+2025-07-16 03:46:27 -   'r <id> <state>'     : Set relay state (id: 0-3, state: 0=OFF, 1=ON). E.g., 'r 0 1'
+2025-07-16 03:46:27 -   'u <interval>'       : Set sensor data update interval in seconds (e.g., 'u 0.5')
+2025-07-16 03:46:27 -   'h' or 'help'        : Display this help message.
+2025-07-16 03:46:27 -   'q'                  : Quit the application.
+2025-07-16 03:46:27 - ----------------------------------------------------------------------
+2025-07-16 03:46:28 - ----------------------------------------------------------------------
+2025-07-16 03:46:28 - --- SENSOR DATA ---                                                   
+2025-07-16 03:46:28 - [Pressure ID 0]      No data
+2025-07-16 03:46:28 - [Pressure ID 1]      No data
+2025-07-16 03:46:28 - [Pressure ID 2]      No data
+2025-07-16 03:46:28 - [Pressure ID 3]      No data
+2025-07-16 03:46:28 - [Pressure ID 4]      No data
+2025-07-16 03:46:28 - [Pressure ID 5]      No data
+2025-07-16 03:46:28 - [LoadCell ID 6]      No data
+2025-07-16 03:46:28 - [LoadCell ID 7]      No data
+2025-07-16 03:46:28 - [LoadCell ID 8]      No data
+2025-07-16 03:46:28 - [Flow ID 9]          No data
+2025-07-16 03:46:28 - [Temperature ID 10]  No data
+2025-07-16 03:46:28 - [Temperature ID 11]  No data
+2025-07-16 03:46:28 - [Temperature ID 12]  No data
+2025-07-16 03:46:28 - [Temperature ID 13]  No data
+2025-07-16 03:46:28 - [MotorRPM ID 14]     No data
+2025-07-16 03:46:28 - 
+--- RELAY STATES ---                                                  
+2025-07-16 03:46:28 - [Relay ID 0]         state: CLOSE
+2025-07-16 03:46:28 - [Relay ID 1]         state: CLOSE
+2025-07-16 03:46:28 - [Relay ID 2]         state: CLOSE
+2025-07-16 03:46:28 - [Relay ID 3]         state: CLOSE
+2025-07-16 03:46:28 - 
+--- TIMING DATA (microseconds) ---                                    
+2025-07-16 03:46:28 - No timing data received yet.                                          
+2025-07-16 03:46:28 - 
+--- COMMANDS ---                                                      
+2025-07-16 03:46:28 -   'm <throttle>'       : Set motor throttle (0-100%). E.g., 'm 50'
+2025-07-16 03:46:28 -   'r <id> <state>'     : Set relay state (id: 0-3, state: 0=OFF, 1=ON). E.g., 'r 0 1'
+2025-07-16 03:46:28 -   'u <interval>'       : Set sensor data update interval in seconds (e.g., 'u 0.5')
+2025-07-16 03:46:28 -   'h' or 'help'        : Display this help message.
+2025-07-16 03:46:28 -   'q'                  : Quit the application.
+2025-07-16 03:46:28 - ----------------------------------------------------------------------
+2025-07-16 03:46:29 - ----------------------------------------------------------------------
+2025-07-16 03:46:29 - --- SENSOR DATA ---                                                   
+2025-07-16 03:46:29 - [Pressure ID 0]      No data
+2025-07-16 03:46:29 - [Pressure ID 1]      No data
+2025-07-16 03:46:29 - [Pressure ID 2]      No data
+2025-07-16 03:46:29 - [Pressure ID 3]      No data
+2025-07-16 03:46:29 - [Pressure ID 4]      No data
+2025-07-16 03:46:29 - [Pressure ID 5]      No data
+2025-07-16 03:46:29 - [LoadCell ID 6]      No data
+2025-07-16 03:46:29 - [LoadCell ID 7]      No data
+2025-07-16 03:46:29 - [LoadCell ID 8]      No data
+2025-07-16 03:46:29 - [Flow ID 9]          No data
+2025-07-16 03:46:29 - [Temperature ID 10]  No data
+2025-07-16 03:46:29 - [Temperature ID 11]  No data
+2025-07-16 03:46:29 - [Temperature ID 12]  No data
+2025-07-16 03:46:29 - [Temperature ID 13]  No data
+2025-07-16 03:46:29 - [MotorRPM ID 14]     No data
+2025-07-16 03:46:29 - 
+--- RELAY STATES ---                                                  
+2025-07-16 03:46:29 - [Relay ID 0]         state: CLOSE
+2025-07-16 03:46:29 - [Relay ID 1]         state: CLOSE
+2025-07-16 03:46:29 - [Relay ID 2]         state: CLOSE
+2025-07-16 03:46:29 - [Relay ID 3]         state: CLOSE
+2025-07-16 03:46:29 - 
+--- TIMING DATA (microseconds) ---                                    
+2025-07-16 03:46:29 - No timing data received yet.                                          
+2025-07-16 03:46:29 - 
+--- COMMANDS ---                                                      
+2025-07-16 03:46:29 -   'm <throttle>'       : Set motor throttle (0-100%). E.g., 'm 50'
+2025-07-16 03:46:29 -   'r <id> <state>'     : Set relay state (id: 0-3, state: 0=OFF, 1=ON). E.g., 'r 0 1'
+2025-07-16 03:46:29 -   'u <interval>'       : Set sensor data update interval in seconds (e.g., 'u 0.5')
+2025-07-16 03:46:29 -   'h' or 'help'        : Display this help message.
+2025-07-16 03:46:29 -   'q'                  : Quit the application.
+2025-07-16 03:46:29 - ----------------------------------------------------------------------
+2025-07-16 03:46:30 - ----------------------------------------------------------------------
+2025-07-16 03:46:30 - --- SENSOR DATA ---                                                   
+2025-07-16 03:46:30 - [Pressure ID 0]      No data
+2025-07-16 03:46:30 - [Pressure ID 1]      No data
+2025-07-16 03:46:30 - [Pressure ID 2]      No data
+2025-07-16 03:46:30 - [Pressure ID 3]      No data
+2025-07-16 03:46:30 - [Pressure ID 4]      No data
+2025-07-16 03:46:30 - [Pressure ID 5]      No data
+2025-07-16 03:46:30 - [LoadCell ID 6]      No data
+2025-07-16 03:46:30 - [LoadCell ID 7]      No data
+2025-07-16 03:46:30 - [LoadCell ID 8]      No data
+2025-07-16 03:46:30 - [Flow ID 9]          No data
+2025-07-16 03:46:30 - [Temperature ID 10]  No data
+2025-07-16 03:46:30 - [Temperature ID 11]  No data
+2025-07-16 03:46:30 - [Temperature ID 12]  No data
+2025-07-16 03:46:30 - [Temperature ID 13]  No data
+2025-07-16 03:46:30 - [MotorRPM ID 14]     No data
+2025-07-16 03:46:30 - 
+--- RELAY STATES ---                                                  
+2025-07-16 03:46:30 - [Relay ID 0]         state: CLOSE
+2025-07-16 03:46:30 - [Relay ID 1]         state: CLOSE
+2025-07-16 03:46:30 - [Relay ID 2]         state: CLOSE
+2025-07-16 03:46:30 - [Relay ID 3]         state: CLOSE
+2025-07-16 03:46:30 - 
+--- TIMING DATA (microseconds) ---                                    
+2025-07-16 03:46:30 - No timing data received yet.                                          
+2025-07-16 03:46:30 - 
+--- COMMANDS ---                                                      
+2025-07-16 03:46:30 -   'm <throttle>'       : Set motor throttle (0-100%). E.g., 'm 50'
+2025-07-16 03:46:30 -   'r <id> <state>'     : Set relay state (id: 0-3, state: 0=OFF, 1=ON). E.g., 'r 0 1'
+2025-07-16 03:46:30 -   'u <interval>'       : Set sensor data update interval in seconds (e.g., 'u 0.5')
+2025-07-16 03:46:30 -   'h' or 'help'        : Display this help message.
+2025-07-16 03:46:30 -   'q'                  : Quit the application.
+2025-07-16 03:46:30 - ----------------------------------------------------------------------
+2025-07-16 03:46:31 - ----------------------------------------------------------------------
+2025-07-16 03:46:31 - --- SENSOR DATA ---                                                   
+2025-07-16 03:46:31 - [Pressure ID 0]      No data
+2025-07-16 03:46:31 - [Pressure ID 1]      No data
+2025-07-16 03:46:31 - [Pressure ID 2]      No data
+2025-07-16 03:46:31 - [Pressure ID 3]      No data
+2025-07-16 03:46:31 - [Pressure ID 4]      No data
+2025-07-16 03:46:31 - [Pressure ID 5]      No data
+2025-07-16 03:46:31 - [LoadCell ID 6]      No data
+2025-07-16 03:46:31 - [LoadCell ID 7]      No data
+2025-07-16 03:46:31 - [LoadCell ID 8]      No data
+2025-07-16 03:46:31 - [Flow ID 9]          No data
+2025-07-16 03:46:31 - [Temperature ID 10]  No data
+2025-07-16 03:46:31 - [Temperature ID 11]  No data
+2025-07-16 03:46:31 - [Temperature ID 12]  No data
+2025-07-16 03:46:31 - [Temperature ID 13]  No data
+2025-07-16 03:46:31 - [MotorRPM ID 14]     No data
+2025-07-16 03:46:31 - 
+--- RELAY STATES ---                                                  
+2025-07-16 03:46:31 - [Relay ID 0]         state: CLOSE
+2025-07-16 03:46:31 - [Relay ID 1]         state: CLOSE
+2025-07-16 03:46:31 - [Relay ID 2]         state: CLOSE
+2025-07-16 03:46:31 - [Relay ID 3]         state: CLOSE
+2025-07-16 03:46:31 - 
+--- TIMING DATA (microseconds) ---                                    
+2025-07-16 03:46:31 - No timing data received yet.                                          
+2025-07-16 03:46:31 - 
+--- COMMANDS ---                                                      
+2025-07-16 03:46:31 -   'm <throttle>'       : Set motor throttle (0-100%). E.g., 'm 50'
+2025-07-16 03:46:31 -   'r <id> <state>'     : Set relay state (id: 0-3, state: 0=OFF, 1=ON). E.g., 'r 0 1'
+2025-07-16 03:46:31 -   'u <interval>'       : Set sensor data update interval in seconds (e.g., 'u 0.5')
+2025-07-16 03:46:31 -   'h' or 'help'        : Display this help message.
+2025-07-16 03:46:31 -   'q'                  : Quit the application.
+2025-07-16 03:46:31 - ----------------------------------------------------------------------
+2025-07-16 03:46:32 - ----------------------------------------------------------------------
+2025-07-16 03:46:32 - --- SENSOR DATA ---                                                   
+2025-07-16 03:46:32 - [Pressure ID 0]      No data
+2025-07-16 03:46:32 - [Pressure ID 1]      No data
+2025-07-16 03:46:32 - [Pressure ID 2]      No data
+2025-07-16 03:46:32 - [Pressure ID 3]      No data
+2025-07-16 03:46:32 - [Pressure ID 4]      No data
+2025-07-16 03:46:32 - [Pressure ID 5]      No data
+2025-07-16 03:46:32 - [LoadCell ID 6]      No data
+2025-07-16 03:46:32 - [LoadCell ID 7]      No data
+2025-07-16 03:46:32 - [LoadCell ID 8]      No data
+2025-07-16 03:46:32 - [Flow ID 9]          No data
+2025-07-16 03:46:32 - [Temperature ID 10]  No data
+2025-07-16 03:46:32 - [Temperature ID 11]  No data
+2025-07-16 03:46:32 - [Temperature ID 12]  No data
+2025-07-16 03:46:32 - [Temperature ID 13]  No data
+2025-07-16 03:46:32 - [MotorRPM ID 14]     No data
+2025-07-16 03:46:32 - 
+--- RELAY STATES ---                                                  
+2025-07-16 03:46:32 - [Relay ID 0]         state: CLOSE
+2025-07-16 03:46:32 - [Relay ID 1]         state: CLOSE
+2025-07-16 03:46:32 - [Relay ID 2]         state: CLOSE
+2025-07-16 03:46:32 - [Relay ID 3]         state: CLOSE
+2025-07-16 03:46:32 - 
+--- TIMING DATA (microseconds) ---                                    
+2025-07-16 03:46:32 - No timing data received yet.                                          
+2025-07-16 03:46:32 - 
+--- COMMANDS ---                                                      
+2025-07-16 03:46:32 -   'm <throttle>'       : Set motor throttle (0-100%). E.g., 'm 50'
+2025-07-16 03:46:32 -   'r <id> <state>'     : Set relay state (id: 0-3, state: 0=OFF, 1=ON). E.g., 'r 0 1'
+2025-07-16 03:46:32 -   'u <interval>'       : Set sensor data update interval in seconds (e.g., 'u 0.5')
+2025-07-16 03:46:32 -   'h' or 'help'        : Display this help message.
+2025-07-16 03:46:32 -   'q'                  : Quit the application.
+2025-07-16 03:46:32 - ----------------------------------------------------------------------
+2025-07-16 03:46:33 - ----------------------------------------------------------------------
+2025-07-16 03:46:33 - --- SENSOR DATA ---                                                   
+2025-07-16 03:46:33 - [Pressure ID 0]      No data
+2025-07-16 03:46:33 - [Pressure ID 1]      No data
+2025-07-16 03:46:33 - [Pressure ID 2]      No data
+2025-07-16 03:46:33 - [Pressure ID 3]      No data
+2025-07-16 03:46:33 - [Pressure ID 4]      No data
+2025-07-16 03:46:33 - [Pressure ID 5]      No data
+2025-07-16 03:46:33 - [LoadCell ID 6]      No data
+2025-07-16 03:46:33 - [LoadCell ID 7]      No data
+2025-07-16 03:46:33 - [LoadCell ID 8]      No data
+2025-07-16 03:46:33 - [Flow ID 9]          No data
+2025-07-16 03:46:33 - [Temperature ID 10]  No data
+2025-07-16 03:46:33 - [Temperature ID 11]  No data
+2025-07-16 03:46:33 - [Temperature ID 12]  No data
+2025-07-16 03:46:33 - [Temperature ID 13]  No data
+2025-07-16 03:46:33 - [MotorRPM ID 14]     No data
+2025-07-16 03:46:33 - 
+--- RELAY STATES ---                                                  
+2025-07-16 03:46:33 - [Relay ID 0]         state: CLOSE
+2025-07-16 03:46:33 - [Relay ID 1]         state: CLOSE
+2025-07-16 03:46:33 - [Relay ID 2]         state: CLOSE
+2025-07-16 03:46:33 - [Relay ID 3]         state: CLOSE
+2025-07-16 03:46:33 - 
+--- TIMING DATA (microseconds) ---                                    
+2025-07-16 03:46:33 - No timing data received yet.                                          
+2025-07-16 03:46:33 - 
+--- COMMANDS ---                                                      
+2025-07-16 03:46:33 -   'm <throttle>'       : Set motor throttle (0-100%). E.g., 'm 50'
+2025-07-16 03:46:33 -   'r <id> <state>'     : Set relay state (id: 0-3, state: 0=OFF, 1=ON). E.g., 'r 0 1'
+2025-07-16 03:46:33 -   'u <interval>'       : Set sensor data update interval in seconds (e.g., 'u 0.5')
+2025-07-16 03:46:33 -   'h' or 'help'        : Display this help message.
+2025-07-16 03:46:33 -   'q'                  : Quit the application.
+2025-07-16 03:46:33 - ----------------------------------------------------------------------
+2025-07-16 03:46:34 - ----------------------------------------------------------------------
+2025-07-16 03:46:34 - --- SENSOR DATA ---                                                   
+2025-07-16 03:46:34 - [Pressure ID 0]      No data
+2025-07-16 03:46:34 - [Pressure ID 1]      No data
+2025-07-16 03:46:34 - [Pressure ID 2]      No data
+2025-07-16 03:46:34 - [Pressure ID 3]      No data
+2025-07-16 03:46:34 - [Pressure ID 4]      No data
+2025-07-16 03:46:34 - [Pressure ID 5]      No data
+2025-07-16 03:46:34 - [LoadCell ID 6]      No data
+2025-07-16 03:46:34 - [LoadCell ID 7]      No data
+2025-07-16 03:46:34 - [LoadCell ID 8]      No data
+2025-07-16 03:46:34 - [Flow ID 9]          No data
+2025-07-16 03:46:34 - [Temperature ID 10]  No data
+2025-07-16 03:46:34 - [Temperature ID 11]  No data
+2025-07-16 03:46:34 - [Temperature ID 12]  No data
+2025-07-16 03:46:34 - [Temperature ID 13]  No data
+2025-07-16 03:46:34 - [MotorRPM ID 14]     No data
+2025-07-16 03:46:34 - 
+--- RELAY STATES ---                                                  
+2025-07-16 03:46:34 - [Relay ID 0]         state: CLOSE
+2025-07-16 03:46:34 - [Relay ID 1]         state: CLOSE
+2025-07-16 03:46:34 - [Relay ID 2]         state: CLOSE
+2025-07-16 03:46:34 - [Relay ID 3]         state: CLOSE
+2025-07-16 03:46:34 - 
+--- TIMING DATA (microseconds) ---                                    
+2025-07-16 03:46:34 - No timing data received yet.                                          
+2025-07-16 03:46:34 - 
+--- COMMANDS ---                                                      
+2025-07-16 03:46:34 -   'm <throttle>'       : Set motor throttle (0-100%). E.g., 'm 50'
+2025-07-16 03:46:34 -   'r <id> <state>'     : Set relay state (id: 0-3, state: 0=OFF, 1=ON). E.g., 'r 0 1'
+2025-07-16 03:46:34 -   'u <interval>'       : Set sensor data update interval in seconds (e.g., 'u 0.5')
+2025-07-16 03:46:34 -   'h' or 'help'        : Display this help message.
+2025-07-16 03:46:34 -   'q'                  : Quit the application.
+2025-07-16 03:46:34 - ----------------------------------------------------------------------
+2025-07-16 03:46:35 - ----------------------------------------------------------------------
+2025-07-16 03:46:35 - --- SENSOR DATA ---                                                   
+2025-07-16 03:46:35 - [Pressure ID 0]      No data
+2025-07-16 03:46:35 - [Pressure ID 1]      No data
+2025-07-16 03:46:35 - [Pressure ID 2]      No data
+2025-07-16 03:46:35 - [Pressure ID 3]      No data
+2025-07-16 03:46:35 - [Pressure ID 4]      No data
+2025-07-16 03:46:35 - [Pressure ID 5]      No data
+2025-07-16 03:46:35 - [LoadCell ID 6]      No data
+2025-07-16 03:46:35 - [LoadCell ID 7]      No data
+2025-07-16 03:46:35 - [LoadCell ID 8]      No data
+2025-07-16 03:46:35 - [Flow ID 9]          No data
+2025-07-16 03:46:35 - [Temperature ID 10]  No data
+2025-07-16 03:46:35 - [Temperature ID 11]  No data
+2025-07-16 03:46:35 - [Temperature ID 12]  No data
+2025-07-16 03:46:35 - [Temperature ID 13]  No data
+2025-07-16 03:46:35 - [MotorRPM ID 14]     No data
+2025-07-16 03:46:35 - 
+--- RELAY STATES ---                                                  
+2025-07-16 03:46:35 - [Relay ID 0]         state: CLOSE
+2025-07-16 03:46:35 - [Relay ID 1]         state: CLOSE
+2025-07-16 03:46:35 - [Relay ID 2]         state: CLOSE
+2025-07-16 03:46:35 - [Relay ID 3]         state: CLOSE
+2025-07-16 03:46:35 - 
+--- TIMING DATA (microseconds) ---                                    
+2025-07-16 03:46:35 - No timing data received yet.                                          
+2025-07-16 03:46:35 - Unknown command: 'u'. Type 'h' for help.
+2025-07-16 03:46:36 - ----------------------------------------------------------------------
+2025-07-16 03:46:36 - --- SENSOR DATA ---                                                   
+2025-07-16 03:46:36 - [Pressure ID 0]      No data
+2025-07-16 03:46:36 - [Pressure ID 1]      No data
+2025-07-16 03:46:36 - [Pressure ID 2]      No data
+2025-07-16 03:46:36 - [Pressure ID 3]      No data
+2025-07-16 03:46:36 - [Pressure ID 4]      No data
+2025-07-16 03:46:36 - [Pressure ID 5]      No data
+2025-07-16 03:46:36 - [LoadCell ID 6]      No data
+2025-07-16 03:46:36 - [LoadCell ID 7]      No data
+2025-07-16 03:46:36 - [LoadCell ID 8]      No data
+2025-07-16 03:46:36 - [Flow ID 9]          No data
+2025-07-16 03:46:36 - [Temperature ID 10]  No data
+2025-07-16 03:46:36 - [Temperature ID 11]  No data
+2025-07-16 03:46:36 - [Temperature ID 12]  No data
+2025-07-16 03:46:36 - [Temperature ID 13]  No data
+2025-07-16 03:46:36 - [MotorRPM ID 14]     No data
+2025-07-16 03:46:36 - 
+--- RELAY STATES ---                                                  
+2025-07-16 03:46:36 - [Relay ID 0]         state: CLOSE
+2025-07-16 03:46:36 - [Relay ID 1]         state: CLOSE
+2025-07-16 03:46:36 - [Relay ID 2]         state: CLOSE
+2025-07-16 03:46:36 - [Relay ID 3]         state: CLOSE
+2025-07-16 03:46:36 - 
+--- TIMING DATA (microseconds) ---                                    
+2025-07-16 03:46:36 - No timing data received yet.                                          
+2025-07-16 03:46:36 - Unknown command: 'u'. Type 'h' for help.
+2025-07-16 03:46:37 - ----------------------------------------------------------------------
+2025-07-16 03:46:37 - --- SENSOR DATA ---                                                   
+2025-07-16 03:46:37 - [Pressure ID 0]      No data
+2025-07-16 03:46:37 - [Pressure ID 1]      No data
+2025-07-16 03:46:37 - [Pressure ID 2]      No data
+2025-07-16 03:46:37 - [Pressure ID 3]      No data
+2025-07-16 03:46:37 - [Pressure ID 4]      No data
+2025-07-16 03:46:37 - [Pressure ID 5]      No data
+2025-07-16 03:46:37 - [LoadCell ID 6]      No data
+2025-07-16 03:46:37 - [LoadCell ID 7]      No data
+2025-07-16 03:46:37 - [LoadCell ID 8]      No data
+2025-07-16 03:46:37 - [Flow ID 9]          No data
+2025-07-16 03:46:37 - [Temperature ID 10]  No data
+2025-07-16 03:46:37 - [Temperature ID 11]  No data
+2025-07-16 03:46:37 - [Temperature ID 12]  No data
+2025-07-16 03:46:37 - [Temperature ID 13]  No data
+2025-07-16 03:46:37 - [MotorRPM ID 14]     No data
+2025-07-16 03:46:37 - 
+--- RELAY STATES ---                                                  
+2025-07-16 03:46:37 - [Relay ID 0]         state: CLOSE
+2025-07-16 03:46:37 - [Relay ID 1]         state: CLOSE
+2025-07-16 03:46:37 - [Relay ID 2]         state: CLOSE
+2025-07-16 03:46:37 - [Relay ID 3]         state: CLOSE
+2025-07-16 03:46:37 - 
+--- TIMING DATA (microseconds) ---                                    
+2025-07-16 03:46:37 - No timing data received yet.                                          
+2025-07-16 03:46:37 - Unknown command: 'u'. Type 'h' for help.
+2025-07-16 03:46:38 - ----------------------------------------------------------------------
+2025-07-16 03:46:38 - --- SENSOR DATA ---                                                   
+2025-07-16 03:46:38 - [Pressure ID 0]      No data
+2025-07-16 03:46:38 - [Pressure ID 1]      No data
+2025-07-16 03:46:38 - [Pressure ID 2]      No data
+2025-07-16 03:46:38 - [Pressure ID 3]      No data
+2025-07-16 03:46:38 - [Pressure ID 4]      No data
+2025-07-16 03:46:38 - [Pressure ID 5]      No data
+2025-07-16 03:46:38 - [LoadCell ID 6]      No data
+2025-07-16 03:46:38 - [LoadCell ID 7]      No data
+2025-07-16 03:46:38 - [LoadCell ID 8]      No data
+2025-07-16 03:46:38 - [Flow ID 9]          No data
+2025-07-16 03:46:38 - [Temperature ID 10]  No data
+2025-07-16 03:46:38 - [Temperature ID 11]  No data
+2025-07-16 03:46:38 - [Temperature ID 12]  No data
+2025-07-16 03:46:38 - [Temperature ID 13]  No data
+2025-07-16 03:46:38 - [MotorRPM ID 14]     No data
+2025-07-16 03:46:38 - 
+--- RELAY STATES ---                                                  
+2025-07-16 03:46:38 - [Relay ID 0]         state: CLOSE
+2025-07-16 03:46:38 - [Relay ID 1]         state: CLOSE
+2025-07-16 03:46:38 - [Relay ID 2]         state: CLOSE
+2025-07-16 03:46:38 - [Relay ID 3]         state: CLOSE
+2025-07-16 03:46:38 - 
+--- TIMING DATA (microseconds) ---                                    
+2025-07-16 03:46:38 - No timing data received yet.                                          
+2025-07-16 03:46:38 - Unknown command: 'u'. Type 'h' for help.
+2025-07-16 03:46:39 - ----------------------------------------------------------------------
+2025-07-16 03:46:39 - --- SENSOR DATA ---                                                   
+2025-07-16 03:46:39 - [Pressure ID 0]      No data
+2025-07-16 03:46:39 - [Pressure ID 1]      No data
+2025-07-16 03:46:39 - [Pressure ID 2]      No data
+2025-07-16 03:46:39 - [Pressure ID 3]      No data
+2025-07-16 03:46:39 - [Pressure ID 4]      No data
+2025-07-16 03:46:39 - [Pressure ID 5]      No data
+2025-07-16 03:46:39 - [LoadCell ID 6]      No data
+2025-07-16 03:46:39 - [LoadCell ID 7]      No data
+2025-07-16 03:46:39 - [LoadCell ID 8]      No data
+2025-07-16 03:46:39 - [Flow ID 9]          No data
+2025-07-16 03:46:39 - [Temperature ID 10]  No data
+2025-07-16 03:46:39 - [Temperature ID 11]  No data
+2025-07-16 03:46:39 - [Temperature ID 12]  No data
+2025-07-16 03:46:39 - [Temperature ID 13]  No data
+2025-07-16 03:46:39 - [MotorRPM ID 14]     No data
+2025-07-16 03:46:39 - 
+--- RELAY STATES ---                                                  
+2025-07-16 03:46:39 - [Relay ID 0]         state: CLOSE
+2025-07-16 03:46:39 - [Relay ID 1]         state: CLOSE
+2025-07-16 03:46:39 - [Relay ID 2]         state: CLOSE
+2025-07-16 03:46:39 - [Relay ID 3]         state: CLOSE
+2025-07-16 03:46:39 - 
+--- TIMING DATA (microseconds) ---                                    
+2025-07-16 03:46:39 - No timing data received yet.                                          
+2025-07-16 03:46:39 - 
+--- COMMANDS ---                                                      
+2025-07-16 03:46:39 -   'm <throttle>'       : Set motor throttle (0-100%). E.g., 'm 50'
+2025-07-16 03:46:39 -   'r <id> <state>'     : Set relay state (id: 0-3, state: 0=OFF, 1=ON). E.g., 'r 0 1'
+2025-07-16 03:46:39 -   'u <interval>'       : Set sensor data update interval in seconds (e.g., 'u 0.5')
+2025-07-16 03:46:39 -   'h' or 'help'        : Display this help message.
+2025-07-16 03:46:39 -   'q'                  : Quit the application.
+2025-07-16 03:46:39 - ----------------------------------------------------------------------
+2025-07-16 03:46:40 - ----------------------------------------------------------------------
+2025-07-16 03:46:40 - --- SENSOR DATA ---                                                   
+2025-07-16 03:46:40 - [Pressure ID 0]      No data
+2025-07-16 03:46:40 - [Pressure ID 1]      No data
+2025-07-16 03:46:40 - [Pressure ID 2]      No data
+2025-07-16 03:46:40 - [Pressure ID 3]      No data
+2025-07-16 03:46:40 - [Pressure ID 4]      No data
+2025-07-16 03:46:40 - [Pressure ID 5]      No data
+2025-07-16 03:46:40 - [LoadCell ID 6]      No data
+2025-07-16 03:46:40 - [LoadCell ID 7]      No data
+2025-07-16 03:46:40 - [LoadCell ID 8]      No data
+2025-07-16 03:46:40 - [Flow ID 9]          No data
+2025-07-16 03:46:40 - [Temperature ID 10]  No data
+2025-07-16 03:46:40 - [Temperature ID 11]  No data
+2025-07-16 03:46:40 - [Temperature ID 12]  No data
+2025-07-16 03:46:40 - [Temperature ID 13]  No data
+2025-07-16 03:46:40 - [MotorRPM ID 14]     No data
+2025-07-16 03:46:40 - 
+--- RELAY STATES ---                                                  
+2025-07-16 03:46:40 - [Relay ID 0]         state: CLOSE
+2025-07-16 03:46:40 - [Relay ID 1]         state: CLOSE
+2025-07-16 03:46:40 - [Relay ID 2]         state: CLOSE
+2025-07-16 03:46:40 - [Relay ID 3]         state: CLOSE
+2025-07-16 03:46:40 - 
+--- TIMING DATA (microseconds) ---                                    
+2025-07-16 03:46:40 - No timing data received yet.                                          
+2025-07-16 03:46:40 - 
+--- COMMANDS ---                                                      
+2025-07-16 03:46:40 -   'm <throttle>'       : Set motor throttle (0-100%). E.g., 'm 50'
+2025-07-16 03:46:40 -   'r <id> <state>'     : Set relay state (id: 0-3, state: 0=OFF, 1=ON). E.g., 'r 0 1'
+2025-07-16 03:46:40 -   'u <interval>'       : Set sensor data update interval in seconds (e.g., 'u 0.5')
+2025-07-16 03:46:40 -   'h' or 'help'        : Display this help message.
+2025-07-16 03:46:40 -   'q'                  : Quit the application.
+2025-07-16 03:46:40 - ----------------------------------------------------------------------
+2025-07-16 03:46:41 - ----------------------------------------------------------------------
+2025-07-16 03:46:41 - --- SENSOR DATA ---                                                   
+2025-07-16 03:46:41 - [Pressure ID 0]      No data
+2025-07-16 03:46:41 - [Pressure ID 1]      No data
+2025-07-16 03:46:41 - [Pressure ID 2]      No data
+2025-07-16 03:46:41 - [Pressure ID 3]      No data
+2025-07-16 03:46:41 - [Pressure ID 4]      No data
+2025-07-16 03:46:41 - [Pressure ID 5]      No data
+2025-07-16 03:46:41 - [LoadCell ID 6]      No data
+2025-07-16 03:46:41 - [LoadCell ID 7]      No data
+2025-07-16 03:46:41 - [LoadCell ID 8]      No data
+2025-07-16 03:46:41 - [Flow ID 9]          No data
+2025-07-16 03:46:41 - [Temperature ID 10]  No data
+2025-07-16 03:46:41 - [Temperature ID 11]  No data
+2025-07-16 03:46:41 - [Temperature ID 12]  No data
+2025-07-16 03:46:41 - [Temperature ID 13]  No data
+2025-07-16 03:46:41 - [MotorRPM ID 14]     No data
+2025-07-16 03:46:41 - 
+--- RELAY STATES ---                                                  
+2025-07-16 03:46:41 - [Relay ID 0]         state: CLOSE
+2025-07-16 03:46:41 - [Relay ID 1]         state: CLOSE
+2025-07-16 03:46:41 - [Relay ID 2]         state: CLOSE
+2025-07-16 03:46:41 - [Relay ID 3]         state: CLOSE
+2025-07-16 03:46:41 - 
+--- TIMING DATA (microseconds) ---                                    
+2025-07-16 03:46:41 - No timing data received yet.                                          
+2025-07-16 03:46:41 - 
+--- COMMANDS ---                                                      
+2025-07-16 03:46:41 -   'm <throttle>'       : Set motor throttle (0-100%). E.g., 'm 50'
+2025-07-16 03:46:41 -   'r <id> <state>'     : Set relay state (id: 0-3, state: 0=OFF, 1=ON). E.g., 'r 0 1'
+2025-07-16 03:46:41 -   'u <interval>'       : Set sensor data update interval in seconds (e.g., 'u 0.5')
+2025-07-16 03:46:41 -   'h' or 'help'        : Display this help message.
+2025-07-16 03:46:41 -   'q'                  : Quit the application.
+2025-07-16 03:46:41 - ----------------------------------------------------------------------
+2025-07-16 03:46:42 - ----------------------------------------------------------------------
+2025-07-16 03:46:42 - --- SENSOR DATA ---                                                   
+2025-07-16 03:46:42 - [Pressure ID 0]      No data
+2025-07-16 03:46:42 - [Pressure ID 1]      No data
+2025-07-16 03:46:42 - [Pressure ID 2]      No data
+2025-07-16 03:46:42 - [Pressure ID 3]      No data
+2025-07-16 03:46:42 - [Pressure ID 4]      No data
+2025-07-16 03:46:42 - [Pressure ID 5]      No data
+2025-07-16 03:46:42 - [LoadCell ID 6]      No data
+2025-07-16 03:46:42 - [LoadCell ID 7]      No data
+2025-07-16 03:46:42 - [LoadCell ID 8]      No data
+2025-07-16 03:46:42 - [Flow ID 9]          No data
+2025-07-16 03:46:42 - [Temperature ID 10]  No data
+2025-07-16 03:46:42 - [Temperature ID 11]  No data
+2025-07-16 03:46:42 - [Temperature ID 12]  No data
+2025-07-16 03:46:42 - [Temperature ID 13]  No data
+2025-07-16 03:46:42 - [MotorRPM ID 14]     No data
+2025-07-16 03:46:42 - 
+--- RELAY STATES ---                                                  
+2025-07-16 03:46:42 - [Relay ID 0]         state: CLOSE
+2025-07-16 03:46:42 - [Relay ID 1]         state: CLOSE
+2025-07-16 03:46:42 - [Relay ID 2]         state: CLOSE
+2025-07-16 03:46:42 - [Relay ID 3]         state: CLOSE
+2025-07-16 03:46:42 - 
+--- TIMING DATA (microseconds) ---                                    
+2025-07-16 03:46:42 - No timing data received yet.                                          
+2025-07-16 03:46:42 - 
+--- COMMANDS ---                                                      
+2025-07-16 03:46:42 -   'm <throttle>'       : Set motor throttle (0-100%). E.g., 'm 50'
+2025-07-16 03:46:42 -   'r <id> <state>'     : Set relay state (id: 0-3, state: 0=OFF, 1=ON). E.g., 'r 0 1'
+2025-07-16 03:46:42 -   'u <interval>'       : Set sensor data update interval in seconds (e.g., 'u 0.5')
+2025-07-16 03:46:42 -   'h' or 'help'        : Display this help message.
+2025-07-16 03:46:42 -   'q'                  : Quit the application.
+2025-07-16 03:46:42 - ----------------------------------------------------------------------
+2025-07-16 03:46:43 - ----------------------------------------------------------------------
+2025-07-16 03:46:43 - --- SENSOR DATA ---                                                   
+2025-07-16 03:46:43 - [Pressure ID 0]      No data
+2025-07-16 03:46:43 - [Pressure ID 1]      No data
+2025-07-16 03:46:43 - [Pressure ID 2]      No data
+2025-07-16 03:46:43 - [Pressure ID 3]      No data
+2025-07-16 03:46:43 - [Pressure ID 4]      No data
+2025-07-16 03:46:43 - [Pressure ID 5]      No data
+2025-07-16 03:46:43 - [LoadCell ID 6]      No data
+2025-07-16 03:46:43 - [LoadCell ID 7]      No data
+2025-07-16 03:46:43 - [LoadCell ID 8]      No data
+2025-07-16 03:46:43 - [Flow ID 9]          No data
+2025-07-16 03:46:43 - [Temperature ID 10]  No data
+2025-07-16 03:46:43 - [Temperature ID 11]  No data
+2025-07-16 03:46:43 - [Temperature ID 12]  No data
+2025-07-16 03:46:43 - [Temperature ID 13]  No data
+2025-07-16 03:46:43 - [MotorRPM ID 14]     No data
+2025-07-16 03:46:43 - 
+--- RELAY STATES ---                                                  
+2025-07-16 03:46:43 - [Relay ID 0]         state: CLOSE
+2025-07-16 03:46:43 - [Relay ID 1]         state: CLOSE
+2025-07-16 03:46:43 - [Relay ID 2]         state: CLOSE
+2025-07-16 03:46:43 - [Relay ID 3]         state: CLOSE
+2025-07-16 03:46:43 - 
+--- TIMING DATA (microseconds) ---                                    
+2025-07-16 03:46:43 - No timing data received yet.                                          
+2025-07-16 03:46:43 - 
+--- COMMANDS ---                                                      
+2025-07-16 03:46:43 -   'm <throttle>'       : Set motor throttle (0-100%). E.g., 'm 50'
+2025-07-16 03:46:43 -   'r <id> <state>'     : Set relay state (id: 0-3, state: 0=OFF, 1=ON). E.g., 'r 0 1'
+2025-07-16 03:46:43 -   'u <interval>'       : Set sensor data update interval in seconds (e.g., 'u 0.5')
+2025-07-16 03:46:43 -   'h' or 'help'        : Display this help message.
+2025-07-16 03:46:43 -   'q'                  : Quit the application.
+2025-07-16 03:46:43 - ----------------------------------------------------------------------
+2025-07-16 03:46:44 - ----------------------------------------------------------------------
+2025-07-16 03:46:44 - --- SENSOR DATA ---                                                   
+2025-07-16 03:46:44 - [Pressure ID 0]      No data
+2025-07-16 03:46:44 - [Pressure ID 1]      No data
+2025-07-16 03:46:44 - [Pressure ID 2]      No data
+2025-07-16 03:46:44 - [Pressure ID 3]      No data
+2025-07-16 03:46:44 - [Pressure ID 4]      No data
+2025-07-16 03:46:44 - [Pressure ID 5]      No data
+2025-07-16 03:46:44 - [LoadCell ID 6]      No data
+2025-07-16 03:46:44 - [LoadCell ID 7]      No data
+2025-07-16 03:46:44 - [LoadCell ID 8]      No data
+2025-07-16 03:46:44 - [Flow ID 9]          No data
+2025-07-16 03:46:44 - [Temperature ID 10]  No data
+2025-07-16 03:46:44 - [Temperature ID 11]  No data
+2025-07-16 03:46:44 - [Temperature ID 12]  No data
+2025-07-16 03:46:44 - [Temperature ID 13]  No data
+2025-07-16 03:46:44 - [MotorRPM ID 14]     No data
+2025-07-16 03:46:44 - 
+--- RELAY STATES ---                                                  
+2025-07-16 03:46:44 - [Relay ID 0]         state: CLOSE
+2025-07-16 03:46:44 - [Relay ID 1]         state: CLOSE
+2025-07-16 03:46:44 - [Relay ID 2]         state: CLOSE
+2025-07-16 03:46:44 - [Relay ID 3]         state: CLOSE
+2025-07-16 03:46:44 - 
+--- TIMING DATA (microseconds) ---                                    
+2025-07-16 03:46:44 - No timing data received yet.                                          
+2025-07-16 03:46:44 - 
+--- COMMANDS ---                                                      
+2025-07-16 03:46:44 -   'm <throttle>'       : Set motor throttle (0-100%). E.g., 'm 50'
+2025-07-16 03:46:44 -   'r <id> <state>'     : Set relay state (id: 0-3, state: 0=OFF, 1=ON). E.g., 'r 0 1'
+2025-07-16 03:46:44 -   'u <interval>'       : Set sensor data update interval in seconds (e.g., 'u 0.5')
+2025-07-16 03:46:44 -   'h' or 'help'        : Display this help message.
+2025-07-16 03:46:44 -   'q'                  : Quit the application.
+2025-07-16 03:46:44 - ----------------------------------------------------------------------
+2025-07-16 03:46:45 - ----------------------------------------------------------------------
+2025-07-16 03:46:45 - --- SENSOR DATA ---                                                   
+2025-07-16 03:46:45 - [Pressure ID 0]      No data
+2025-07-16 03:46:45 - [Pressure ID 1]      No data
+2025-07-16 03:46:45 - [Pressure ID 2]      No data
+2025-07-16 03:46:45 - [Pressure ID 3]      No data
+2025-07-16 03:46:45 - [Pressure ID 4]      No data
+2025-07-16 03:46:45 - [Pressure ID 5]      No data
+2025-07-16 03:46:45 - [LoadCell ID 6]      No data
+2025-07-16 03:46:45 - [LoadCell ID 7]      No data
+2025-07-16 03:46:45 - [LoadCell ID 8]      No data
+2025-07-16 03:46:45 - [Flow ID 9]          No data
+2025-07-16 03:46:45 - [Temperature ID 10]  No data
+2025-07-16 03:46:45 - [Temperature ID 11]  No data
+2025-07-16 03:46:45 - [Temperature ID 12]  No data
+2025-07-16 03:46:45 - [Temperature ID 13]  No data
+2025-07-16 03:46:45 - [MotorRPM ID 14]     No data
+2025-07-16 03:46:45 - 
+--- RELAY STATES ---                                                  
+2025-07-16 03:46:45 - [Relay ID 0]         state: CLOSE
+2025-07-16 03:46:45 - [Relay ID 1]         state: CLOSE
+2025-07-16 03:46:45 - [Relay ID 2]         state: CLOSE
+2025-07-16 03:46:45 - [Relay ID 3]         state: CLOSE
+2025-07-16 03:46:45 - 
+--- TIMING DATA (microseconds) ---                                    
+2025-07-16 03:46:45 - No timing data received yet.                                          
+2025-07-16 03:46:45 - 
+--- COMMANDS ---                                                      
+2025-07-16 03:46:45 -   'm <throttle>'       : Set motor throttle (0-100%). E.g., 'm 50'
+2025-07-16 03:46:45 -   'r <id> <state>'     : Set relay state (id: 0-3, state: 0=OFF, 1=ON). E.g., 'r 0 1'
+2025-07-16 03:46:45 -   'u <interval>'       : Set sensor data update interval in seconds (e.g., 'u 0.5')
+2025-07-16 03:46:45 -   'h' or 'help'        : Display this help message.
+2025-07-16 03:46:45 -   'q'                  : Quit the application.
+2025-07-16 03:46:45 - ----------------------------------------------------------------------
+2025-07-16 03:46:46 - ----------------------------------------------------------------------
+2025-07-16 03:46:46 - --- SENSOR DATA ---                                                   
+2025-07-16 03:46:46 - [Pressure ID 0]      No data
+2025-07-16 03:46:46 - [Pressure ID 1]      No data
+2025-07-16 03:46:46 - [Pressure ID 2]      No data
+2025-07-16 03:46:46 - [Pressure ID 3]      No data
+2025-07-16 03:46:46 - [Pressure ID 4]      No data
+2025-07-16 03:46:46 - [Pressure ID 5]      No data
+2025-07-16 03:46:46 - [LoadCell ID 6]      No data
+2025-07-16 03:46:46 - [LoadCell ID 7]      No data
+2025-07-16 03:46:46 - [LoadCell ID 8]      No data
+2025-07-16 03:46:46 - [Flow ID 9]          No data
+2025-07-16 03:46:46 - [Temperature ID 10]  No data
+2025-07-16 03:46:46 - [Temperature ID 11]  No data
+2025-07-16 03:46:46 - [Temperature ID 12]  No data
+2025-07-16 03:46:46 - [Temperature ID 13]  No data
+2025-07-16 03:46:46 - [MotorRPM ID 14]     No data
+2025-07-16 03:46:46 - 
+--- RELAY STATES ---                                                  
+2025-07-16 03:46:46 - [Relay ID 0]         state: CLOSE
+2025-07-16 03:46:46 - [Relay ID 1]         state: CLOSE
+2025-07-16 03:46:46 - [Relay ID 2]         state: CLOSE
+2025-07-16 03:46:46 - [Relay ID 3]         state: CLOSE
+2025-07-16 03:46:46 - 
+--- TIMING DATA (microseconds) ---                                    
+2025-07-16 03:46:46 - No timing data received yet.                                          
+2025-07-16 03:46:47 - ----------------------------------------------------------------------
+2025-07-16 03:46:47 - --- SENSOR DATA ---                                                   
+2025-07-16 03:46:47 - [Pressure ID 0]      No data
+2025-07-16 03:46:47 - [Pressure ID 1]      No data
+2025-07-16 03:46:47 - [Pressure ID 2]      No data
+2025-07-16 03:46:47 - [Pressure ID 3]      No data
+2025-07-16 03:46:47 - [Pressure ID 4]      No data
+2025-07-16 03:46:47 - [Pressure ID 5]      No data
+2025-07-16 03:46:47 - [LoadCell ID 6]      No data
+2025-07-16 03:46:47 - [LoadCell ID 7]      No data
+2025-07-16 03:46:47 - [LoadCell ID 8]      No data
+2025-07-16 03:46:47 - [Flow ID 9]          No data
+2025-07-16 03:46:47 - [Temperature ID 10]  No data
+2025-07-16 03:46:47 - [Temperature ID 11]  No data
+2025-07-16 03:46:47 - [Temperature ID 12]  No data
+2025-07-16 03:46:47 - [Temperature ID 13]  No data
+2025-07-16 03:46:47 - [MotorRPM ID 14]     No data
+2025-07-16 03:46:47 - 
+--- RELAY STATES ---                                                  
+2025-07-16 03:46:47 - [Relay ID 0]         state: CLOSE
+2025-07-16 03:46:47 - [Relay ID 1]         state: CLOSE
+2025-07-16 03:46:47 - [Relay ID 2]         state: CLOSE
+2025-07-16 03:46:47 - [Relay ID 3]         state: CLOSE
+2025-07-16 03:46:47 - 
+--- TIMING DATA (microseconds) ---                                    
+2025-07-16 03:46:47 - No timing data received yet.                                          
+2025-07-16 03:46:48 - ----------------------------------------------------------------------
+2025-07-16 03:46:48 - --- SENSOR DATA ---                                                   
+2025-07-16 03:46:48 - [Pressure ID 0]      No data
+2025-07-16 03:46:48 - [Pressure ID 1]      No data
+2025-07-16 03:46:48 - [Pressure ID 2]      No data
+2025-07-16 03:46:48 - [Pressure ID 3]      No data
+2025-07-16 03:46:48 - [Pressure ID 4]      No data
+2025-07-16 03:46:48 - [Pressure ID 5]      No data
+2025-07-16 03:46:48 - [LoadCell ID 6]      No data
+2025-07-16 03:46:48 - [LoadCell ID 7]      No data
+2025-07-16 03:46:48 - [LoadCell ID 8]      No data
+2025-07-16 03:46:48 - [Flow ID 9]          No data
+2025-07-16 03:46:48 - [Temperature ID 10]  No data
+2025-07-16 03:46:48 - [Temperature ID 11]  No data
+2025-07-16 03:46:48 - [Temperature ID 12]  No data
+2025-07-16 03:46:48 - [Temperature ID 13]  No data
+2025-07-16 03:46:48 - [MotorRPM ID 14]     No data
+2025-07-16 03:46:48 - 
+--- RELAY STATES ---                                                  
+2025-07-16 03:46:48 - [Relay ID 0]         state: CLOSE
+2025-07-16 03:46:48 - [Relay ID 1]         state: CLOSE
+2025-07-16 03:46:48 - [Relay ID 2]         state: CLOSE
+2025-07-16 03:46:48 - [Relay ID 3]         state: CLOSE
+2025-07-16 03:46:48 - 
+--- TIMING DATA (microseconds) ---                                    
+2025-07-16 03:46:48 - No timing data received yet.                                          
+2025-07-16 03:46:49 - ----------------------------------------------------------------------
+2025-07-16 03:46:49 - --- SENSOR DATA ---                                                   
+2025-07-16 03:46:49 - [Pressure ID 0]      No data
+2025-07-16 03:46:49 - [Pressure ID 1]      No data
+2025-07-16 03:46:49 - [Pressure ID 2]      No data
+2025-07-16 03:46:49 - [Pressure ID 3]      No data
+2025-07-16 03:46:49 - [Pressure ID 4]      No data
+2025-07-16 03:46:49 - [Pressure ID 5]      No data
+2025-07-16 03:46:49 - [LoadCell ID 6]      No data
+2025-07-16 03:46:49 - [LoadCell ID 7]      No data
+2025-07-16 03:46:49 - [LoadCell ID 8]      No data
+2025-07-16 03:46:49 - [Flow ID 9]          No data
+2025-07-16 03:46:49 - [Temperature ID 10]  No data
+2025-07-16 03:46:49 - [Temperature ID 11]  No data
+2025-07-16 03:46:49 - [Temperature ID 12]  No data
+2025-07-16 03:46:49 - [Temperature ID 13]  No data
+2025-07-16 03:46:49 - [MotorRPM ID 14]     No data
+2025-07-16 03:46:49 - 
+--- RELAY STATES ---                                                  
+2025-07-16 03:46:49 - [Relay ID 0]         state: CLOSE
+2025-07-16 03:46:49 - [Relay ID 1]         state: CLOSE
+2025-07-16 03:46:49 - [Relay ID 2]         state: CLOSE
+2025-07-16 03:46:49 - [Relay ID 3]         state: CLOSE
+2025-07-16 03:46:49 - 
+--- TIMING DATA (microseconds) ---                                    
+2025-07-16 03:46:49 - No timing data received yet.                                          
+2025-07-16 03:46:49 - Exiting due to user interrupt.
+2025-07-16 03:46:49 - Sent motor control command: ID=0, Enable=0, Forward=1, Throttle=0%
+2025-07-16 03:46:49 - Serial port closed.
