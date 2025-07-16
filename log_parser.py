@@ -2,6 +2,11 @@ import re
 import pandas as pd
 import os
 import subprocess
+import logging # Import logging for internal messages if needed
+
+# Configure a simple logger for this script's internal messages
+logging.basicConfig(level=logging.INFO, format='%(levelname)s: %(message)s')
+script_logger = logging.getLogger(__name__)
 
 def parse_log_to_csv(log_file='Work.log', output_dir='csv_data'):
     """
@@ -10,112 +15,144 @@ def parse_log_to_csv(log_file='Work.log', output_dir='csv_data'):
     """
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
-        print(f"Created output directory: {output_dir}")
+        script_logger.info(f"Created output directory: {output_dir}")
 
     sensor_data = {}
     
-    # Regex to capture timestamp and all sensor data lines
-    # It tries to capture a common timestamp format and then any line containing sensor data.
-    # The key is to grab the full line and then parse it based on known patterns.
-    # We'll rely on the specific 'name: value unit' pattern.
-    log_pattern = re.compile(r'^(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2},\d{3}) - INFO - \[([^\]]+)\]\s+([^:]+):\s+(.*)$')
+    # Updated Regex:
+    # Group 1: Timestamp (e.g., '2025-07-16 03:39:43')
+    # Group 2: Log Level (e.g., 'INFO') - added for robustness, though not strictly used
+    # Group 3: Header content (e.g., 'Pressure ID 0', 'Relay ID 0', 'Timing Category Pressure')
+    # Group 4: The rest of the line after the header (e.g., 'No data', 'pressure: 1.23 bar', 'state: CLOSE')
+    log_line_pattern = re.compile(r'^(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2},\d{3}) - (INFO|ERROR) - \[([^\]]+)\]\s*(.*)$')
     
-    # Specific patterns for different sensor types
-    # Group 1: Sensor Name/ID (e.g., 'Pressure ID 0', 'LoadCell ID 6')
-    # Group 2: Measurement name (e.g., 'pressure', 'weight_grams', 'temp_c', 'rpm')
-    # Group 3: Value (e.g., '1.23', '100.567', '25.1', '1200.5')
-    # Group 4: Unit (e.g., 'bar', 'g', 'C', 'RPM') - Optional for some.
-    sensor_value_pattern = re.compile(r'^(.*?)\s*:\s*([-\d\.]+) (\S+)$') # For 'name: value unit'
-    sensor_value_no_unit_pattern = re.compile(r'^(.*?)\s*:\s*([-\d\.]+)$') # For 'name: value' (e.g., just 'state' for relays)
+    # Specific patterns for different sensor types within the captured content
+    # For 'name: value unit' (e.g., 'pressure: 1.23 bar', 'weight_grams: 100.567 g', 'flow_rate_lpm: 0.750 LPM', 'rpm: 1200.5 RPM')
+    value_unit_pattern = re.compile(r'([^:]+):\s*([-\d\.]+) (\S+)$')
+    
+    # For Temperature sensors with two values (e.g., 'temp_c: 25.1 C temp_f: 77.2 F')
+    temp_pattern = re.compile(r'temp_c:\s*([-\d\.]+) C\s*temp_f:\s*([-\d\.]+) F')
 
-    print(f"Parsing log file: {log_file}...")
+    script_logger.info(f"Parsing log file: {log_file}...")
+    line_count = 0
+    parsed_entries = 0
+
     with open(log_file, 'r') as f:
         for line in f:
-            match = log_pattern.match(line)
+            line_count += 1
+            match = log_line_pattern.match(line)
             if match:
-                timestamp_str, header, measurement_type, value_str = match.groups()
-                # Use pd.to_datetime for accurate time parsing
+                timestamp_str, log_level, header_content, rest_of_line = match.groups()
                 timestamp = pd.to_datetime(timestamp_str, format='%Y-%m-%d %H:%M:%S,%f')
 
-                # Handle different measurement types (e.g., 'pressure', 'temp_c temp_f')
-                # Split value_str into individual measurements if needed (e.g., temp_c and temp_f)
+                # Skip lines that are not sensor data we want to plot
+                if "No data" in rest_of_line or "ERR" in rest_of_line or "RELAY STATES" in header_content or "Relay ID" in header_content or "TIMING DATA" in header_content or "Timing" in header_content:
+                    continue
                 
-                # Check for "No data" or "ERR"
-                if "No data" in value_str or "ERR" in value_str:
-                    continue # Skip lines with no valid data
+                # --- Handle Temperature Sensors (two values) ---
+                temp_match = temp_pattern.match(rest_of_line)
+                if temp_match:
+                    temp_c_value = float(temp_match.group(1))
+                    temp_f_value = float(temp_match.group(2))
 
-                # Handle temperature sensors separately due to multiple values per line
-                if "temp_c" in measurement_type and "temp_f" in measurement_type:
-                    # Expected format: "temp_c: 25.1 C temp_f: 77.2 F"
-                    temp_c_match = re.search(r'temp_c:\s*([-\d\.]+) C', value_str)
-                    temp_f_match = re.search(r'temp_f:\s*([-\d\.]+) F', value_str)
-                    
-                    if temp_c_match:
-                        sensor_name_c = f"{header}_temp_c"
-                        value_c = float(temp_c_match.group(1))
-                        if sensor_name_c not in sensor_data:
-                            sensor_data[sensor_name_c] = []
-                        sensor_data[sensor_name_c].append({'Timestamp': timestamp, 'Value': value_c})
-                    
-                    if temp_f_match:
-                        sensor_name_f = f"{header}_temp_f"
-                        value_f = float(temp_f_match.group(1))
-                        if sensor_name_f not in sensor_data:
-                            sensor_data[sensor_name_f] = []
-                        sensor_data[sensor_name_f].append({'Timestamp': timestamp, 'Value': value_f})
+                    sensor_name_c = f"{header_content}_temp_c"
+                    sensor_name_f = f"{header_content}_temp_f"
 
-                # Handle other sensor types
-                else:
-                    value_match = sensor_value_pattern.match(value_str)
+                    if sensor_name_c not in sensor_data:
+                        sensor_data[sensor_name_c] = []
+                    sensor_data[sensor_name_c].append({'Timestamp': timestamp, 'Value': temp_c_value})
+                    
+                    if sensor_name_f not in sensor_data:
+                        sensor_data[sensor_name_f] = []
+                    sensor_data[sensor_name_f].append({'Timestamp': timestamp, 'Value': temp_f_value})
+                    parsed_entries += 2
+                    continue # Move to next line after processing temperature
+
+                # --- Handle other single-value sensors ---
+                # Split the rest_of_line by spaces to find individual 'field: value unit' pairs
+                # This handles cases like "pressure: 1.23 bar" or "rpm: 1200.5 RPM"
+                parts = rest_of_line.strip().split(' ')
+                current_measurement_name = ""
+                current_value_str = ""
+                current_unit = ""
+
+                # Iterate through parts to reconstruct field: value unit
+                for i, part in enumerate(parts):
+                    if ':' in part: # This is likely the start of a new measurement
+                        if current_measurement_name: # If we have a pending measurement, process it
+                            value_match = value_unit_pattern.match(f"{current_measurement_name}:{current_value_str} {current_unit}".strip())
+                            if value_match:
+                                try:
+                                    value = float(value_match.group(2))
+                                    # Use header_content for the sensor ID part, and the measurement name for the specific field
+                                    # e.g., "Pressure ID 0_pressure"
+                                    sensor_full_id = f"{header_content}_{value_match.group(1).strip()}"
+                                    if sensor_full_id not in sensor_data:
+                                        sensor_data[sensor_full_id] = []
+                                    sensor_data[sensor_full_id].append({'Timestamp': timestamp, 'Value': value})
+                                    parsed_entries += 1
+                                except ValueError:
+                                    script_logger.debug(f"Skipping non-numeric value: {value_match.group(2)} in line {line_count}")
+                            current_measurement_name = ""
+                            current_value_str = ""
+                            current_unit = ""
+
+                        # Start new measurement
+                        current_measurement_name = part.split(':')[0].strip()
+                        current_value_str = part.split(':')[1].strip() if len(part.split(':')) > 1 else ""
+                    else: # This is part of the value or unit for the current measurement
+                        if current_measurement_name:
+                            if current_value_str and not current_unit: # If value is set, next part is unit
+                                current_unit = part.strip()
+                            else: # Else, it's part of the value (e.g., if value has spaces, though not expected here)
+                                current_value_str += " " + part.strip()
+                
+                # Process the last measurement after the loop finishes
+                if current_measurement_name:
+                    value_match = value_unit_pattern.match(f"{current_measurement_name}:{current_value_str} {current_unit}".strip())
                     if value_match:
-                        # Extract the actual value and unit
-                        # Here, measurement_name would be "pressure", "weight_grams", etc.
-                        # We use header for the full sensor ID (e.g., "Pressure ID 0")
-                        sensor_name = f"{header}_{measurement_type.replace(':', '').strip()}"
-                        value = float(value_match.group(2))
-                        # unit = value_match.group(3) # Can store unit if needed later
+                        try:
+                            value = float(value_match.group(2))
+                            sensor_full_id = f"{header_content}_{value_match.group(1).strip()}"
+                            if sensor_full_id not in sensor_data:
+                                sensor_data[sensor_full_id] = []
+                            sensor_data[sensor_full_id].append({'Timestamp': timestamp, 'Value': value})
+                            parsed_entries += 1
+                        except ValueError:
+                            script_logger.debug(f"Skipping non-numeric value: {value_match.group(2)} in line {line_count}")
 
-                        if sensor_name not in sensor_data:
-                            sensor_data[sensor_name] = []
-                        sensor_data[sensor_name].append({'Timestamp': timestamp, 'Value': value})
-                    else:
-                        # Fallback for simpler 'name: value' formats without units explicitly parsed by regex
-                        value_match_no_unit = sensor_value_no_unit_pattern.match(value_str)
-                        if value_match_no_unit:
-                            sensor_name = f"{header}_{measurement_type.replace(':', '').strip()}"
-                            try:
-                                value = float(value_match_no_unit.group(2))
-                                if sensor_name not in sensor_data:
-                                    sensor_data[sensor_name] = []
-                                sensor_data[sensor_name].append({'Timestamp': timestamp, 'Value': value})
-                            except ValueError:
-                                # Handle cases where value is not a float (e.g., 'OPEN', 'CLOSE')
-                                # For this script, we're focusing on numeric sensor values for graphs.
-                                pass 
-                                # print(f"Skipping non-numeric value for {sensor_name}: {value_match_no_unit.group(2)}")
+            else:
+                script_logger.debug(f"Skipping non-data line: {line.strip()}")
 
 
     # Save data to CSV files
+    if not sensor_data:
+        script_logger.warning("No sensor data found to save to CSVs.")
+        return output_dir
+
     for sensor_name, data_points in sensor_data.items():
         df = pd.DataFrame(data_points)
         df.set_index('Timestamp', inplace=True)
         # Sanitize sensor_name for filename (remove spaces, brackets, etc.)
+        # Example: "Pressure ID 0_pressure" -> "pressure_id_0_pressure.csv"
         filename = re.sub(r'[\[\]\s:]', '_', sensor_name).strip('_').lower() + '.csv'
         output_path = os.path.join(output_dir, filename)
         df.to_csv(output_path)
-        print(f"Saved {sensor_name} data to {output_path}")
+        script_logger.info(f"Saved {len(data_points)} entries for '{sensor_name}' to {output_path}")
 
+    script_logger.info(f"Successfully parsed {parsed_entries} sensor data entries from {line_count} lines.")
     return output_dir
 
 if __name__ == '__main__':
     csv_output_directory = parse_log_to_csv()
     
     # Call the graph generating script after CSVs are created
-    print("\nCSV processing complete. Calling graph generation script...")
+    script_logger.info("\nCSV processing complete. Calling graph generation script...")
     # Ensure graph_generator.py is in the same directory or provide its full path
     try:
+        # Pass the csv_output_directory to the graph generator
         subprocess.run(['python', 'graph_generator.py', '--csv-dir', csv_output_directory], check=True)
     except FileNotFoundError:
-        print("Error: 'graph_generator.py' not found. Make sure it's in the same directory or its path is correct.")
+        script_logger.error("Error: 'graph_generator.py' not found. Make sure it's in the same directory or its path is correct.")
     except subprocess.CalledProcessError as e:
-        print(f"Error running graph_generator.py: {e}")
+        script_logger.error(f"Error running graph_generator.py: {e}")
