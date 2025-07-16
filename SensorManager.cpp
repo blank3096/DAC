@@ -255,8 +255,8 @@ void endSensorTimer(byte sensorId, unsigned long startTime, const char* descript
     }
     // Add more else if blocks for other sensor types if you add them
 
-    Serial.print(F("Time for ")); Serial.print(description); Serial.print(F(" (ID ")); Serial.print(sensorId); Serial.print(F("): "));
-    Serial.print(duration); Serial.println(F(" us"));
+    // Serial.print(F("Time for ")); Serial.print(description); Serial.print(F(" (ID ")); Serial.print(sensorId); Serial.print(F("): "));
+    // Serial.print(duration); Serial.println(F(" us"));
 
     // Send this individual sensor's timing data
     SensorTiming currentSensorTiming = {sensorId, startTime, endTime, duration};
@@ -339,7 +339,7 @@ void sendBinaryPacket(byte start_byte, byte id, const void* data_ptr, size_t dat
   Serial.write(id);
 
   if (data_size > 255) {
-    Serial.print(F("Warning: Packet ID ")); Serial.print(id); Serial.print(F(" data size (")); Serial.print(data_size); Serial.println(F(" bytes) exceeds 1-byte limit. Skipping packet."));
+    // Serial.print(F("Warning: Packet ID ")); Serial.print(id); Serial.print(F(" data size (")); Serial.print(data_size); Serial.println(F(" bytes) exceeds 1-byte limit. Skipping packet."));
     return;
    }
   Serial.write((byte)data_size);
@@ -354,17 +354,17 @@ void sendBinaryPacket(byte start_byte, byte id, const void* data_ptr, size_t dat
 // Helper function to set a relay state
 void setRelayState(byte relayIndex, byte state) {
     if (relayIndex >= NUM_RELAYS) {
-        Serial.print(F("Error: Invalid relay index received: ")); Serial.println(relayIndex);
+        // Serial.print(F("Error: Invalid relay index received: ")); Serial.println(relayIndex);
         // Optional: Send error packet back to GUI
         return;
     }
     if (state > 1) { // Assuming state is 0 (OFF) or 1 (ON)
-        Serial.print(F("Error: Invalid relay state received: ")); Serial.println(state);
+        // Serial.print(F("Error: Invalid relay state received: ")); Serial.println(state);
         // Optional: Send error packet back to GUI
         return;
     }
     digitalWrite(RELAY_PINS[relayIndex], (state == 1) ? LOW : HIGH);
-    Serial.print(F("Set Relay ")); Serial.print(relayIndex); Serial.print(F(" to ")); Serial.println((state == 1) ? F("ON") : F("OFF"));
+    // Serial.print(F("Set Relay ")); Serial.print(relayIndex); Serial.print(F(" to ")); Serial.println((state == 1) ? F("ON") : F("OFF"));
     // Optional: Send acknowledgment packet back to GUI
 }
 
@@ -375,7 +375,7 @@ void setMotorEnable(byte state) {
         return;
     }
     digitalWrite(MOTOR_ENABLE_PIN, (state == 1) ? HIGH : LOW);
-    Serial.print(F("Set Motor Enable to: ")); Serial.println((state == 1) ? F("ON") : F("OFF"));
+    // Serial.print(F("Set Motor Enable to: ")); Serial.println((state == 1) ? F("ON") : F("OFF"));
 }
 
 // Helper function to set motor direction
@@ -392,8 +392,8 @@ void setMotorEnable(byte state) {
 void setMotorThrottle(byte throttlePercent) {
     // Clamp the received percentage to 0-100
     if (throttlePercent > 100) {
-        Serial.print(F("Warning: Clamping received throttle "));
-        Serial.print(throttlePercent); Serial.println(F(" to 100%."));
+        // Serial.print(F("Warning: Clamping received throttle "));
+        // Serial.print(throttlePercent); Serial.println(F(" to 100%."));
         throttlePercent = 100;
     }
 
@@ -403,7 +403,7 @@ void setMotorThrottle(byte throttlePercent) {
         TCCR4A &= ~(_BV(COM4A1) | _BV(COM4A0));
         // Explicitly set Pin 6 (PH3) to LOW. Pin 6 is on Port H, bit 3.
         PORTH &= ~_BV(3); // Clear bit 3 of PORTH to set pin 6 LOW
-        Serial.println(F("Motor PWM disabled, pin set LOW."));
+        // Serial.println(F("Motor PWM disabled, pin set LOW."));
     } else {
         // --- For non-zero throttle: Ensure PWM is enabled and set duty cycle ---
         // Ensure COM4A1 is set and COM4A0 is cleared for non-inverting Fast PWM Mode 14
@@ -414,10 +414,10 @@ void setMotorThrottle(byte throttlePercent) {
         int dutyCycleValue = map(throttlePercent, 0, 100, 0, ICR4); // ICR4 is 199 for 10kHz PWM
         OCR4A = dutyCycleValue; // Assign to Timer4 Output Compare Register A (controls Pin 6)
 
-        Serial.print(F("Set Motor Throttle to: "));
-        Serial.print(throttlePercent);
-        Serial.print(F("% (Timer value: "));
-        Serial.print(dutyCycleValue); Serial.println(F(")"));
+        // Serial.print(F("Set Motor Throttle to: "));
+        // Serial.print(throttlePercent);
+        // Serial.print(F("% (Timer value: "));
+        // Serial.print(dutyCycleValue); Serial.println(F(")"));
     }
 }
 
@@ -425,9 +425,9 @@ void setMotorThrottle(byte throttlePercent) {
 // --- Main Command Handling Function ---
 // Processes a complete, valid command packet
 void handleCommand(byte commandType, byte targetId, const byte* payload, byte payloadSize) {
-    Serial.print(F("Received Command: Type=")); Serial.print(commandType);
-    Serial.print(F(", Target ID=")); Serial.print(targetId);
-    Serial.print(F(", Payload Size=")); Serial.println(payloadSize);
+    // Serial.print(F("Received Command: Type=")); Serial.print(commandType);
+    // Serial.print(F(", Target ID=")); Serial.print(targetId);
+    // Serial.print(F(", Payload Size=")); Serial.println(payloadSize);
 
     switch (commandType) {
         case CMD_TYPE_SET_RELAY:
@@ -437,10 +437,11 @@ void handleCommand(byte commandType, byte targetId, const byte* payload, byte pa
                 if (targetId >= CMD_TARGET_RELAY_START && targetId < CMD_TARGET_RELAY_START + NUM_RELAYS) {
                     setRelayState(targetId - CMD_TARGET_RELAY_START, payload[0]); // Adjust targetId to 0-3 index
                 } else {
-                    Serial.print(F("Error: CMD_TYPE_SET_RELAY received with invalid target ID: ")); Serial.println(targetId);
+                    // Serial.print(F("Error: CMD_TYPE_SET_RELAY received with invalid target ID: ")); Serial.println(targetId);
+                    //replace with error handeling protocol
                 }
             } else {
-                Serial.print(F("Error: CMD_TYPE_SET_RELAY received with invalid payload size: ")); Serial.println(payloadSize);
+                // Serial.print(F("Error: CMD_TYPE_SET_RELAY received with invalid payload size: ")); Serial.println(payloadSize);
             }
             break;
 
@@ -459,10 +460,10 @@ void handleCommand(byte commandType, byte targetId, const byte* payload, byte pa
                      setMotorThrottle(throttlePercent);
 
                  } else {
-                    Serial.print(F("Error: CMD_TYPE_SET_MOTOR received with invalid target ID: ")); Serial.println(targetId);
+                    // Serial.print(F("Error: CMD_TYPE_SET_MOTOR received with invalid target ID: ")); Serial.println(targetId);
                  }
              } else {
-                Serial.print(F("Error: CMD_TYPE_SET_MOTOR received with invalid payload size: ")); Serial.println(payloadSize);
+                // Serial.print(F("Error: CMD_TYPE_SET_MOTOR received with invalid payload size: ")); Serial.println(payloadSize);
              }
              break;
 
@@ -475,7 +476,7 @@ void handleCommand(byte commandType, byte targetId, const byte* payload, byte pa
 
         default:
             // Received an unknown command type
-            Serial.print(F("Error: Received unknown command type: ")); Serial.println(commandType);
+            // Serial.print(F("Error: Received unknown command type: ")); Serial.println(commandType);
             break;
     }
     // Optional: Send a generic acknowledgment packet back to GUI after processing a command
