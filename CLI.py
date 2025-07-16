@@ -382,7 +382,7 @@ def auto_detect_arduino_port():
         logger.info("No Arduino port found.")
         return None
 
-def send_motor_control_command(ser, motor_id, throttle, enable=1 ):
+def send_motor_control_command(ser, motor_id, throttle, enable=1):
     """
     Send a motor control command to the Arduino.
     :param ser: Open serial connection
@@ -411,7 +411,7 @@ def send_motor_control_command(ser, motor_id, throttle, enable=1 ):
         packet.extend(payload)
         packet.append(COMMAND_END_BYTE)
         ser.write(packet)
-        logger.info(f"Sent motor control command: ID={motor_id}, Enable={enable}, Forward={forward}, Throttle={throttle}%")
+        logger.info(f"Sent motor control command: ID={motor_id}, Enable={enable},  Throttle={throttle}%")
     except serial.SerialException as e:
         logger.error(f"Serial error when sending motor command: {e}")
     except Exception as e:
@@ -568,7 +568,7 @@ def main():
                 elif cmd_type == 'm' and len(parts) == 2:
                     try:
                         throttle = int(parts[1])
-                        send_motor_control_command(ser, CMD_TARGET_MOTOR_ID, throttle, enable=1, forward=1)
+                        send_motor_control_command(ser, CMD_TARGET_MOTOR_ID, throttle, enable=1 )
                     except ValueError:
                         logger.error("Invalid throttle. Use an integer number (0-100).")
                 elif cmd_type == 'r' and len(parts) == 3:
@@ -604,7 +604,7 @@ def main():
         sys.exit(1)
     finally:
         if ser and ser.is_open:
-            send_motor_control_command(ser, CMD_TARGET_MOTOR_ID, 0, enable=0, forward=1)
+            send_motor_control_command(ser, CMD_TARGET_MOTOR_ID, 0, enable=0)
             time.sleep(0.1)
             ser.close()
             logger.info("Serial port closed.")
