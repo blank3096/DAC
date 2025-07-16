@@ -537,5 +537,3 @@ The `loop()` function in `your_main_sketch.ino` implements a non-blocking, round
 - **Advanced CLI Features**: Integrate libraries like `prompt_toolkit` for command history, autocompletion, and better line editing in the Python CLI.
     
 - **PID Control (Arduino)**: Implement PID loops on the Arduino for motor speed control or other process control based on sensor feedback.
-    
-- **EEPROM Storage (Arduino)**: Store calibration factors or last-known states in Arduino's EEPROM so they persist across power cycles.
