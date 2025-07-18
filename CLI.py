@@ -42,7 +42,7 @@ COMMAND_END_BYTE = 0xFD
 CMD_TYPE_SET_MOTOR = 0x02
 CMD_TYPE_SET_RELAY = 0x01
 CMD_TARGET_MOTOR_ID = 0
-CMD_TARGET_RELAY_START = 0
+CMD_TARGET_RELAY_START = 0 # Note: Arduino's CMD_TARGET_RELAY_START is 1. Python maps 0-3 to 1-4.
 MAX_COMMAND_PAYLOAD_SIZE = 32
 
 # Sensor data packet constants
@@ -69,11 +69,34 @@ MOTOR_RPM_ID = 14
 MOTOR_RPM_PACKET_START_BYTE = 0xF0
 MOTOR_RPM_PACKET_END_BYTE = 0xF1
 
-# --- NEW: Timing Packet Constants (matched to Arduino SensorManager.cpp/h) ---
+# --- Timing Packet Constants (matched to Arduino SensorManager.cpp/h) ---
 TIMING_PACKET_START_BYTE = 0xDE
 TIMING_PACKET_END_BYTE = 0xAD
 TIMING_SENSOR_OPERATION_ID = 0x01
 TIMING_CATEGORY_CYCLE_ID = 0x02
+
+# --- Command Response (ACK/NACK) Constants (matched to Arduino SensorManager.cpp/h) ---
+RESPONSE_PACKET_START_BYTE = 0xF2
+RESPONSE_PACKET_END_BYTE = 0xF3
+RESPONSE_ID_COMMAND_ACK = 0x01 # ID for command acknowledgments/errors
+
+# Status Codes for Command Responses (matched to Arduino enum CommandStatusCode)
+STATUS_OK = 0x00
+STATUS_ERROR_INVALID_COMMAND_TYPE = 0x01
+STATUS_ERROR_INVALID_TARGET_ID = 0x02
+STATUS_ERROR_INVALID_PAYLOAD_SIZE = 0x03
+STATUS_ERROR_INVALID_STATE_VALUE = 0x04
+STATUS_ERROR_HARDWARE_FAULT = 0x05
+
+# Mapping of status codes to human-readable strings
+STATUS_CODE_MAP = {
+    STATUS_OK: "OK",
+    STATUS_ERROR_INVALID_COMMAND_TYPE: "ERROR: Invalid Command Type",
+    STATUS_ERROR_INVALID_TARGET_ID: "ERROR: Invalid Target ID",
+    STATUS_ERROR_INVALID_PAYLOAD_SIZE: "ERROR: Invalid Payload Size",
+    STATUS_ERROR_INVALID_STATE_VALUE: "ERROR: Invalid State Value",
+    STATUS_ERROR_HARDWARE_FAULT: "ERROR: Hardware Fault"
+}
 
 # Define expected payload structures and sizes for ALL packet types
 PACKET_TYPES = {
@@ -120,10 +143,19 @@ PACKET_TYPES = {
     TIMING_PACKET_START_BYTE: {
         'name': 'Timing',
         'end_byte': TIMING_PACKET_END_BYTE,
-        'payload_size': 13,
-        'format': '<BIII',
+        'payload_size': 13, # byte + 3*unsigned long (4 bytes each) = 1 + 12 = 13
+        'format': '<BIII', # B for byte, I for unsigned long (4 bytes)
         'fields': ['sensor_id_in_payload', 'start_micros', 'end_micros', 'duration_micros'],
         'ids': [TIMING_SENSOR_OPERATION_ID, TIMING_CATEGORY_CYCLE_ID]
+    },
+    # NEW: Command Response Packet Type
+    RESPONSE_PACKET_START_BYTE: {
+        'name': 'CommandResponse',
+        'end_byte': RESPONSE_PACKET_END_BYTE,
+        'payload_size': 3, # byte (cmd_type) + byte (target_id) + byte (status_code)
+        'format': '<BBB', # 3 bytes
+        'fields': ['original_command_type', 'original_target_id', 'status_code'],
+        'ids': [RESPONSE_ID_COMMAND_ACK] # The ID for this type of response
     }
 }
 
@@ -146,7 +178,16 @@ class SerialPacketReceiver:
         self.payload_buffer = b''
         self.latest_sensor_data = {}
         self.latest_timing_data = {}
+        # Local state for relays - will only be updated on ACK
         self.relay_states = {i: 0 for i in range(CMD_TARGET_RELAY_START, CMD_TARGET_RELAY_START + 4)}
+        # Local state for motor - will only be updated on ACK
+        self.motor_enable_state = 0
+        self.motor_throttle_value = 0
+        self.latest_command_responses = {} # To store command ACKs/NACKs
+        # NEW: Store commands sent but awaiting confirmation
+        # Key: (command_type, arduino_target_id)
+        # Value: {'requested_state': ..., 'timestamp_sent': ...}
+        self.pending_commands = {} 
 
     def process_byte(self, byte_data):
         """Processes a single incoming byte."""
@@ -169,16 +210,24 @@ class SerialPacketReceiver:
                 expected_size = self.current_packet_type_info['payload_size']
                 expected_ids = self.current_packet_type_info.get('ids')
 
+                # Validate payload size
                 if self.payload_size != expected_size:
                     logger.warning(f"Packet {self.current_packet_type_info['name']} (start {self.current_start_byte:02X}) - Declared size ({self.payload_size}) != expected ({expected_size}). Discarding. Payload buffer: {self.payload_buffer.hex()}")
                     self._reset_state()
-                elif self.current_start_byte != TIMING_PACKET_START_BYTE and \
+                # Validate ID for non-timing and non-response packets
+                elif self.current_start_byte not in [TIMING_PACKET_START_BYTE, RESPONSE_PACKET_START_BYTE] and \
                      expected_ids is not None and self.current_id not in expected_ids:
                     logger.warning(f"Packet {self.current_packet_type_info['name']} (start {self.current_start_byte:02X}) - Unexpected ID ({self.current_id}). Discarding. Payload buffer: {self.payload_buffer.hex()}")
                     self._reset_state()
+                # Validate ID for Timing packets
                 elif self.current_start_byte == TIMING_PACKET_START_BYTE and \
                      self.current_id not in [TIMING_SENSOR_OPERATION_ID, TIMING_CATEGORY_CYCLE_ID]:
                     logger.warning(f"Timing Packet (start {self.current_start_byte:02X}) - Unexpected Timing Type ID ({self.current_id}). Discarding. Payload buffer: {self.payload_buffer.hex()}")
+                    self._reset_state()
+                # Validate ID for Response packets
+                elif self.current_start_byte == RESPONSE_PACKET_START_BYTE and \
+                     self.current_id != RESPONSE_ID_COMMAND_ACK: # Only one ID for command responses
+                    logger.warning(f"Command Response Packet (start {self.current_start_byte:02X}) - Unexpected Response ID ({self.current_id}). Discarding. Payload buffer: {self.payload_buffer.hex()}")
                     self._reset_state()
                 elif self.payload_size == 0:
                     self.state = STATE_READING_END
@@ -231,6 +280,37 @@ class SerialPacketReceiver:
                     }
                 logger.debug(f"Received Timing Packet: Type={timing_type_id:02X}, SensorID={sensor_id_in_payload}, Duration={duration_micros} us")
 
+            elif packet_info['name'] == 'CommandResponse': # Handle Command Response
+                original_command_type, original_target_id, status_code = values
+                status_text = STATUS_CODE_MAP.get(status_code, f"UNKNOWN_STATUS_{status_code:02X}")
+                
+                # Store the latest response for display
+                self.latest_command_responses[(original_command_type, original_target_id)] = {
+                    'status': status_text,
+                    'timestamp': time.time()
+                }
+
+                command_key = (original_command_type, original_target_id)
+                if command_key in self.pending_commands:
+                    pending_cmd_info = self.pending_commands.pop(command_key) # Remove from pending
+                    
+                    if status_code == STATUS_OK:
+                        # Update local state ONLY if ACK is received
+                        if original_command_type == CMD_TYPE_SET_RELAY:
+                            # Map Arduino's target ID back to Python's 0-3 range
+                            python_relay_id = original_target_id - CMD_TARGET_RELAY_START
+                            self.relay_states[python_relay_id] = pending_cmd_info['requested_state']
+                            logger.info(f"CONFIRMED: Relay ID {python_relay_id} set to {'ON' if self.relay_states[python_relay_id] else 'OFF'}")
+                        elif original_command_type == CMD_TYPE_SET_MOTOR:
+                            self.motor_enable_state = pending_cmd_info['requested_enable']
+                            self.motor_throttle_value = pending_cmd_info['requested_throttle']
+                            logger.info(f"CONFIRMED: Motor Enable={self.motor_enable_state}, Throttle={self.motor_throttle_value}%")
+                        logger.info(f"ACK for Cmd {original_command_type:02X}, Target {original_target_id}: {status_text}")
+                    else:
+                        logger.warning(f"NACK for Cmd {original_command_type:02X}, Target {original_target_id}: {status_text}. Local state NOT updated.")
+                else:
+                    logger.debug(f"Received response for non-pending command: Cmd {original_command_type:02X}, Target {original_target_id}, Status: {status_text}. (Maybe timed out already?)")
+
             else: # Regular sensor data packet
                 self.latest_sensor_data[self.current_id] = {
                     'type': packet_info['name'],
@@ -255,8 +335,8 @@ class SerialPacketReceiver:
         """Returns a list of (sensor_id, sensor_type_name) for all known sensors."""
         all_sensors_info = []
         for start_byte, info in PACKET_TYPES.items():
-            # Skip timing and command packets, only interested in sensor data here
-            if start_byte in [TIMING_PACKET_START_BYTE, COMMAND_START_BYTE]:
+            # Skip timing and command response packets, only interested in sensor data here
+            if start_byte in [TIMING_PACKET_START_BYTE, RESPONSE_PACKET_START_BYTE]:
                 continue
             sensor_type_name = info['name']
             for sensor_id in info.get('ids', []):
@@ -272,7 +352,7 @@ class SerialPacketReceiver:
         for sensor_id, sensor_type in self.get_all_sensor_ids_and_types():
             header_str = f"[{sensor_type} ID {sensor_id}]"
             max_len = max(max_len, len(header_str))
-        
+            
         # Timing data headers
         for timing_key in self.latest_timing_data.keys():
             timing_type, identifier = timing_key
@@ -285,6 +365,26 @@ class SerialPacketReceiver:
                 header_str = f"[Relay ID {relay_id}]"
                 max_len = max(max_len, len(header_str))
         
+        # Command response headers
+        if self.latest_command_responses:
+            for cmd_key in self.latest_command_responses.keys():
+                original_cmd_type, original_target_id = cmd_key
+                cmd_type_str = "Relay" if original_cmd_type == CMD_TYPE_SET_RELAY else \
+                               "Motor" if original_cmd_type == CMD_TYPE_SET_MOTOR else \
+                               f"CMD_{original_cmd_type:02X}"
+                header_str = f"[Response {cmd_type_str} ID {original_target_id}]"
+                max_len = max(max_len, len(header_str))
+
+        # Pending commands headers
+        if self.pending_commands:
+            for cmd_key in self.pending_commands.keys():
+                original_cmd_type, original_target_id = cmd_key
+                cmd_type_str = "Relay" if original_cmd_type == CMD_TYPE_SET_RELAY else \
+                               "Motor" if original_cmd_type == CMD_TYPE_SET_MOTOR else \
+                               f"CMD_{original_cmd_type:02X}"
+                header_str = f"[PENDING {cmd_type_str} ID {original_target_id}]"
+                max_len = max(max_len, len(header_str))
+
         return max_len
 
     def print_all_latest_data(self):
@@ -330,13 +430,64 @@ class SerialPacketReceiver:
                 # If no data, print "No data"
                 logger.info(f"{header:<{max_header_len}} No data")
 
-        # Print relay states (unchanged)
-        logger.info(f"\n{'--- RELAY STATES ---':<{max_header_len + 50}}")
+        # Print confirmed motor state
+        motor_header = f"[Motor Confirmed State]"
+        motor_output = (f"{motor_header:<{max_header_len}} "
+                        f"Enable: {self.motor_enable_state}, "
+                        f"Throttle: {self.motor_throttle_value}%")
+        logger.info(motor_output)
+
+        # Print confirmed relay states
+        logger.info(f"\n{'--- RELAY STATES (Confirmed) ---':<{max_header_len + 50}}")
         for relay_id in sorted(self.relay_states.keys()):
             state = self.relay_states[relay_id]
             header = f"[Relay ID {relay_id}]"
             output = f"{header:<{max_header_len}} state: {'OPEN' if state else 'CLOSE'}"
             logger.info(output)
+
+        # Print Command Responses
+        logger.info(f"\n{'--- COMMAND RESPONSES ---':<{max_header_len + 50}}")
+        if not self.latest_command_responses:
+            logger.info(f"{'No command responses received yet.':<{max_header_len + 50}}")
+        else:
+            # Sort by timestamp to show most recent first, or by command type/target for consistency
+            sorted_responses = sorted(self.latest_command_responses.items(), key=lambda item: item[1]['timestamp'], reverse=True)
+            for (original_cmd_type, original_target_id), response_data in sorted_responses:
+                cmd_type_str = "Relay" if original_cmd_type == CMD_TYPE_SET_RELAY else \
+                               "Motor" if original_cmd_type == CMD_TYPE_SET_MOTOR else \
+                               f"CMD_{original_cmd_type:02X}"
+                
+                header = f"[Response {cmd_type_str} ID {original_target_id}]"
+                output = (f"{header:<{max_header_len}} "
+                          f"Status: {response_data['status']} "
+                          f"(Received: {time.strftime('%H:%M:%S', time.localtime(response_data['timestamp']))})")
+                logger.info(output)
+
+        # NEW: Print Pending Commands
+        logger.info(f"\n{'--- PENDING COMMANDS ---':<{max_header_len + 50}}")
+        if not self.pending_commands:
+            logger.info(f"{'No commands pending confirmation.':<{max_header_len + 50}}")
+        else:
+            sorted_pending = sorted(self.pending_commands.items(), key=lambda item: item[1]['timestamp_sent'])
+            for (original_cmd_type, original_target_id), pending_info in sorted_pending:
+                cmd_type_str = "Relay" if original_cmd_type == CMD_TYPE_SET_RELAY else \
+                               "Motor" if original_cmd_type == CMD_TYPE_SET_MOTOR else \
+                               f"CMD_{original_cmd_type:02X}"
+                
+                header = f"[PENDING {cmd_type_str} ID {original_target_id}]"
+                
+                details = []
+                if original_cmd_type == CMD_TYPE_SET_RELAY:
+                    details.append(f"Requested State: {'ON' if pending_info['requested_state'] else 'OFF'}")
+                elif original_cmd_type == CMD_TYPE_SET_MOTOR:
+                    details.append(f"Requested Enable: {pending_info['requested_enable']}")
+                    details.append(f"Requested Throttle: {pending_info['requested_throttle']}%")
+
+                output = (f"{header:<{max_header_len}} "
+                          f"{', '.join(details)} "
+                          f"(Sent: {time.strftime('%H:%M:%S', time.localtime(pending_info['timestamp_sent']))})")
+                logger.info(output)
+
 
         # Print timing data (unchanged)
         logger.info(f"\n{'--- TIMING DATA (microseconds) ---':<{max_header_len + 50}}")
@@ -356,8 +507,6 @@ class SerialPacketReceiver:
                           f"Duration: {timing_data['duration']:,} us")
                 logger.info(output)
 
-# --- (Rest of your code, including auto_detect_arduino_port, send_motor_control_command,
-# send_relay_control_command, serial_reader_thread, command_input_thread, print_help_message, main) ---
 def auto_detect_arduino_port():
     """Detects Arduino Mega port, returns port name or None if not found/ambiguous."""
     arduino_ports = []
@@ -382,13 +531,14 @@ def auto_detect_arduino_port():
         logger.info("No Arduino port found.")
         return None
 
-def send_motor_control_command(ser, motor_id, throttle, enable=1):
+def send_motor_control_command(ser, motor_id, throttle, enable, receiver):
     """
     Send a motor control command to the Arduino.
     :param ser: Open serial connection
     :param motor_id: Target motor ID (0 for CMD_TARGET_MOTOR_ID)
     :param throttle: Motor throttle (0-100%)
-    :param enable: Motor enable state (0 for disabled, 1 for enabled, default: 1)
+    :param enable: Motor enable state (0 for disabled, 1 for enabled)
+    :param receiver: SerialPacketReceiver instance to track pending commands
     """
     try:
         if not (0 <= throttle <= 100):
@@ -397,10 +547,8 @@ def send_motor_control_command(ser, motor_id, throttle, enable=1):
         if enable not in (0, 1):
             logger.error("Enable must be 0 (disabled) or 1 (enabled).")
             return
-        # Removed 'forward' parameter and its validation
         
-        # Payload now consists only of enable and throttle
-        payload = struct.pack('>BB', enable, throttle) # Changed from '>BBB' to '>BB'
+        payload = struct.pack('>BB', enable, throttle)
         payload_size = len(payload)
         if payload_size > MAX_COMMAND_PAYLOAD_SIZE:
             logger.error(f"Payload size {payload_size} exceeds max {MAX_COMMAND_PAYLOAD_SIZE}.")
@@ -413,8 +561,14 @@ def send_motor_control_command(ser, motor_id, throttle, enable=1):
         packet.extend(payload)
         packet.append(COMMAND_END_BYTE)
         ser.write(packet)
-        # Updated logging message to remove 'Forward'
-        logger.info(f"Sent motor control command: ID={motor_id}, Enable={enable}, Throttle={throttle}%")
+        
+        # Add to pending commands, waiting for ACK
+        receiver.pending_commands[(CMD_TYPE_SET_MOTOR, motor_id)] = {
+            'requested_enable': enable,
+            'requested_throttle': throttle,
+            'timestamp_sent': time.time()
+        }
+        logger.info(f"SENT (Pending ACK): Motor control command: ID={motor_id}, Enable={enable}, Throttle={throttle}%")
     except serial.SerialException as e:
         logger.error(f"Serial error when sending motor command: {e}")
     except Exception as e:
@@ -422,18 +576,22 @@ def send_motor_control_command(ser, motor_id, throttle, enable=1):
 
 def send_relay_control_command(ser, relay_id, state, receiver):
     """
-    Send a relay control command to the Arduino and update relay state.
+    Send a relay control command to the Arduino.
     :param ser: Open serial connection
-    :param relay_id: Target relay ID (0, 1, 2, 3)
+    :param relay_id: Target relay ID (0, 1, 2, 3) - Python side
     :param state: Relay state (0 for OFF, 1 for ON)
-    :param receiver: SerialPacketReceiver instance to update relay_states
+    :param receiver: SerialPacketReceiver instance to track pending commands
     """
     try:
         if state not in (0, 1):
             logger.error("Relay state must be 0 (OFF) or 1 (ON).")
             return
-        if relay_id not in range(CMD_TARGET_RELAY_START, CMD_TARGET_RELAY_START + 4):
-            logger.error(f"Relay ID {relay_id} is out of valid range ({CMD_TARGET_RELAY_START}-{CMD_TARGET_RELAY_START + 3}).")
+        
+        # Map Python's relay_id (0-3) to Arduino's target ID (CMD_TARGET_RELAY_START to CMD_TARGET_RELAY_START + 3)
+        arduino_relay_target_id = CMD_TARGET_RELAY_START + relay_id 
+
+        if relay_id not in range(0, 4): # Python side expects 0-3
+            logger.error(f"Relay ID {relay_id} is out of valid range (0-3).")
             return
 
         payload = struct.pack('>B', state)
@@ -444,13 +602,18 @@ def send_relay_control_command(ser, relay_id, state, receiver):
         packet = bytearray()
         packet.append(COMMAND_START_BYTE)
         packet.append(CMD_TYPE_SET_RELAY)
-        packet.append(relay_id)
+        packet.append(arduino_relay_target_id) # Send the Arduino-expected target ID
         packet.append(payload_size)
         packet.extend(payload)
         packet.append(COMMAND_END_BYTE)
         ser.write(packet)
-        receiver.relay_states[relay_id] = state # Update local state immediately
-        logger.info(f"Sent relay control command: ID={relay_id}, State={'ON' if state else 'OFF'}")
+        
+        # Add to pending commands, waiting for ACK
+        receiver.pending_commands[(CMD_TYPE_SET_RELAY, arduino_relay_target_id)] = {
+            'requested_state': state,
+            'timestamp_sent': time.time()
+        }
+        logger.info(f"SENT (Pending ACK): Relay control command: ID={relay_id}, State={'ON' if state else 'OFF'}")
     except serial.SerialException as e:
         logger.error(f"Serial error when sending relay command: {e}")
     except Exception as e:
@@ -499,9 +662,11 @@ def print_help_message(max_header_len):
 
 
 def main():
+    global UPDATE_INTERVAL # Declare it global at the very beginning of main()
+    
     # Build ID_TO_PACKET_INFO lookup table for non-timing packets
     for start_byte, info in PACKET_TYPES.items():
-        if start_byte == TIMING_PACKET_START_BYTE:
+        if start_byte in [TIMING_PACKET_START_BYTE, RESPONSE_PACKET_START_BYTE]:
             continue
         for sensor_id in info.get('ids', []):
             if sensor_id in ID_TO_PACKET_INFO:
@@ -525,7 +690,9 @@ def main():
 
     BAUDRATE = args.baudrate
     READ_TIMEOUT = args.timeout
-    UPDATE_INTERVAL = args.update_interval
+    UPDATE_INTERVAL = args.update_interval # Initialize the global variable
+
+    COMMAND_ACK_TIMEOUT_SECONDS = 2.0 # How long to wait for an ACK/NACK before considering it a timeout
 
     receiver = SerialPacketReceiver()
     command_queue = queue.Queue()
@@ -537,7 +704,7 @@ def main():
         logger.info(f"Opening serial port {SERIAL_PORT} at {BAUDRATE} baud...")
         ser = serial.Serial(SERIAL_PORT, BAUDRATE, timeout=READ_TIMEOUT)
         logger.info("Serial port opened successfully.")
-        time.sleep(2)
+        time.sleep(2) # Give Arduino time to reset and start
 
         serial_thread = threading.Thread(target=serial_reader_thread, args=(ser, receiver), daemon=True)
         serial_thread.start()
@@ -555,6 +722,20 @@ def main():
                 receiver.print_all_latest_data()
                 last_print_time = current_time
 
+            # Check for command timeouts
+            commands_to_remove = []
+            for cmd_key, cmd_info in receiver.pending_commands.items():
+                if current_time - cmd_info['timestamp_sent'] > COMMAND_ACK_TIMEOUT_SECONDS:
+                    original_cmd_type, original_target_id = cmd_key
+                    cmd_type_str = "Relay" if original_cmd_type == CMD_TYPE_SET_RELAY else \
+                                   "Motor" if original_cmd_type == CMD_TYPE_SET_MOTOR else \
+                                   f"CMD_{original_cmd_type:02X}"
+                    logger.warning(f"TIMEOUT: No ACK/NACK received for {cmd_type_str} ID {original_target_id}. Local state NOT updated.")
+                    commands_to_remove.append(cmd_key)
+            for cmd_key in commands_to_remove:
+                receiver.pending_commands.pop(cmd_key)
+
+
             try:
                 command = command_queue.get_nowait()
                 parts = command.split()
@@ -570,15 +751,16 @@ def main():
                 elif cmd_type == 'm' and len(parts) == 2:
                     try:
                         throttle = int(parts[1])
-                        # Removed 'forward' argument from the call
-                        send_motor_control_command(ser, CMD_TARGET_MOTOR_ID, throttle, enable=1)
+                        # Pass receiver to the send function
+                        send_motor_control_command(ser, CMD_TARGET_MOTOR_ID, throttle, enable=1, receiver=receiver)
                     except ValueError:
                         logger.error("Invalid throttle. Use an integer number (0-100).")
                 elif cmd_type == 'r' and len(parts) == 3:
                     try:
                         relay_id = int(parts[1])
                         state = int(parts[2])
-                        send_relay_control_command(ser, relay_id, state, receiver)
+                        # Pass receiver to the send function
+                        send_relay_control_command(ser, relay_id, state, receiver=receiver)
                     except ValueError:
                         logger.error("Invalid relay command. Use integers for relay_id (0-3) and state (0 or 1).")
                 elif cmd_type == 'u' and len(parts) == 2:
@@ -595,7 +777,7 @@ def main():
                     logger.error(f"Unknown command: '{command}'. Type 'h' for help.")
             except queue.Empty:
                 pass
-            time.sleep(0.01)
+            time.sleep(0.01) # Small sleep to prevent busy-waiting
 
     except serial.SerialException as e:
         logger.error(f"Could not open serial port {SERIAL_PORT}: {e}")
@@ -607,9 +789,10 @@ def main():
         sys.exit(1)
     finally:
         if ser and ser.is_open:
-            # Removed 'forward=1' argument from the call on exit
-            send_motor_control_command(ser, CMD_TARGET_MOTOR_ID, 0, enable=0)
-            time.sleep(0.1)
+            # Ensure motor is stopped and disabled on exit
+            # Note: This command is sent but its ACK is not waited for on close.
+            send_motor_control_command(ser, CMD_TARGET_MOTOR_ID, 0, enable=0, receiver=receiver)
+            time.sleep(0.1) # Give time for command to be sent
             ser.close()
             logger.info("Serial port closed.")
 

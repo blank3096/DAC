@@ -218,4 +218,31 @@ extern "C" void motor_count_pulse();
 void testTimingBatchAllTypes();
 
 
+// --- NEW: Command Response (ACK/NACK) Constants and Struct ---
+extern const byte RESPONSE_PACKET_START_BYTE;
+extern const byte RESPONSE_PACKET_END_BYTE;
+extern const byte RESPONSE_ID_COMMAND_ACK; // A generic ID for command responses
+
+// Status Codes for Command Responses
+enum CommandStatusCode {
+    STATUS_OK = 0x00,
+    STATUS_ERROR_INVALID_COMMAND_TYPE = 0x01,
+    STATUS_ERROR_INVALID_TARGET_ID = 0x02,
+    STATUS_ERROR_INVALID_PAYLOAD_SIZE = 0x03,
+    STATUS_ERROR_INVALID_STATE_VALUE = 0x04, // For relay state, motor enable state etc.
+    STATUS_ERROR_HARDWARE_FAULT = 0x05, // e.g., sensor not ready, motor driver fault
+    // Add more specific error codes as needed
+};
+
+// Structure for the command response payload
+struct CommandResponsePacket {
+    byte originalCommandType; // The type of the command that was responded to
+    byte originalTargetId;    // The target ID of the command (e.g., relay index, motor ID)
+    byte statusCode;          // The status code (e.g., STATUS_OK, STATUS_ERROR_...)
+};
+
+// Prototype for the new command response sending function
+void sendCommandResponse(byte originalCommandType, byte originalTargetId, byte statusCode);
+
+
 #endif // End of include guard
