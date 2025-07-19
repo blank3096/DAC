@@ -75,6 +75,19 @@ TIMING_PACKET_END_BYTE = 0xAD
 TIMING_SENSOR_OPERATION_ID = 0x01 # Used as sensor_id_in_payload for individual sensor timing
 TIMING_CATEGORY_CYCLE_ID = 0x02 # Used as sensor_id_in_payload for category timing
 
+# --- NEW: Command Response (ACK/NACK) Constants (matched to Arduino) ---
+RESPONSE_PACKET_START_BYTE = 0xF2
+RESPONSE_PACKET_END_BYTE = 0xF3
+RESPONSE_ID_COMMAND_ACK = 0x01 # ID for command acknowledgments/errors
+
+# Status Codes (matched to Arduino)
+STATUS_OK = 0x00
+STATUS_ERROR_INVALID_TARGET_ID = 0xE1
+STATUS_ERROR_INVALID_STATE_VALUE = 0xE2
+STATUS_ERROR_INVALID_PAYLOAD_SIZE = 0xE3
+STATUS_ERROR_INVALID_COMMAND_TYPE = 0xE4
+
+
 # Define the structure of the appended SensorTiming data
 # struct SensorTiming { byte sensor_id; unsigned long start_micros; unsigned long end_micros; unsigned long duration_micros; };
 # Python struct format: <BIII (1 byte, 3 unsigned 4-byte integers)
@@ -133,6 +146,15 @@ PACKET_TYPES = {
         'format': SENSOR_TIMING_STRUCT_FORMAT,
         'fields': SENSOR_TIMING_STRUCT_FIELDS,
         'ids': [TIMING_SENSOR_OPERATION_ID, TIMING_CATEGORY_CYCLE_ID] # Timing Type IDs
+    },
+    # NEW: Command Response Packet Type
+    RESPONSE_PACKET_START_BYTE: {
+        'name': 'CommandResponse',
+        'end_byte': RESPONSE_PACKET_END_BYTE,
+        'payload_size': 3, # originalCommandType (1B), originalTargetId (1B), statusCode (1B)
+        'format': '<BBB',
+        'fields': ['original_cmd_type', 'original_target_id', 'status_code'],
+        'ids': [RESPONSE_ID_COMMAND_ACK] # The ID field in the packet is RESPONSE_ID_COMMAND_ACK
     }
 }
 
@@ -182,8 +204,8 @@ class SerialPacketReceiver:
                 if self.payload_size != expected_size:
                     logger.warning(f"Packet {self.current_packet_type_info['name']} (start {self.current_start_byte:02X}) - Declared size ({self.payload_size}) != expected ({expected_size}). Discarding. Payload buffer: {self.payload_buffer.hex()}")
                     self._reset_state()
-                # Validate ID for non-timing packets (timing packets have specific ID rules)
-                elif self.current_start_byte != TIMING_PACKET_START_BYTE and \
+                # Validate ID for non-timing/non-response packets
+                elif self.current_start_byte not in [TIMING_PACKET_START_BYTE, RESPONSE_PACKET_START_BYTE] and \
                      expected_ids is not None and self.current_id not in expected_ids:
                     logger.warning(f"Packet {self.current_packet_type_info['name']} (start {self.current_start_byte:02X}) - Unexpected ID ({self.current_id}). Discarding. Payload buffer: {self.payload_buffer.hex()}")
                     self._reset_state()
@@ -191,6 +213,11 @@ class SerialPacketReceiver:
                 elif self.current_start_byte == TIMING_PACKET_START_BYTE and \
                      self.current_id not in [TIMING_SENSOR_OPERATION_ID, TIMING_CATEGORY_CYCLE_ID]:
                     logger.warning(f"Timing Packet (start {self.current_start_byte:02X}) - Unexpected Timing Type ID ({self.current_id}). Discarding. Payload buffer: {self.payload_buffer.hex()}")
+                    self._reset_state()
+                # Validate ID for response packets (which use RESPONSE_ID_COMMAND_ACK as their 'id' field)
+                elif self.current_start_byte == RESPONSE_PACKET_START_BYTE and \
+                     self.current_id != RESPONSE_ID_COMMAND_ACK:
+                    logger.warning(f"Response Packet (start {self.current_start_byte:02X}) - Unexpected Response ID ({self.current_id}). Discarding. Payload buffer: {self.payload_buffer.hex()}")
                     self._reset_state()
                 elif self.payload_size == 0:
                     self.state = STATE_READING_END
@@ -216,19 +243,14 @@ class SerialPacketReceiver:
         """Handles a successfully received and validated packet."""
         packet_info = self.current_packet_type_info
         try:
-            # Unpack all values based on the combined format string
             all_values = struct.unpack(packet_info['format'], self.payload_buffer)
             
-            # Separate sensor data from timing data
-            # The last SENSOR_TIMING_STRUCT_SIZE bytes correspond to the timing struct
-            sensor_data_values = all_values[:-len(SENSOR_TIMING_STRUCT_FIELDS)]
-            timing_data_values = all_values[-len(SENSOR_TIMING_STRUCT_FIELDS):]
-
-            # Extract timing fields
-            (timing_sensor_id_in_payload, start_micros, end_micros, duration_micros) = timing_data_values
-
             if packet_info['name'] == 'Timing': # This block is for Category Timing packets
-                timing_type_id = self.current_id # This is TIMING_CATEGORY_CYCLE_ID
+                # Timing packets only contain the SensorTiming struct
+                timing_data_values = all_values
+                (timing_sensor_id_in_payload, start_micros, end_micros, duration_micros) = timing_data_values
+                
+                timing_type_id = self.current_id # This is TIMING_CATEGORY_CYCLE_ID or TIMING_SENSOR_OPERATION_ID (if sent separately)
                 
                 category_name = "Unknown"
                 if timing_sensor_id_in_payload == PRESSURE_ID_START: category_name = "Pressure"
@@ -245,7 +267,27 @@ class SerialPacketReceiver:
                 }
                 logger.debug(f"Received Category Timing Packet: Type={timing_type_id:02X}, CategoryID={timing_sensor_id_in_payload}, Duration={duration_micros} us")
 
+            elif packet_info['name'] == 'CommandResponse': # NEW: Handle Command Response packets
+                original_cmd_type, original_target_id, status_code = all_values
+                status_messages = {
+                    STATUS_OK: "OK",
+                    STATUS_ERROR_INVALID_TARGET_ID: "ERROR: Invalid Target ID",
+                    STATUS_ERROR_INVALID_STATE_VALUE: "ERROR: Invalid State Value",
+                    STATUS_ERROR_INVALID_PAYLOAD_SIZE: "ERROR: Invalid Payload Size",
+                    STATUS_ERROR_INVALID_COMMAND_TYPE: "ERROR: Invalid Command Type"
+                }
+                status_text = status_messages.get(status_code, f"UNKNOWN STATUS {status_code:02X}")
+                
+                logger.info(f"Command Response: CmdType={original_cmd_type:02X}, TargetID={original_target_id}, Status={status_text}")
+
             else: # Regular sensor data packet (now includes embedded timing)
+                # Separate sensor data from timing data
+                sensor_data_values = all_values[:-len(SENSOR_TIMING_STRUCT_FIELDS)]
+                timing_data_values = all_values[-len(SENSOR_TIMING_STRUCT_FIELDS):]
+
+                # Extract timing fields
+                (timing_sensor_id_in_payload, start_micros, end_micros, duration_micros) = timing_data_values
+
                 # Store sensor data
                 self.latest_sensor_data[self.current_id] = {
                     'type': packet_info['name'],
@@ -258,7 +300,7 @@ class SerialPacketReceiver:
                 self.latest_timing_data[('individual', self.current_id)] = {
                     'start': start_micros,
                     'end': end_micros,
-                    'duration': duration_micros,
+                    'duration': duration_micros, # Store raw microseconds
                     'source_id': timing_sensor_id_in_payload # This should match self.current_id for individual timings
                 }
                 logger.debug(f"Received {packet_info['name']} Packet ID {self.current_id}: Values={sensor_data_values}, Timing Duration={duration_micros} us")
@@ -280,8 +322,8 @@ class SerialPacketReceiver:
         """Returns a list of (sensor_id, sensor_type_name) for all known sensors."""
         all_sensors_info = []
         for start_byte, info in PACKET_TYPES.items():
-            # Skip timing and command packets, only interested in sensor data here
-            if start_byte in [TIMING_PACKET_START_BYTE, COMMAND_START_BYTE]:
+            # Skip timing and command/response packets, only interested in sensor data here
+            if start_byte in [TIMING_PACKET_START_BYTE, COMMAND_START_BYTE, RESPONSE_PACKET_START_BYTE]:
                 continue
             sensor_type_name = info['name']
             for sensor_id in info.get('ids', []):
@@ -295,21 +337,28 @@ class SerialPacketReceiver:
 
         # Sensor data headers (including space for timing)
         for sensor_id, sensor_type in self.get_all_sensor_ids_and_types():
+            # Estimate max length for sensor data + timing string for layout
+            # e.g., "[Pressure ID 0] pressure: 12.34 bar (Time: 1234 us / 0.0012 s)"
+            # This is a rough estimate, actual length depends on values
             header_str = f"[{sensor_type} ID {sensor_id}]"
-            max_len = max(max_len, len(header_str))
+            # Add a typical length for the data and timing part
+            estimated_data_timing_len = 40 # e.g., "pressure: 12.34 bar (Time: 1234 us / 0.0012 s)"
+            max_len = max(max_len, len(header_str) + estimated_data_timing_len)
         
         # Timing data headers (for category timings)
         for timing_key in self.latest_timing_data.keys():
             timing_type, identifier = timing_key
             if timing_type == 'category': # Only category timings have a distinct header here
                 header_str = f"[Timing {timing_type.capitalize()} {identifier}]"
-                max_len = max(max_len, len(header_str))
+                # Add typical length for category timing data
+                estimated_category_timing_len = 60 # e.g., "Start: 1234567 us, End: 1234567 us, Duration: 1234 us (0.0012 s)"
+                max_len = max(max_len, len(header_str) + estimated_category_timing_len)
 
         # Relay state headers
         if self.relay_states:
             for relay_id in self.relay_states.keys():
                 header_str = f"[Relay ID {relay_id}]"
-                max_len = max(max_len, len(header_str))
+                max_len = max(max_len, len(header_str) + 15) # "state: OPEN/CLOSE"
         
         return max_len
 
@@ -358,7 +407,8 @@ class SerialPacketReceiver:
                 if timing_key in self.latest_timing_data:
                     timing_data = self.latest_timing_data[timing_key]
                     duration_seconds = timing_data['duration'] / 1_000_000.0 # Convert micros to seconds
-                    output_parts.append(f"(Time: {duration_seconds:.4f} s)") # Format to 4 decimal places for seconds
+                    # Display both microseconds and seconds
+                    output_parts.append(f"(Time: {timing_data['duration']:,} us / {duration_seconds:.4f} s)") 
                 
                 logger.info("".join(output_parts).strip())
             else:
@@ -436,7 +486,6 @@ def send_motor_control_command(ser, motor_id, throttle, enable=1):
             logger.error("Enable must be 0 (disabled) or 1 (enabled).")
             return
         
-        # Payload now consists only of enable and throttle
         payload = struct.pack('>BB', enable, throttle)
         payload_size = len(payload)
         if payload_size > MAX_COMMAND_PAYLOAD_SIZE:
@@ -485,7 +534,8 @@ def send_relay_control_command(ser, relay_id, state, receiver):
         packet.extend(payload)
         packet.append(COMMAND_END_BYTE)
         ser.write(packet)
-        receiver.relay_states[relay_id] = state # Update local state immediately
+        # Update local state immediately for responsive CLI, ACK/NACK will confirm server-side
+        receiver.relay_states[relay_id] = state 
         logger.info(f"Sent relay control command: ID={relay_id}, State={'ON' if state else 'OFF'}")
     except serial.SerialException as e:
         logger.error(f"Serial error when sending relay command: {e}")
@@ -537,20 +587,20 @@ def print_help_message(max_header_len):
 def main():
     # Build ID_TO_PACKET_INFO lookup table for non-timing packets
     for start_byte, info in PACKET_TYPES.items():
-        if start_byte == TIMING_PACKET_START_BYTE:
-            continue
-        for sensor_id in info.get('ids', []):
-            if sensor_id in ID_TO_PACKET_INFO:
-                existing_start_byte = ID_TO_PACKET_INFO[sensor_id]
-                existing_type_name = PACKET_TYPES[existing_start_byte]['name']
-                logger.warning(f"Duplicate sensor ID {sensor_id} found! Defined for {existing_type_name} (start {existing_start_byte:02X}) and {info['name']} (start {start_byte:02X}).")
-            ID_TO_PACKET_INFO[sensor_id] = start_byte
+        # Only map sensor data packets by their ID
+        if start_byte not in [TIMING_PACKET_START_BYTE, COMMAND_START_BYTE, RESPONSE_PACKET_START_BYTE]:
+            for sensor_id in info.get('ids', []):
+                if sensor_id in ID_TO_PACKET_INFO:
+                    existing_start_byte = ID_TO_PACKET_INFO[sensor_id]
+                    existing_type_name = PACKET_TYPES[existing_start_byte]['name']
+                    logger.warning(f"Duplicate sensor ID {sensor_id} found! Defined for {existing_type_name} (start {existing_start_byte:02X}) and {info['name']} (start {start_byte:02X}).")
+                ID_TO_PACKET_INFO[sensor_id] = start_byte
 
     # Argument parser
     parser = argparse.ArgumentParser(description='Monitor sensor data and send motor/relay commands to Arduino Mega.')
     parser.add_argument('--port', help='Serial port name (e.g., COM3). If not specified, attempts auto-detection.')
     parser.add_argument('-b', '--baudrate', type=int, default=115200, help='Serial baud rate (default: 115200)')
-    parser.add_argument('-t', '--timeout', type=float, default=3.0, help='Serial read timeout in seconds (default: 0.1)')
+    parser.add_argument('-t', '--timeout', type=float, default=0.1, help='Serial read timeout in seconds (default: 0.1)')
     parser.add_argument('-u', '--update-interval', type=float, default=1.0, help='Initial interval to print sensor data (default: 1.0)')
     args = parser.parse_args()
 
@@ -573,7 +623,7 @@ def main():
         logger.info(f"Opening serial port {SERIAL_PORT} at {BAUDRATE} baud...")
         ser = serial.Serial(SERIAL_PORT, BAUDRATE, timeout=READ_TIMEOUT)
         logger.info("Serial port opened successfully.")
-        time.sleep(2)
+        time.sleep(2) # Give Arduino time to initialize and send initial messages
 
         serial_thread = threading.Thread(target=serial_reader_thread, args=(ser, receiver), daemon=True)
         serial_thread.start()
@@ -630,7 +680,7 @@ def main():
                     logger.error(f"Unknown command: '{command}'. Type 'h' for help.")
             except queue.Empty:
                 pass
-            time.sleep(0.01)
+            time.sleep(0.01) # Small sleep to prevent busy-waiting
 
     except serial.SerialException as e:
         logger.error(f"Could not open serial port {SERIAL_PORT}: {e}")
@@ -642,8 +692,9 @@ def main():
         sys.exit(1)
     finally:
         if ser and ser.is_open:
+            # Send a command to stop the motor when exiting
             send_motor_control_command(ser, CMD_TARGET_MOTOR_ID, 0, enable=0)
-            time.sleep(0.1)
+            time.sleep(0.1) # Give Arduino time to process the stop command
             ser.close()
             logger.info("Serial port closed.")
 
