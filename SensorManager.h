@@ -197,7 +197,7 @@ FlowMeterValues calculateFlowMeterValues(long delta_pulse, unsigned long elapsed
 TemperatureSensorValues calculateTemperatureSensorValues(int index);
 MotorRPMValue calculateMotorRPM(unsigned long currentPulseCount, unsigned long previousPulseCount, unsigned long interval_ms);
 
-void sendBinaryPacket(byte start_byte, byte id, const void* data_ptr, size_t data_size, byte end_byte);
+void sendBinaryPacket(byte start_byte, byte id, const void* data_ptr, size_t data_size, byte end_byte, const SensorTiming* timing_data_ptr = nullptr);
 void handleCommand(byte commandType, byte targetId, const byte* payload, byte payloadSize);
 void setRelayState(byte relayIndex, byte state);
 void setMotorEnable(byte state);
