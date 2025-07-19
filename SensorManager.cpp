@@ -210,8 +210,6 @@ void endSensorTimer(byte sensorId, unsigned long startTime, const char* descript
     // Serial.print(F("Time for ")); Serial.print(description); Serial.print(F(" (ID ")); Serial.print(sensorId); Serial.print(F("): "));
     // Serial.print(duration); Serial.println(F(" us"));
 
-    SensorTiming currentSensorTiming = {sensorId, startTime, endTime, duration};
-    sendTimingPacket(TIMING_SENSOR_OPERATION_ID, &currentSensorTiming);
 }
 
 void sendTimingPacket(byte timing_id, const SensorTiming* data_ptr) {
@@ -274,20 +272,39 @@ MotorRPMValue calculateMotorRPM(unsigned long currentPulseCount, unsigned long p
 
 
 // --- GENERIC Function to send any data block in binary format ---
-void sendBinaryPacket(byte start_byte, byte id, const void* data_ptr, size_t data_size, byte end_byte) {
-   if (data_ptr == nullptr || data_size == 0) return;
+// --- GENERIC Function to send any data block in binary format ---
+// Now includes an optional timing_data_ptr. If provided, timing data is appended to the payload.
+void sendBinaryPacket(byte start_byte, byte id, const void* data_ptr, size_t data_size, byte end_byte, const SensorTiming* timing_data_ptr = nullptr) {
 
-  Serial.write(start_byte);
-  Serial.write(id);
+  bool timing_presence = false;
+   // Ensure main data pointer is valid and has size
+  if (data_ptr == nullptr || data_size == 0) return;
+     size_t total_payload_size = data_size;
 
-  if (data_size > 255) {
-    // Serial.print(F("Warning: Packet ID ")); Serial.print(id); Serial.print(F(" data size (")); Serial.print(data_size); Serial.println(F(" bytes) exceeds 1-byte limit. Skipping packet."));
-    return;
+  if (timing_data_ptr != nullptr) {
+      total_payload_size += sizeof(SensorTiming); // Add size of timing data if present
+      timing_presence = true;
+  }
+
+  if (total_payload_size > 255) {
+    // Optional: Print a warning to serial if the packet is too large
+    // Serial.print(F("Warning: Packet ID ")); Serial.print(id); Serial.print(F(" total data size (")); Serial.print(total_payload_size); Serial.println(F(" bytes) exceeds 1-byte limit. Skipping packet."));
+    return; // Abort if packet is too large
    }
-  Serial.write((byte)data_size);
 
-  Serial.write((const byte*)data_ptr, (size_t)data_size);
-  Serial.write(end_byte);
+  Serial.write(start_byte); // Write the packet start byte
+  Serial.write(id);         // Write the packet ID (which will be the sensor ID for sensor data packets)
+
+  Serial.write((byte)total_payload_size); // Write the total size of the payload
+
+  Serial.write((const byte*)data_ptr, (size_t)data_size); // Write the original sensor data bytes
+
+  // If timing data is provided, append it to the packet
+  if (timing_presence == true) {
+      Serial.write((const byte*)timing_data_ptr, sizeof(SensorTiming)); // Write the appended timing data bytes
+  }
+
+  Serial.write(end_byte); // Write the packet end byte
 }
 
 

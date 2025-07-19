@@ -125,34 +125,38 @@ void loop() {
     } // End switch(currentRxState)
   } // End while(Serial.available())
 
+// --- Pressure Sensors (BATCH PROCESSING - Runs every loop iteration) ---
+pressureCategoryStartTime = micros(); // Assignment to global variable
 
-  // --- Pressure Sensors (BATCH PROCESSING - Runs every loop iteration) ---
-  pressureCategoryStartTime = micros(); // Assignment to global variable
+for(int i = 0; i < NUM_PRESSURE_SENSORS; i++){ // Use local 'i' for loop counter
+  unsigned long individualSensorStartTime = 0; // Local variable for individual sensor timing
 
-  for(int i = 0; i < NUM_PRESSURE_SENSORS; i++){ // Use local 'i' for loop counter
-    unsigned long individualSensorStartTime = 0; // Local variable for individual sensor timing
+  byte pressure_id = PRESSURE_ID_START + i; // Use 'i' for ID calculation
+  startSensorTimer(pressure_id, &individualSensorStartTime); // Pass ID and address of local var
 
-    byte pressure_id = PRESSURE_ID_START + i; // Use 'i' for ID calculation
-    startSensorTimer(pressure_id, &individualSensorStartTime); // Pass ID and address of local var
+  // Perform sensor reading and calculation
+  int raw_pressure_int = analogRead(PRESSURE_SENSOR_PINS[i]); // Use 'i' for pin access
+  PressureSensorValues pressureData = calculatePressureSensorValues(raw_pressure_int, i); // Use 'i' for index
 
-    // Perform sensor reading and calculation
-    int raw_pressure_int = analogRead(PRESSURE_SENSOR_PINS[i]); // Use 'i' for pin access
-    PressureSensorValues pressureData = calculatePressureSensorValues(raw_pressure_int, i); // Use 'i' for index
+  // End timer for the individual sensor operation.
+  // This function now *only* calculates the duration and stores it in pressureTimingData[i].
+  // It no longer sends its own separate timing packet.
+  endSensorTimer(pressure_id, individualSensorStartTime, "Pressure Sensor Block");
 
-    // Send data
-    sendBinaryPacket(PRESSURE_PACKET_START_BYTE, pressure_id, &pressureData, sizeof(pressureData), PRESSURE_PACKET_END_BYTE);
+  // Retrieve the stored timing data for this specific sensor.
+  // We get a pointer to the SensorTiming struct that 'endSensorTimer' just populated.
+  const SensorTiming* currentSensorTiming = &pressureTimingData[i];
 
-    // End timer for the individual sensor operation
-    endSensorTimer(pressure_id, individualSensorStartTime, "Pressure Sensor Block");
-  }
-  
-  // End category timer AFTER the loop finishes for the entire batch
-  categoryDuration = micros() - pressureCategoryStartTime; // Assignment only, no 'unsigned long'
-  categoryTiming = {PRESSURE_ID_START, pressureCategoryStartTime, micros(), categoryDuration}; // Assignment only, no 'SensorTiming'
-  sendTimingPacket(TIMING_CATEGORY_CYCLE_ID, &categoryTiming);
-  
-  // Update lastProcessTime for consistency, though it no longer gates this loop
-  lastPressureSensorProcessTime = currentMillis; 
+  // Send the pressure data in a binary packet, now including the timing data
+  // as the optional last argument. The 'id' parameter is the sensor's ID.
+  sendBinaryPacket(PRESSURE_PACKET_START_BYTE, pressure_id, &pressureData, sizeof(pressureData), PRESSURE_PACKET_END_BYTE, currentSensorTiming);
+}
+ 
+// End category timer AFTER the loop finishes for the entire batch
+unsigned long categoryDuration = micros() - pressureCategoryStartTime; // Calculate duration for the entire category batch
+categoryTiming = {PRESSURE_ID_START, pressureCategoryStartTime, micros(), categoryDuration}; // Store category timing data
+sendTimingPacket(TIMING_CATEGORY_CYCLE_ID, &categoryTiming); // Send the category timing packet separately  
+
 
 
   // --- Load Cells (BATCH PROCESSING - Runs every loop iteration) ---
@@ -171,13 +175,18 @@ void loop() {
       float raw_weight = currentScale.get_units(); // Might block briefly
       LoadCellValues loadCellData = calculateLoadCellValues(raw_weight);
 
-      // Send data
-      sendBinaryPacket(LOADCELL_PACKET_START_BYTE, loadCell_id, &loadCellData, sizeof(loadCellData), LOADCELL_PACKET_END_BYTE);
 
       // End timer for the individual sensor operation
       endSensorTimer(loadCell_id, individualSensorStartTime, "Load Cell Block (read+calc+send)");
+
+      // Send data
+      const SensorTiming* currentSensorTiming = &loadCellTimingData[i];
+
+      sendBinaryPacket(LOADCELL_PACKET_START_BYTE, loadCell_id, &loadCellData, sizeof(loadCellData), LOADCELL_PACKET_END_BYTE,currentSensorTiming);
+
     } else {
-        Serial.print(F("LoadCell ID ")); Serial.print(LOADCELL_ID_START + i); Serial.println(F(": Not ready.")); // Use 'i' for ID
+        // Serial.print(F("LoadCell ID ")); Serial.print(LOADCELL_ID_START + i); Serial.println(F(": Not ready.")); // Use 'i' for ID
+      //add error handeling here but later
     }
   }
 
@@ -214,10 +223,12 @@ void loop() {
     FlowMeterValues flowData = calculateFlowMeterValues(delta_pulse,elapsed_time);
     flow_pulseLast = currentPulseCount;
 
-    sendBinaryPacket(FLOW_PACKET_START_BYTE, flow_id, &flowData, sizeof(flowData), FLOW_PACKET_END_BYTE);
 
     // End timer for the flow sensor's operation
     endSensorTimer(flow_id, individualSensorStartTime, "Flow Sensor Block");
+    const SensorTiming* currentSensorTiming = &flowTimingData[i];
+
+    sendBinaryPacket(FLOW_PACKET_START_BYTE, flow_id, &flowData, sizeof(flowData), FLOW_PACKET_END_BYTE,SensorTiming);
 
     // End category timer (same as individual for single sensor)
     categoryDuration = micros() - flowCategoryStartTime; // Assignment only, no 'unsigned long'
