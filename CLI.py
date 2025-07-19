@@ -10,17 +10,52 @@ import queue
 import logging
 import os
 
-# Configure logging
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(message)s',
-    datefmt='%Y-%m-%d %H:%M:%S',
-    handlers=[
-        logging.FileHandler('Work.log', mode='a'),
-        logging.StreamHandler(sys.stdout)
-    ]
-)
+# --- ANSI Color Codes ---
+RESET = "\033[0m"
+BOLD = "\033[1m"
+RED = "\033[91m"
+GREEN = "\033[92m"
+YELLOW = "\033[93m"
+BLUE = "\033[94m"
+MAGENTA = "\033[95m"
+CYAN = "\033[96m"
+WHITE = "\033[97m"
+
+# --- Custom Colored Formatter for Console Output ---
+class ColoredFormatter(logging.Formatter):
+    FORMAT = "%(asctime)s - %(levelname)s - %(message)s"
+    
+    LOG_COLORS = {
+        logging.DEBUG: CYAN,
+        logging.INFO: BLUE, # General info messages, including sensor data
+        logging.WARNING: YELLOW,
+        logging.ERROR: RED,
+        logging.CRITICAL: BOLD + RED
+    }
+
+    def format(self, record):
+        log_fmt = self.FORMAT
+        # Apply color based on log level
+        color = self.LOG_COLORS.get(record.levelno, RESET)
+        formatter = logging.Formatter(color + log_fmt + RESET, datefmt='%Y-%m-%d %H:%M:%S')
+        return formatter.format(record)
+
+# --- Configure Logging ---
 logger = logging.getLogger()
+logger.setLevel(logging.INFO) # Set overall logging level
+
+# File handler (no colors)
+file_handler = logging.FileHandler('Work.log', mode='a')
+file_formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s', datefmt='%Y-%m-%d %H:%M:%S')
+file_handler.setFormatter(file_formatter)
+logger.addHandler(file_handler)
+
+# Stream handler (with colors for console)
+stream_handler = logging.StreamHandler(sys.stdout)
+stream_formatter = ColoredFormatter()
+stream_handler.setFormatter(stream_formatter)
+logger.addHandler(stream_handler)
+
 
 # Redirect stderr to logger
 class StdErrToLogger:
@@ -29,7 +64,7 @@ class StdErrToLogger:
 
     def write(self, message):
         if message.strip():
-            self.logger.error(message.strip())
+            self.logger.error(message.strip()) # Log stderr as ERROR level
 
     def flush(self):
         pass
@@ -367,8 +402,8 @@ class SerialPacketReceiver:
         # Clear screen for a dashboard-like view
         os.system('cls' if os.name == 'nt' else 'clear')
 
-        logger.info("-" * (max_header_len + 50))
-        logger.info(f"{'--- SENSOR DATA ---':<{max_header_len + 50}}")
+        logger.info(BOLD + BLUE + "-" * (max_header_len + 50) + RESET)
+        logger.info(BOLD + BLUE + f"{'--- SENSOR DATA ---':<{max_header_len + 50}}" + RESET)
 
         # Iterate through all known sensor IDs and print their data
         for sensor_id, packet_type in self.get_all_sensor_ids_and_types():
@@ -414,15 +449,15 @@ class SerialPacketReceiver:
                 logger.info(f"{header:<{max_header_len}} No data")
 
         # Print relay states (unchanged)
-        logger.info(f"\n{'--- RELAY STATES ---':<{max_header_len + 50}}")
+        logger.info(BOLD + BLUE + f"\n{'--- RELAY STATES ---':<{max_header_len + 50}}" + RESET)
         for relay_id in sorted(self.relay_states.keys()):
             state = self.relay_states[relay_id]
             header = f"[Relay ID {relay_id}]"
-            output = f"{header:<{max_header_len}} state: {'OPEN' if state else 'CLOSE'}"
+            output = f"{header:<{max_header_len}} state: {GREEN + 'OPEN' + RESET if state else RED + 'CLOSE' + RESET}"
             logger.info(output)
 
         # Print timing data (now primarily for category cycles)
-        logger.info(f"\n{'--- TIMING DATA (microseconds / seconds) ---':<{max_header_len + 50}}")
+        logger.info(BOLD + BLUE + f"\n{'--- TIMING DATA (microseconds / seconds) ---':<{max_header_len + 50}}" + RESET)
         # Filter for category timings and sort them
         sorted_category_timing_keys = sorted([k for k in self.latest_timing_data.keys() if k[0] == 'category'], key=lambda x: x[1])
 
@@ -444,8 +479,8 @@ class SerialPacketReceiver:
         
         # NEW: Print ephemeral status message
         if status_message:
-            logger.info(f"\n{'--- STATUS ---':<{max_header_len + 50}}")
-            logger.info(f"{status_message:<{max_header_len + 50}}")
+            logger.info(BOLD + MAGENTA + f"\n{'--- STATUS ---':<{max_header_len + 50}}" + RESET)
+            logger.info(BOLD + MAGENTA + f"{status_message:<{max_header_len + 50}}" + RESET)
 
 
 # --- (Rest of your code, including auto_detect_arduino_port, send_motor_control_command,
@@ -578,13 +613,13 @@ def command_input_thread(command_queue):
 
 def print_help_message(max_header_len):
     """Prints the available commands and their syntax."""
-    logger.info(f"\n{'--- COMMANDS ---':<{max_header_len + 50}}")
+    logger.info(BOLD + BLUE + f"\n{'--- COMMANDS ---':<{max_header_len + 50}}" + RESET)
     logger.info("  'm <throttle>'       : Set motor throttle (0-100%). E.g., 'm 50'")
     logger.info("  'r <id> <state>'     : Set relay state (id: 0-3, state: 0=OFF, 1=ON). E.g., 'r 0 1'")
     logger.info("  'u <interval>'       : Set sensor data update interval in seconds (e.g., 'u 0.5')")
     logger.info("  'h' or 'help'        : Display this help message.")
     logger.info("  'q'                  : Quit the application.")
-    logger.info("-" * (max_header_len + 50))
+    logger.info(BOLD + BLUE + "-" * (max_header_len + 50) + RESET)
 
 
 def main():
@@ -674,17 +709,18 @@ def main():
                         status_text = status_messages.get(status_code, f"UNKNOWN STATUS {status_code:02X}")
 
                         if status_code == STATUS_OK:
-                            status_message = f"Command successful: {status_text}"
-                            # NEW: Update CLI state ONLY on STATUS_OK
+                            status_message = GREEN + f"Command successful: {status_text}" + RESET
+                            # NEW: Update CLI state ONLY on STATUS_OK for relays
                             if pending_command['type'] == CMD_TYPE_SET_RELAY:
                                 receiver.relay_states[pending_command['target_id']] = pending_command['desired_state']
                         else:
-                            status_message = f"Command failed: {status_text}"
+                            status_message = RED + f"Command failed: {status_text}" + RESET
                         
                         pending_command = {'type': None, 'target_id': None, 'desired_state': None, 'sent_time': None} # Clear pending
                         status_message_expiry_time = current_time + STATUS_MESSAGE_DISPLAY_DURATION
                     else:
                         # Response received, but it doesn't match the pending command (e.g., an old response)
+                        # This could be logged at DEBUG level as it's not an error in itself
                         logger.debug(f"Received unmatched response: CmdType={response['original_cmd_type']:02X}, TargetID={response['original_target_id']}, Status={response['status_code']:02X}")
             except queue.Empty:
                 pass # No response in queue
@@ -692,7 +728,7 @@ def main():
             # --- Check for command timeout ---
             if pending_command['sent_time'] is not None and \
                current_time - pending_command['sent_time'] > COMMAND_ACK_TIMEOUT_SECONDS:
-                status_message = f"Command timed out for CmdType={pending_command['type']:02X}, TargetID={pending_command['target_id']}"
+                status_message = YELLOW + f"Command timed out for CmdType={pending_command['type']:02X}, TargetID={pending_command['target_id']}. No ACK received." + RESET
                 pending_command = {'type': None, 'target_id': None, 'desired_state': None, 'sent_time': None} # Clear pending
                 status_message_expiry_time = current_time + STATUS_MESSAGE_DISPLAY_DURATION
 
@@ -731,7 +767,7 @@ def main():
                             'sent_time': current_time
                         }
                         send_motor_control_command(ser, CMD_TARGET_MOTOR_ID, throttle, enable=1)
-                        status_message = f"Sending motor command: Throttle={throttle}%..."
+                        status_message = BOLD + CYAN + f"Sending motor command: Throttle={throttle}%..." + RESET
                         status_message_expiry_time = current_time + STATUS_MESSAGE_DISPLAY_DURATION
                     except ValueError:
                         logger.error("Invalid throttle. Use an integer number (0-100).")
@@ -747,7 +783,7 @@ def main():
                             'sent_time': current_time
                         }
                         send_relay_control_command(ser, relay_id, state) # Removed receiver argument
-                        status_message = f"Sending relay command: ID={relay_id}, State={'ON' if state else 'OFF'}..."
+                        status_message = BOLD + CYAN + f"Sending relay command: ID={relay_id}, State={'ON' if state else 'OFF'}..." + RESET
                         status_message_expiry_time = current_time + STATUS_MESSAGE_DISPLAY_DURATION
                     except ValueError:
                         logger.error("Invalid relay command. Use integers for relay_id (0-3) and state (0 or 1).")

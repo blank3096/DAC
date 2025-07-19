@@ -13,7 +13,7 @@
 const long ANALOG_REFERENCE_mV = 5000;
 const float PERCENT_SLOPE = 6.25;
 const float PERCENT_OFFSET = -25.0;
-
+volatile bool RElay_status_set_success = false; // for confirming relay state after sending commands
 
 // --- Pressure Sensor Constants ---
 const int PRESSURE_SENSOR_PINS[6] = {A0, A2, A4, A6, A8, A10};
@@ -319,7 +319,25 @@ void setRelayState(byte relayIndex, byte state) {
         // Serial.print(F("Error: Invalid relay state received: ")); Serial.println(state);
         return;
     }
-    digitalWrite(RELAY_PINS[relayIndex], (state == 1) ? LOW : HIGH);
+    int desiredPinLevel = (state == 1) ? LOW : HIGH; // Assuming LOW activates relay, HIGH deactivates
+
+    // Perform the digital write
+    digitalWrite(RELAY_PINS[relayIndex], desiredPinLevel);
+    
+    // --- PROBE THE STATE OF THE RELAY PIN ---
+    // Read back the actual state of the pin
+    int actualPinLevel = digitalRead(RELAY_PINS[relayIndex]);
+
+    // Compare desired state with actual state
+    if (actualPinLevel == desiredPinLevel) {
+        RElay_status_set_success = true; // Set to true if the state matches
+    } else {
+        RElay_status_set_success = false; // Set to false if there's a mismatch
+        // Optional: Debug print if the state didn't match
+        // Serial.print(F("WARN: Relay ")); Serial.print(relayIndex);
+        // Serial.print(F(" desired ")); Serial.print(desiredPinLevel);
+        // Serial.print(F(" but actual ")); Serial.println(actualPinLevel);
+    }    
     // Serial.print(F("Set Relay ")); Serial.print(relayIndex); Serial.print(F(" to ")); Serial.println((state == 1) ? F("ON") : F("OFF"));
 }
 
@@ -359,7 +377,12 @@ void handleCommand(byte commandType, byte targetId, const byte* payload, byte pa
         case CMD_TYPE_SET_RELAY:
             if (payloadSize == 1) {
                 if (targetId >= CMD_TARGET_RELAY_START && targetId < CMD_TARGET_RELAY_START + NUM_RELAYS) {
+
                     setRelayState(targetId - CMD_TARGET_RELAY_START, payload[0]);
+                    // first check the success state if yes send an ack package to the cli else send error
+                    
+
+                    // how to make sure that the statement above me worked ?
                 } else {
                     // Serial.print(F("Error: CMD_TYPE_SET_RELAY received with invalid target ID: ")); Serial.println(targetId);
                 }

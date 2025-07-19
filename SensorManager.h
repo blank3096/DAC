@@ -71,6 +71,7 @@ extern const byte MOTOR_RPM_PACKET_START_BYTE;
 extern const byte MOTOR_RPM_PACKET_END_BYTE;
 
 
+
 // --- Binary Protocol Constants (Incoming Commands) ---
 extern const byte COMMAND_START_BYTE;
 extern const byte COMMAND_END_BYTE;
@@ -78,6 +79,10 @@ extern const byte CMD_TYPE_SET_RELAY;
 extern const byte CMD_TYPE_SET_MOTOR;
 extern const byte CMD_TARGET_RELAY_START;
 extern const byte CMD_TARGET_MOTOR_ID;
+
+
+// --- global value for ACK
+extern volatile bool RElay_status_set_success;
 
 
 // Define ID ranges and number of IDs for each sensor type (Output Packets)
@@ -91,6 +96,11 @@ extern const byte TEMP_ID_START;
 extern const byte NUM_IDS_TEMP;
 extern const byte MOTOR_RPM_ID;
 extern const byte NUM_IDS_MOTOR_RPM;
+
+
+
+
+
 
 //-------Struct for sensor data ------
 struct PressureSensorValues { float pressure; };
