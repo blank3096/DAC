@@ -153,7 +153,7 @@ for(int i = 0; i < NUM_PRESSURE_SENSORS; i++){ // Use local 'i' for loop counter
 }
  
 // End category timer AFTER the loop finishes for the entire batch
-unsigned long categoryDuration = micros() - pressureCategoryStartTime; // Calculate duration for the entire category batch
+categoryDuration = micros() - pressureCategoryStartTime; // Calculate duration for the entire category batch
 categoryTiming = {PRESSURE_ID_START, pressureCategoryStartTime, micros(), categoryDuration}; // Store category timing data
 sendTimingPacket(TIMING_CATEGORY_CYCLE_ID, &categoryTiming); // Send the category timing packet separately  
 
@@ -226,9 +226,9 @@ sendTimingPacket(TIMING_CATEGORY_CYCLE_ID, &categoryTiming); // Send the categor
 
     // End timer for the flow sensor's operation
     endSensorTimer(flow_id, individualSensorStartTime, "Flow Sensor Block");
-    const SensorTiming* currentSensorTiming = &flowTimingData[i];
+    const SensorTiming* currentSensorTiming = &flowTimingData[0];
 
-    sendBinaryPacket(FLOW_PACKET_START_BYTE, flow_id, &flowData, sizeof(flowData), FLOW_PACKET_END_BYTE,SensorTiming);
+    sendBinaryPacket(FLOW_PACKET_START_BYTE, flow_id, &flowData, sizeof(flowData), FLOW_PACKET_END_BYTE,currentSensorTiming);
 
     // End category timer (same as individual for single sensor)
     categoryDuration = micros() - flowCategoryStartTime; // Assignment only, no 'unsigned long'
@@ -254,10 +254,14 @@ sendTimingPacket(TIMING_CATEGORY_CYCLE_ID, &categoryTiming); // Send the categor
     TemperatureSensorValues tempData = calculateTemperatureSensorValues(currentTempSensorIndex); // Cycles through 0, 1, 2, 3
 
     // Send data
-    sendBinaryPacket(TEMP_PACKET_START_BYTE, temp_id, &tempData, sizeof(tempData), TEMP_PACKET_END_BYTE);
 
     // End timer for the individual sensor operation
     endSensorTimer(temp_id, individualSensorStartTime, "Temp Sensor Block (incl. readCelsius wait)");
+
+    const SensorTiming* currentSensorTiming = &tempTimingData[currentTempSensorIndex];
+
+    // Send data
+    sendBinaryPacket(TEMP_PACKET_START_BYTE, temp_id, &tempData, sizeof(tempData), TEMP_PACKET_END_BYTE,currentSensorTiming);
 
     currentTempSensorIndex++; // Will now cycle through 0, 1, 2, 3
     if (currentTempSensorIndex >= NUM_TEMP_SENSORS) {
@@ -301,16 +305,21 @@ sendTimingPacket(TIMING_CATEGORY_CYCLE_ID, &categoryTiming); // Send the categor
       // 4. Calculate RPM
       MotorRPMValue mData = calculateMotorRPM(currentPulseCount, motor_last_pulse_count, interval_ms);
 
+      endSensorTimer(motor_id, individualMotorStartTime, "Motor RPM Block");
+
+      const SensorTiming* currentSensorTiming = &motorTimingData[0];
+
+      
       // 5. Send the data using the GENERIC sender
       sendBinaryPacket(
         MOTOR_RPM_PACKET_START_BYTE, // Start byte for motor rpm packets
         MOTOR_RPM_ID,                // Unique ID for this motor RPM (14)
         &mData,                      // Pointer to the calculated data struct
         sizeof(mData),               // Size of the data struct
-        MOTOR_RPM_PACKET_END_BYTE    // End byte for motor rpm packets
+        MOTOR_RPM_PACKET_END_BYTE,    // End byte for motor rpm packets
+        currentSensorTiming
       );
 
-      endSensorTimer(motor_id, individualMotorStartTime, "Motor RPM Block");
 
       // End category timer (same as individual for single sensor)
       categoryDuration = micros() - motorCategoryStartTime; // Assignment only, no 'unsigned long'
