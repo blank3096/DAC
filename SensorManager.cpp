@@ -1,4 +1,7 @@
 #include "SensorManager.h" // Include your own header first
+// No need to include <Arduino.h> again if SensorManager.h already includes it
+// and you're compiling as C++. If you get errors, you might need to add it back.
+// #include <Arduino.h>
 #include <math.h>          // Required for isnan()
 
 
@@ -168,12 +171,6 @@ unsigned long flowCategoryStartTime = 0;
 unsigned long motorCategoryStartTime = 0;
 
 
-// --- NEW: Command Response (ACK/NACK) Constants ---
-const byte RESPONSE_PACKET_START_BYTE = 0xF2; // Unique start byte for responses
-const byte RESPONSE_PACKET_END_BYTE = 0xF3;   // Unique end byte for responses
-const byte RESPONSE_ID_COMMAND_ACK = 0x01;    // ID for command acknowledgments/errors
-
-
 // --- Timing Helper Functions (Definitions) ---
 void startSensorTimer(byte sensorId, unsigned long* startTimeVar) {
     if (startTimeVar != nullptr) {
@@ -219,17 +216,6 @@ void endSensorTimer(byte sensorId, unsigned long startTime, const char* descript
 
 void sendTimingPacket(byte timing_id, const SensorTiming* data_ptr) {
     sendBinaryPacket(TIMING_PACKET_START_BYTE, timing_id, (const void*)data_ptr, sizeof(SensorTiming), TIMING_PACKET_END_BYTE);
-}
-
-
-// --- NEW: Command Response Sending Function ---
-void sendCommandResponse(byte originalCommandType, byte originalTargetId, byte statusCode) {
-    CommandResponsePacket responseData = {
-        originalCommandType,
-        originalTargetId,
-        statusCode
-    };
-    sendBinaryPacket(RESPONSE_PACKET_START_BYTE, RESPONSE_ID_COMMAND_ACK, &responseData, sizeof(responseData), RESPONSE_PACKET_END_BYTE);
 }
 
 
@@ -310,33 +296,28 @@ void sendBinaryPacket(byte start_byte, byte id, const void* data_ptr, size_t dat
 void setRelayState(byte relayIndex, byte state) {
     if (relayIndex >= NUM_RELAYS) {
         // Serial.print(F("Error: Invalid relay index received: ")); Serial.println(relayIndex);
-        sendCommandResponse(CMD_TYPE_SET_RELAY, relayIndex, STATUS_ERROR_INVALID_TARGET_ID); // Send NACK
         return;
     }
-    if (state > 1) { // Assuming state is 0 (OFF) or 1 (ON)
+    if (state > 1) {
         // Serial.print(F("Error: Invalid relay state received: ")); Serial.println(state);
-        sendCommandResponse(CMD_TYPE_SET_RELAY, relayIndex, STATUS_ERROR_INVALID_STATE_VALUE); // Send NACK
         return;
     }
     digitalWrite(RELAY_PINS[relayIndex], (state == 1) ? LOW : HIGH);
     // Serial.print(F("Set Relay ")); Serial.print(relayIndex); Serial.print(F(" to ")); Serial.println((state == 1) ? F("ON") : F("OFF"));
-    sendCommandResponse(CMD_TYPE_SET_RELAY, relayIndex, STATUS_OK); // Send ACK
 }
 
 void setMotorEnable(byte state) {
-    if (state > 1) { // Assuming state is 0 (OFF) or 1 (ON)
+    if (state > 1) {
         Serial.print(F("Error: Invalid motor enable state received: ")); Serial.println(state);
-        sendCommandResponse(CMD_TYPE_SET_MOTOR, CMD_TARGET_MOTOR_ID, STATUS_ERROR_INVALID_STATE_VALUE); // Send NACK
         return;
     }
     digitalWrite(MOTOR_ENABLE_PIN, (state == 1) ? HIGH : LOW);
     // Serial.print(F("Set Motor Enable to: ")); Serial.println((state == 1) ? F("ON") : F("OFF"));
-    // No ACK here, as throttle will also be set. ACK will be sent after both are processed.
 }
 
 void setMotorThrottle(byte throttlePercent) {
     if (throttlePercent > 100) {
-        throttlePercent = 100; // Clamp
+        throttlePercent = 100;
     }
 
     if (throttlePercent == 0) {
@@ -348,12 +329,10 @@ void setMotorThrottle(byte throttlePercent) {
         int dutyCycleValue = map(throttlePercent, 0, 100, 0, ICR4);
         OCR4A = dutyCycleValue;
     }
-    // No ACK here, as this is part of a larger motor command. ACK will be sent after both enable/throttle are processed.
 }
 
 
 // --- Main Command Handling Function ---
-// Processes a complete, valid command packet
 void handleCommand(byte commandType, byte targetId, const byte* payload, byte payloadSize) {
     // Serial.print(F("Received Command: Type=")); Serial.print(commandType);
     // Serial.print(F(", Target ID=")); Serial.print(targetId);
@@ -361,83 +340,36 @@ void handleCommand(byte commandType, byte targetId, const byte* payload, byte pa
 
     switch (commandType) {
         case CMD_TYPE_SET_RELAY:
-            // Expected payload size is 1 byte (state)
             if (payloadSize == 1) {
-                 // Target ID should be within the relay index range (0 to NUM_RELAYS-1)
                 if (targetId >= CMD_TARGET_RELAY_START && targetId < CMD_TARGET_RELAY_START + NUM_RELAYS) {
-                    setRelayState(targetId - CMD_TARGET_RELAY_START, payload[0]); // setRelayState now handles its own ACK/NACK
+                    setRelayState(targetId - CMD_TARGET_RELAY_START, payload[0]);
                 } else {
-                    // Invalid target ID for relay command
                     // Serial.print(F("Error: CMD_TYPE_SET_RELAY received with invalid target ID: ")); Serial.println(targetId);
-                    sendCommandResponse(CMD_TYPE_SET_RELAY, targetId, STATUS_ERROR_INVALID_TARGET_ID); // Send NACK
                 }
             } else {
-                // Invalid payload size for relay command
                 // Serial.print(F("Error: CMD_TYPE_SET_RELAY received with invalid payload size: ")); Serial.println(payloadSize);
-                sendCommandResponse(CMD_TYPE_SET_RELAY, targetId, STATUS_ERROR_INVALID_PAYLOAD_SIZE); // Send NACK
             }
             break;
 
         case CMD_TYPE_SET_MOTOR:
-            // Expected payload size is 2 bytes (enable, throttle)
              if (payloadSize == 2) {
-                 // Target ID should be the motor ID
                  if (targetId == CMD_TARGET_MOTOR_ID) {
                      byte enableState = payload[0];
                      byte throttlePercent = payload[1];
 
-                     // We'll assume these sub-functions return true/false or handle their own NACKs if they fail.
-                     // For simplicity here, we'll send a single ACK/NACK for the whole motor command after both are processed.
-                     bool enableSuccess = true;
-                     bool throttleSuccess = true;
-
-                     if (enableState > 1) { // Check enable state validity
-                         enableSuccess = false;
-                         // Serial.print(F("Error: Invalid motor enable state in payload: ")); Serial.println(enableState);
-                     } else {
-                         digitalWrite(MOTOR_ENABLE_PIN, (enableState == 1) ? HIGH : LOW);
-                     }
-
-                     if (throttlePercent > 100) { // Check throttle validity
-                         throttlePercent = 100; // Clamp
-                     }
-                     
-                     if (enableSuccess) { // Only set throttle if enable state was valid
-                         if (throttlePercent == 0) {
-                             TCCR4A &= ~(_BV(COM4A1) | _BV(COM4A0));
-                             PORTH &= ~_BV(3);
-                         } else {
-                             TCCR4A |= _BV(COM4A1);
-                             TCCR4A &= ~_BV(COM4A0);
-                             int dutyCycleValue = map(throttlePercent, 0, 100, 0, ICR4);
-                             OCR4A = dutyCycleValue;
-                         }
-                     } else {
-                         throttleSuccess = false; // If enable was bad, throttle effectively failed too
-                     }
-
-                     if (enableSuccess && throttleSuccess) {
-                         sendCommandResponse(CMD_TYPE_SET_MOTOR, targetId, STATUS_OK); // Send ACK for successful motor command
-                     } else {
-                         sendCommandResponse(CMD_TYPE_SET_MOTOR, targetId, STATUS_ERROR_INVALID_STATE_VALUE); // Send NACK for invalid motor state/throttle
-                     }
+                     setMotorEnable(enableState);
+                     setMotorThrottle(throttlePercent);
 
                  } else {
-                    // Invalid target ID for motor command
                     // Serial.print(F("Error: CMD_TYPE_SET_MOTOR received with invalid target ID: ")); Serial.println(targetId);
-                    sendCommandResponse(CMD_TYPE_SET_MOTOR, targetId, STATUS_ERROR_INVALID_TARGET_ID); // Send NACK
                  }
              } else {
-                // Invalid payload size for motor command
                 // Serial.print(F("Error: CMD_TYPE_SET_MOTOR received with invalid payload size: ")); Serial.println(payloadSize);
-                sendCommandResponse(CMD_TYPE_SET_MOTOR, targetId, STATUS_ERROR_INVALID_PAYLOAD_SIZE); // Send NACK
              }
              break;
 
         default:
-            // Received an unknown command type
             // Serial.print(F("Error: Received unknown command type: ")); Serial.println(commandType);
-            sendCommandResponse(commandType, targetId, STATUS_ERROR_INVALID_COMMAND_TYPE); // Send NACK
             break;
     }
 }
@@ -461,21 +393,20 @@ void setupLoadCells() {
     Serial.print(F(" CLK:")); Serial.println(LOADCELL_CLK_PINS[i]);
 
     scales[i].begin(LOADCELL_DOUT_PINS[i], LOADCELL_CLK_PINS[i]);
-    delay(100); // Give HX711 a moment
+    delay(100);
 
     scales[i].set_scale(LOADCELL_CALIBRATION_FACTORS[i]);
     scales[i].tare();
 
     Serial.print(F("Load Cell ")); Serial.print(i + 1); Serial.println(F(" tared."));
-    delay(50); // Small delay between taring
+    delay(50);
   }
   Serial.print(NUM_LOADCELL_SENSORS); Serial.println(F(" Load Cells setup complete."));
 }
 
 void setupFlowSensors() {
   Serial.println(F("Setting up Flow Sensor..."));
-  pinMode(FLOW_SENSOR_PIN_MEGA, INPUT); // Or INPUT_PULLUP if needed
-  // Pin 2 is External Interrupt 0 on Mega
+  pinMode(FLOW_SENSOR_PIN_MEGA, INPUT);
   attachInterrupt(digitalPinToInterrupt(FLOW_SENSOR_PIN_MEGA), flow_increase_pulse, RISING);
 
   flow_pulse = 0;
@@ -487,9 +418,6 @@ void setupFlowSensors() {
 
 void setupTemperatureSensors() {
   Serial.println(F("Setting up Temperature Sensors (MAX6675)..."));
-  // MAX6675 objects are defined globally, initialized with pins.
-  // delay(500); // Optional power-up delay
-
   currentTempSensorIndex = 0;
   lastTempProcessTime = millis();
 
@@ -500,7 +428,7 @@ void setupRelays() {
     Serial.println(F("Setting up Relays..."));
     for (int i = 0; i < NUM_RELAYS; i++) {
         pinMode(RELAY_PINS[i], OUTPUT);
-        digitalWrite(RELAY_PINS[i], LOW); // Ensure relays are off initially
+        digitalWrite(RELAY_PINS[i], LOW);
     }
     Serial.print(NUM_RELAYS); Serial.println(F(" Relays setup complete."));
 }
@@ -508,126 +436,83 @@ void setupRelays() {
 void setupDCMotor() {
     Serial.println(F("Setting up DC Motor..."));
 
-    // Configure Control Pins
     pinMode(MOTOR_ENABLE_PIN, OUTPUT);
-    pinMode(MOTOR_PWM_PIN, OUTPUT); // PWM pin needs to be an output
+    pinMode(MOTOR_PWM_PIN, OUTPUT);
 
-    // --- Setup PWM on Pin 6 using Timer4 for 10kHz frequency ---
-    // Pin 6 is OC4A, controlled by Timer4.
-    // Mode 14: Fast PWM, TOP=ICR4. WGM43:42:41:40 = 1110
-    // Non-inverting mode: COM4A1=1, COM4A0=0
-    // Prescaler 8: CS41=1
-    // Frequency = F_CPU / (Prescaler * (1 + TOP)) = 16,000,000 / (8 * (1 + 199)) = 10,000 Hz
+    TCCR4A = _BV(COM4A1) | _BV(WGM41);
+    TCCR4B = _BV(WGM43) | _BV(WGM42) | _BV(CS41);
+    ICR4 = 199;
+    OCR4A = 0;
 
-    TCCR4A = _BV(COM4A1) | _BV(WGM41); // COM4A1 non-inverting, WGM41 for Mode 14
-    TCCR4B = _BV(WGM43) | _BV(WGM42) | _BV(CS41); // WGM43, WGM42 for Mode 14, CS41 for prescaler 8
-    ICR4 = 199; // Sets the TOP value for the timer
-    OCR4A = 0;  // Set initial duty cycle to 0% (Pin 6)
+    pinMode(MOTOR_SPEED_SENSE_PIN, INPUT_PULLUP);
+    attachInterrupt(digitalPinToInterrupt(MOTOR_SPEED_SENSE_PIN), motor_count_pulse, RISING);
 
-    // --- Setup for RPM Reading ---
-    pinMode(MOTOR_SPEED_SENSE_PIN, INPUT_PULLUP); // Use internal pull-up resistor
-    // Pin 3 is External Interrupt 1 on Mega
-    attachInterrupt(digitalPinToInterrupt(MOTOR_SPEED_SENSE_PIN), motor_count_pulse, RISING); // Attach ISR
-
-    // Initialize motor speed sense state variables
     motor_pulse_count = 0;
     motor_last_pulse_count = 0;
     lastMotorCalcTime = millis();
 
     Serial.println(F("DC Motor setup complete. Driver Disabled, Motor Stopped."));
-    // To enable the motor and set a speed, use the control signal handling logic in loop().
 }
 
 
-// Add setup functions for other sensor types here
-/*
-void setupOtherSensors() { ... }
-*/
-
 // --- Flow sensor Interrupt Service Routine (ISR) ---
-extern "C" void flow_increase_pulse() {
+extern "C" void flow_increase_pulse() { // Defined with extern "C"
   flow_pulse++;
 }
 
 // --- Motor Speed Sense Interrupt Service Routine (ISR) ---
-extern "C" void motor_count_pulse() {
+extern "C" void motor_count_pulse() { // Defined with extern "C"
   motor_pulse_count++;
 }
 
 
 // --- Test Function Definitions ---
-
-// Function to run a test batch of all sensor processing blocks once
 void testTimingBatchAllTypes() {
   Serial.println(F("\n--- Running Timing Test: Batch All Types ---"));
-  // This function calls the logic for processing one item of each type back-to-back.
-  // It includes sensor reads that happen within the processing blocks (like analogRead, readCelsius, get_units).
-  // It bypasses the State Machine's timers for measurement purposes.
 
-  // Measure time for one Pressure sensor block execution (simulating a read)
-  int raw_p = analogRead(PRESSURE_SENSOR_PINS[0]); // Use sensor 0's pin for read
+  int raw_p = analogRead(PRESSURE_SENSOR_PINS[0]);
   unsigned long testStartTime;
-  startSensorTimer(PRESSURE_ID_START + 0, &testStartTime); // Use new timing
-  PressureSensorValues pData = calculatePressureSensorValues(raw_p, 0); // Calculate for sensor 0
-  sendBinaryPacket(PRESSURE_PACKET_START_BYTE, PRESSURE_ID_START, &pData, sizeof(pData), PRESSURE_PACKET_END_BYTE); // Send for sensor 0
+  startSensorTimer(PRESSURE_ID_START + 0, &testStartTime);
+  PressureSensorValues pData = calculatePressureSensorValues(raw_p, 0);
+  sendBinaryPacket(PRESSURE_PACKET_START_BYTE, PRESSURE_ID_START, &pData, sizeof(pData), PRESSURE_PACKET_END_BYTE);
   endSensorTimer(PRESSURE_ID_START + 0, testStartTime, "One Pressure Sensor Block");
 
 
-  // Measure time for one Load Cell block execution (simulating a read)
-  // testStartTime; // Reuse variable - no need to declare again
-  HX711& testScale = scales[0]; // Get Load Cell 0
-  float raw_weight = testScale.get_units(); // Read from Load Cell 0 (will wait for ready)
-  startSensorTimer(LOADCELL_ID_START + 0, &testStartTime); // Use new timing
+  HX711& testScale = scales[0];
+  float raw_weight = testScale.get_units();
+  startSensorTimer(LOADCELL_ID_START + 0, &testStartTime);
   LoadCellValues loadCellData = calculateLoadCellValues(raw_weight);
-  byte loadCell_id = LOADCELL_ID_START + 0; // ID for load cell 0
+  byte loadCell_id = LOADCELL_ID_START + 0;
   sendBinaryPacket(LOADCELL_PACKET_START_BYTE, loadCell_id, &loadCellData, sizeof(loadCellData), LOADCELL_PACKET_END_BYTE);
   endSensorTimer(LOADCELL_ID_START + 0, testStartTime, "One Load Cell Block (incl. get_units wait)");
 
 
-  // Measure time for one Flow Sensor block execution (simulating update)
-  // testStartTime; // Reuse variable - no need to declare again
-  long dummyCurrentPulse = flow_pulse + 100; // Assume 100 pulses happened since flow_pulse was 0 in setup
-  long dummyLastPulse = 0; // Since flow_pulseLast was 0 in setup
+  long dummyCurrentPulse = flow_pulse + 100;
+  long dummyLastPulse = 0;
   long delta_pulse = dummyCurrentPulse - dummyLastPulse;
-  unsigned long dummyElapsedTime = FLOW_CALCULATION_INTERVAL_MS; // Simulate an interval
+  unsigned long dummyElapsedTime = FLOW_CALCULATION_INTERVAL_MS;
   
-  startSensorTimer(FLOW_SENSOR_ID, &testStartTime); // Use new timing
+  startSensorTimer(FLOW_SENSOR_ID, &testStartTime);
   FlowMeterValues fData = calculateFlowMeterValues(delta_pulse, dummyElapsedTime);
   sendBinaryPacket(FLOW_PACKET_START_BYTE, FLOW_SENSOR_ID, &fData, sizeof(fData), FLOW_PACKET_END_BYTE);
   endSensorTimer(FLOW_SENSOR_ID, testStartTime, "One Flow Sensor Calc + Send");
 
 
-  // Measure time for one Temp Sensor block execution (simulating a read)
-  // testStartTime; // Reuse variable - no need to declare again
-  startSensorTimer(TEMP_ID_START + 0, &testStartTime); // Use new timing
-  TemperatureSensorValues tData = calculateTemperatureSensorValues(0); // Calculate for sensor 0
+  startSensorTimer(TEMP_ID_START + 0, &testStartTime);
+  TemperatureSensorValues tData = calculateTemperatureSensorValues(0);
   sendBinaryPacket(TEMP_PACKET_START_BYTE, TEMP_ID_START, &tData, sizeof(tData), TEMP_PACKET_END_BYTE);
   endSensorTimer(TEMP_ID_START + 0, testStartTime, "One Temp Sensor Block (incl. readCelsius wait)");
 
-  // Measure time for one Motor RPM block execution (simulating update)
-  // testStartTime; // Reuse variable - no need to declare again
-  startSensorTimer(MOTOR_RPM_ID, &testStartTime); // Use new timing function
+  startSensorTimer(MOTOR_RPM_ID, &testStartTime);
 
-  // unsigned long currentMillis_motor = micros(); // Use micros for start time consistency - not needed here, testStartTime already has it
-  unsigned long interval_ms = MOTOR_CALCULATION_INTERVAL_MS; // Dummy interval
-  unsigned long currentPulseCount_motor = motor_pulse_count + 50; // Assume 50 pulses
-  unsigned long motor_last_pulse_count_test = 0; // Assume 0 at start of interval
+  unsigned long interval_ms = MOTOR_CALCULATION_INTERVAL_MS;
+  unsigned long currentPulseCount_motor = motor_pulse_count + 50;
+  unsigned long motor_last_pulse_count_test = 0;
 
   MotorRPMValue mData = calculateMotorRPM(currentPulseCount_motor, motor_last_pulse_count_test, interval_ms);
   byte motor_id = MOTOR_RPM_ID;
   sendBinaryPacket(MOTOR_RPM_PACKET_START_BYTE, motor_id, &mData, sizeof(mData), MOTOR_RPM_PACKET_END_BYTE);
   endSensorTimer(MOTOR_RPM_ID, testStartTime, "Motor RPM Block");
-
-
-  // Add tests for other sensor types here
-  /*
-  OtherSensorValues dummyOtherData = { ... };
-  startTimer();
-  OtherSensorValues processedOtherData = calculateOtherSensorValues(dummyOtherData);
-  byte other_id = OTHER_ID_START + 0; // ID for other sensor 0
-  sendBinaryPacket(OTHER_PACKET_START_BYTE, other_id, &processedOtherData, sizeof(processedOtherData), OTHER_PACKET_END_BYTE);
-  printElapsedTime("One Other Sensor Block");
-  */
 
   Serial.println(F("--- Timing Test Batch Complete ---"));
 }
