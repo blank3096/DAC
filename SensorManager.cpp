@@ -13,7 +13,7 @@
 const long ANALOG_REFERENCE_mV = 5000;
 const float PERCENT_SLOPE = 6.25;
 const float PERCENT_OFFSET = -25.0;
-volatile bool RElay_status_set_success = false; // for confirming relay state after sending commands
+volatile byte RELAY_STATUS_BYTE = STATUS_OK; // Changed to volatile byte, initialized with STATUS_OK
 
 // --- Pressure Sensor Constants ---
 const int PRESSURE_SENSOR_PINS[6] = {A0, A2, A4, A6, A8, A10};
@@ -60,6 +60,12 @@ MAX6675 thermocouples[4] = { // Definition
 // --- Relay Constants ---
 const int RELAY_PINS[4] = {34, 36, 38, 40};
 const int NUM_RELAYS = sizeof(RELAY_PINS) / sizeof(RELAY_PINS[0]);
+// Removed individual RELAY_ID_BYTE constants as they are not used in the protocol
+// const byte RELAY1_ID_BYTE = 0xA1;
+// const byte RELAY2_ID_BYTE = 0xA2;
+// const byte RELAY3_ID_BYTE = 0xA3;
+// const byte RELAY4_ID_BYTE = 0xA4;
+
 
 
 // --- DC Motor Constants ---
@@ -88,8 +94,21 @@ const byte COMMAND_START_BYTE = 0xFC;
 const byte COMMAND_END_BYTE = 0xFD;
 const byte CMD_TYPE_SET_RELAY = 0x01;
 const byte CMD_TYPE_SET_MOTOR = 0x02;
-const byte CMD_TARGET_RELAY_START = 1;
+const byte CMD_TARGET_RELAY_START = 0;
 const byte CMD_TARGET_MOTOR_ID = 0;
+
+// --- Error handling ACK / NACK constants (Aligned with Python CLI's STATUS_ constants) ---
+const byte RESPONSE_PACKET_START_BYTE = 0xF2; // Matches ACK_START_BYTE from .h
+const byte RESPONSE_PACKET_END_BYTE = 0xF3;   // Matches ACK_END_BYTE from .h
+const byte RESPONSE_ID_COMMAND_ACK = 0x01;    // The ID byte for command responses
+
+const byte STATUS_OK                   = 0x00; // Matches SUCCESS_BYTE from .h
+const byte STATUS_ERROR_INVALID_TARGET_ID = 0xE1; // Matches ERROR_INVALID_TARGET_ID from .h
+const byte STATUS_ERROR_INVALID_STATE_VALUE = 0xE2; // Matches ERROR_INVALID_STATE_VALUE from .h
+const byte STATUS_ERROR_INVALID_PAYLOAD_SIZE = 0xE3; // Matches ERROR_INVALID_PAYLOAD_SIZE from .h
+const byte STATUS_ERROR_INVALID_COMMAND_TYPE = 0xE4; // Matches ERROR_INVALID_COMMAND_TYPE from .h
+const byte STATUS_ERROR_HARDWARE_FAILURE = 0xE5; // Matches ERROR_INVALID_COMMAND_EXC from .h
+const byte STATUS_ERROR_UNKNOWN_ISSUE          = 0xE6; // Matches ERROR_UNKNOWN_ISSUE from .h
 
 
 // Define ID ranges and number of IDs for each sensor type (Output Packets)
@@ -117,6 +136,7 @@ byte rxTargetId = 0;
 byte rxPayloadSize = 0;
 byte rxPayloadBytesRead = 0;
 
+// const byte MAX_COMMAND_PAYLOAD_SIZE = 16; // Definition (moved from .h to avoid duplication)
 byte rxPayloadBuffer[MAX_COMMAND_PAYLOAD_SIZE]; // Definition
 
 
@@ -145,6 +165,11 @@ unsigned long lastMotorCalcTime = 0;
 const unsigned long MOTOR_CALCULATION_INTERVAL_MS = 500;
 
 
+//--- global areas to store ACK and NACK INFO (REMOVED ErrorandStatus struct and its arrays)
+// ErrorandStatus RELAY_RESPONSE[MAX_CONTROLLED_RELAYS]; // REMOVED
+// ErrorandStatus MOTOR_RESPONSE[MAX_CONTROLLED_MOTORS]; // REMOVED
+
+
 // --- NEW: Global Arrays to Store Timing Data ---
 SensorTiming pressureTimingData[MAX_TIMED_PRESSURE_SENSORS]; // Definition
 SensorTiming loadCellTimingData[MAX_TIMED_LOADCELL_SENSORS]; // Definition
@@ -156,7 +181,7 @@ SensorTiming motorTimingData[MAX_TIMED_MOTOR_SENSORS];       // Definition
 // --- NEW: Global variable for category timing ---
 SensorTiming categoryTiming; // DEFINITION HERE (no 'extern')
 
-// --- NEW: Packet Constants for Timing Data ---
+// --- NEW: Packet Constants for Timing Data (already defined above, just for clarity) ---
 const byte TIMING_PACKET_START_BYTE = 0xDE;
 const byte TIMING_PACKET_END_BYTE = 0xAD;
 const byte TIMING_SENSOR_OPERATION_ID = 0x01;
@@ -193,7 +218,7 @@ void endSensorTimer(byte sensorId, unsigned long startTime, const char* descript
             loadCellTimingData[index] = {sensorId, startTime, endTime, duration};
         }
     } else if (sensorId == FLOW_SENSOR_ID) {
-        if (0 < MAX_TIMED_FLOW_SENSORS) {
+        if (0 < MAX_TIMED_FLOW_SENSORS) { // This condition is always true if MAX_TIMED_FLOW_SENSORS is > 0
             flowTimingData[0] = {sensorId, startTime, endTime, duration};
         }
     } else if (sensorId >= TEMP_ID_START && sensorId < TEMP_ID_START + NUM_IDS_TEMP) {
@@ -202,7 +227,7 @@ void endSensorTimer(byte sensorId, unsigned long startTime, const char* descript
             tempTimingData[index] = {sensorId, startTime, endTime, duration};
         }
     } else if (sensorId == MOTOR_RPM_ID) {
-        if (0 < MAX_TIMED_MOTOR_SENSORS) {
+        if (0 < MAX_TIMED_MOTOR_SENSORS) { // This condition is always true if MAX_TIMED_MOTOR_SENSORS is > 0
             motorTimingData[0] = {sensorId, startTime, endTime, duration};
         }
     }
@@ -272,7 +297,6 @@ MotorRPMValue calculateMotorRPM(unsigned long currentPulseCount, unsigned long p
 
 
 // --- GENERIC Function to send any data block in binary format ---
-// --- GENERIC Function to send any data block in binary format ---
 // Now includes an optional timing_data_ptr. If provided, timing data is appended to the payload.
 void sendBinaryPacket(byte start_byte, byte id, const void* data_ptr, size_t data_size, byte end_byte, const SensorTiming* timing_data_ptr = nullptr) {
 
@@ -307,21 +331,45 @@ void sendBinaryPacket(byte start_byte, byte id, const void* data_ptr, size_t dat
   Serial.write(end_byte); // Write the packet end byte
 }
 
+// --- Dedicated function to send ACK/NACK responses (REQUIRED for Python CLI) ---
+// This function creates the specific 3-byte payload expected by the Python CLI
+// (originalCmdType, originalTargetId, statusCode)
+void sendResponsePacket(byte originalCmdType, byte originalTargetId, byte statusCode) {
+  byte payload[3];
+  payload[0] = originalCmdType;
+  payload[1] = originalTargetId;
+  payload[2] = statusCode;
+
+  Serial.write(RESPONSE_PACKET_START_BYTE);
+  Serial.write(RESPONSE_ID_COMMAND_ACK); // This is the fixed ID for command responses
+  Serial.write(sizeof(payload));        // Payload size (always 3)
+  Serial.write(payload, sizeof(payload));
+  Serial.write(RESPONSE_PACKET_END_BYTE);
+
+  // Optional: For debugging on Arduino Serial Monitor (disable in production)
+  // Serial.print(F("Sent ACK/NACK: CmdType=0x")); Serial.print(originalCmdType, HEX);
+  // Serial.print(F(", TargetID=")); Serial.print(originalTargetId);
+  // Serial.print(F(", Status=0x")); Serial.println(statusCode, HEX);
+}
+
 
 // --- Command Handling Helper Functions ---
 
 void setRelayState(byte relayIndex, byte state) {
-    if (relayIndex >= NUM_RELAYS) {
-        // Serial.print(F("Error: Invalid relay index received: ")); Serial.println(relayIndex);
-        return;
-    }
-    if (state > 1) {
-        // Serial.print(F("Error: Invalid relay state received: ")); Serial.println(state);
-        return;
-    }
-    int desiredPinLevel = (state == 1) ? LOW : HIGH; // Assuming LOW activates relay, HIGH deactivates
+    // Reset the success flag before attempting the operation
+    RELAY_STATUS_BYTE = STATUS_ERROR_HARDWARE_FAILURE; // Default to failure, set to OK on success
 
-    // Perform the digital write
+    // No need for index/state validation here, handleCommand already does it
+    // but we keep it minimal for safety if called elsewhere.
+    if (relayIndex >= NUM_RELAYS || state > 1) {
+        return; // Invalid parameters, flag remains failure
+    }
+
+    // Determine the actual HIGH/LOW value for digitalWrite
+    // IMPORTANT: Adjust LOW/HIGH based on whether your relay module is active LOW or active HIGH
+    // For active LOW modules (common): state 1 (ON) -> LOW signal, state 0 (OFF) -> HIGH signal
+    int desiredPinLevel = (state == 1) ? LOW : HIGH; 
+
     digitalWrite(RELAY_PINS[relayIndex], desiredPinLevel);
     
     // --- PROBE THE STATE OF THE RELAY PIN ---
@@ -330,9 +378,9 @@ void setRelayState(byte relayIndex, byte state) {
 
     // Compare desired state with actual state
     if (actualPinLevel == desiredPinLevel) {
-        RElay_status_set_success = true; // Set to true if the state matches
+        RELAY_STATUS_BYTE = STATUS_OK; // Set to OK if the state matches
     } else {
-        RElay_status_set_success = false; // Set to false if there's a mismatch
+        RELAY_STATUS_BYTE = STATUS_ERROR_HARDWARE_FAILURE; // Set to hardware failure if there's a mismatch
         // Optional: Debug print if the state didn't match
         // Serial.print(F("WARN: Relay ")); Serial.print(relayIndex);
         // Serial.print(F(" desired ")); Serial.print(desiredPinLevel);
@@ -373,21 +421,44 @@ void handleCommand(byte commandType, byte targetId, const byte* payload, byte pa
     // Serial.print(F(", Target ID=")); Serial.print(targetId);
     // Serial.print(F(", Payload Size=")); Serial.println(payloadSize);
 
+    byte statusCode = STATUS_OK; // Initialize status code to OK. It will be updated if an error occurs.
+
     switch (commandType) {
         case CMD_TYPE_SET_RELAY:
+            // Check if the payload size is correct for a SET_RELAY command (1 byte for state)
             if (payloadSize == 1) {
+                // Check if the targetId is within the valid range for relays
                 if (targetId >= CMD_TARGET_RELAY_START && targetId < CMD_TARGET_RELAY_START + NUM_RELAYS) {
+                    byte state = payload[0]; // Extract the desired state (0 or 1)
 
-                    setRelayState(targetId - CMD_TARGET_RELAY_START, payload[0]);
-                    // first check the success state if yes send an ack package to the cli else send error
-                    
+                    // Validate the state value (must be 0 or 1)
+                    if (state > 1) { 
+                        statusCode = STATUS_ERROR_INVALID_STATE_VALUE;
+                        // Optional: Serial.println(F("Error: Invalid relay state value."));
+                    } else {
+                        // Call the function to set the relay state and perform hardware verification.
+                        // setRelayState will update the global RELAY_STATUS_BYTE flag.
+                        setRelayState(targetId, state); // Pass targetId directly as it's 0-indexed
 
-                    // how to make sure that the statement above me worked ?
+                        // Check the result of the setRelayState operation via the global flag.
+                        if (RELAY_STATUS_BYTE == STATUS_OK) { 
+                            statusCode = STATUS_OK; // Relay state was successfully set and verified.
+                            // Optional: Serial.println(F("Relay command successful."));
+                        } else {
+                            // If RELAY_STATUS_BYTE is not STATUS_OK, it indicates a hardware failure
+                            statusCode = STATUS_ERROR_HARDWARE_FAILURE; 
+                            // Optional: Serial.println(F("Error: Relay hardware verification failed."));
+                        }
+                    }
                 } else {
-                    // Serial.print(F("Error: CMD_TYPE_SET_RELAY received with invalid target ID: ")); Serial.println(targetId);
+                    // Invalid target ID for a SET_RELAY command.
+                    statusCode = STATUS_ERROR_INVALID_TARGET_ID; 
+                    // Optional: Serial.print(F("Error: CMD_TYPE_SET_RELAY received with invalid target ID: ")); Serial.println(targetId);
                 }
             } else {
-                // Serial.print(F("Error: CMD_TYPE_SET_RELAY received with invalid payload size: ")); Serial.println(payloadSize);
+                // Invalid payload size for a SET_RELAY command.
+                statusCode = STATUS_ERROR_INVALID_PAYLOAD_SIZE; 
+                // Optional: Serial.print(F("Error: CMD_TYPE_SET_RELAY received with invalid payload size: ")); Serial.println(payloadSize);
             }
             break;
 
@@ -397,21 +468,41 @@ void handleCommand(byte commandType, byte targetId, const byte* payload, byte pa
                      byte enableState = payload[0];
                      byte throttlePercent = payload[1];
 
-                     setMotorEnable(enableState);
-                     setMotorThrottle(throttlePercent);
+                     // Validate motor enable and throttle values.
+                     if (enableState > 1 || throttlePercent > 100) {
+                         statusCode = STATUS_ERROR_INVALID_STATE_VALUE;
+                         // Optional: Serial.println(F("Error: Invalid motor enable or throttle value."));
+                     } else {
+                         setMotorEnable(enableState);
+                         setMotorThrottle(throttlePercent);
+                         // For motor, without direct hardware read-back (like an encoder),
+                         // we assume success if the command was syntactically valid and executed.
+                         statusCode = STATUS_OK;
+                         // Optional: Serial.println(F("Motor command successful."));
+                     }
 
                  } else {
-                    // Serial.print(F("Error: CMD_TYPE_SET_MOTOR received with invalid target ID: ")); Serial.println(targetId);
+                    // Invalid target ID for a SET_MOTOR command.
+                    statusCode = STATUS_ERROR_INVALID_TARGET_ID;
+                    // Optional: Serial.print(F("Error: CMD_TYPE_SET_MOTOR received with invalid target ID: ")); Serial.println(targetId);
                  }
              } else {
-                // Serial.print(F("Error: CMD_TYPE_SET_MOTOR received with invalid payload size: ")); Serial.println(payloadSize);
+                // Invalid payload size for a SET_MOTOR command.
+                statusCode = STATUS_ERROR_INVALID_PAYLOAD_SIZE;
+                // Optional: Serial.print(F("Error: CMD_TYPE_SET_MOTOR received with invalid payload size: ")); Serial.println(payloadSize);
              }
              break;
 
         default:
-            // Serial.print(F("Error: Received unknown command type: ")); Serial.println(commandType);
+            // Received an unknown command type.
+            statusCode = STATUS_ERROR_INVALID_COMMAND_TYPE;
+            // Optional: Serial.print(F("Error: Received unknown command type: ")); Serial.println(commandType);
             break;
     }
+    
+    // Always send a response packet back to the Python CLI after processing any command.
+    // This ensures the Python CLI receives an ACK (OK) or NACK (Error) for every command sent.
+    sendResponsePacket(commandType, targetId, statusCode);
 }
 
 
@@ -506,53 +597,53 @@ extern "C" void motor_count_pulse() { // Defined with extern "C"
 }
 
 
-// --- Test Function Definitions ---
-void testTimingBatchAllTypes() {
-  Serial.println(F("\n--- Running Timing Test: Batch All Types ---"));
+// // --- Test Function Definitions ---
+// void testTimingBatchAllTypes() {
+//   Serial.println(F("\n--- Running Timing Test: Batch All Types ---"));
 
-  int raw_p = analogRead(PRESSURE_SENSOR_PINS[0]);
-  unsigned long testStartTime;
-  startSensorTimer(PRESSURE_ID_START + 0, &testStartTime);
-  PressureSensorValues pData = calculatePressureSensorValues(raw_p, 0);
-  sendBinaryPacket(PRESSURE_PACKET_START_BYTE, PRESSURE_ID_START, &pData, sizeof(pData), PRESSURE_PACKET_END_BYTE);
-  endSensorTimer(PRESSURE_ID_START + 0, testStartTime, "One Pressure Sensor Block");
-
-
-  HX711& testScale = scales[0];
-  float raw_weight = testScale.get_units();
-  startSensorTimer(LOADCELL_ID_START + 0, &testStartTime);
-  LoadCellValues loadCellData = calculateLoadCellValues(raw_weight);
-  byte loadCell_id = LOADCELL_ID_START + 0;
-  sendBinaryPacket(LOADCELL_PACKET_START_BYTE, loadCell_id, &loadCellData, sizeof(loadCellData), LOADCELL_PACKET_END_BYTE);
-  endSensorTimer(LOADCELL_ID_START + 0, testStartTime, "One Load Cell Block (incl. get_units wait)");
+//   int raw_p = analogRead(PRESSURE_SENSOR_PINS[0]);
+//   unsigned long testStartTime;
+//   startSensorTimer(PRESSURE_ID_START + 0, &testStartTime);
+//   PressureSensorValues pData = calculatePressureSensorValues(raw_p, 0);
+//   sendBinaryPacket(PRESSURE_PACKET_START_BYTE, PRESSURE_ID_START, &pData, sizeof(pData), PRESSURE_PACKET_END_BYTE);
+//   endSensorTimer(PRESSURE_ID_START + 0, testStartTime, "One Pressure Sensor Block");
 
 
-  long dummyCurrentPulse = flow_pulse + 100;
-  long dummyLastPulse = 0;
-  long delta_pulse = dummyCurrentPulse - dummyLastPulse;
-  unsigned long dummyElapsedTime = FLOW_CALCULATION_INTERVAL_MS;
+//   HX711& testScale = scales[0];
+//   float raw_weight = testScale.get_units();
+//   startSensorTimer(LOADCELL_ID_START + 0, &testStartTime);
+//   LoadCellValues loadCellData = calculateLoadCellValues(raw_weight);
+//   byte loadCell_id = LOADCELL_ID_START + 0;
+//   sendBinaryPacket(LOADCELL_PACKET_START_BYTE, loadCell_id, &loadCellData, sizeof(loadCellData), LOADCELL_PACKET_END_BYTE);
+//   endSensorTimer(LOADCELL_ID_START + 0, testStartTime, "One Load Cell Block (incl. get_units wait)");
+
+
+//   long dummyCurrentPulse = flow_pulse + 100;
+//   long dummyLastPulse = 0;
+//   long delta_pulse = dummyCurrentPulse - dummyLastPulse;
+//   unsigned long dummyElapsedTime = FLOW_CALCULATION_INTERVAL_MS;
   
-  startSensorTimer(FLOW_SENSOR_ID, &testStartTime);
-  FlowMeterValues fData = calculateFlowMeterValues(delta_pulse, dummyElapsedTime);
-  sendBinaryPacket(FLOW_PACKET_START_BYTE, FLOW_SENSOR_ID, &fData, sizeof(fData), FLOW_PACKET_END_BYTE);
-  endSensorTimer(FLOW_SENSOR_ID, testStartTime, "One Flow Sensor Calc + Send");
+//   startSensorTimer(FLOW_SENSOR_ID, &testStartTime);
+//   FlowMeterValues fData = calculateFlowMeterValues(delta_pulse, dummyElapsedTime);
+//   sendBinaryPacket(FLOW_PACKET_START_BYTE, FLOW_SENSOR_ID, &fData, sizeof(fData), FLOW_PACKET_END_BYTE);
+//   endSensorTimer(FLOW_SENSOR_ID, testStartTime, "One Flow Sensor Calc + Send");
 
 
-  startSensorTimer(TEMP_ID_START + 0, &testStartTime);
-  TemperatureSensorValues tData = calculateTemperatureSensorValues(0);
-  sendBinaryPacket(TEMP_PACKET_START_BYTE, TEMP_ID_START, &tData, sizeof(tData), TEMP_PACKET_END_BYTE);
-  endSensorTimer(TEMP_ID_START + 0, testStartTime, "One Temp Sensor Block (incl. readCelsius wait)");
+//   startSensorTimer(TEMP_ID_START + 0, &testStartTime);
+//   TemperatureSensorValues tData = calculateTemperatureSensorValues(0);
+//   sendBinaryPacket(TEMP_PACKET_START_BYTE, TEMP_ID_START, &tData, sizeof(tData), TEMP_PACKET_END_BYTE);
+//   endSensorTimer(TEMP_ID_START + 0, testStartTime, "One Temp Sensor Block (incl. readCelsius wait)");
 
-  startSensorTimer(MOTOR_RPM_ID, &testStartTime);
+//   startSensorTimer(MOTOR_RPM_ID, &testStartTime);
 
-  unsigned long interval_ms = MOTOR_CALCULATION_INTERVAL_MS;
-  unsigned long currentPulseCount_motor = motor_pulse_count + 50;
-  unsigned long motor_last_pulse_count_test = 0;
+//   unsigned long interval_ms = MOTOR_CALCULATION_INTERVAL_MS;
+//   unsigned long currentPulseCount_motor = motor_pulse_count + 50;
+//   unsigned long motor_last_pulse_count_test = 0;
 
-  MotorRPMValue mData = calculateMotorRPM(currentPulseCount_motor, motor_last_pulse_count_test, interval_ms);
-  byte motor_id = MOTOR_RPM_ID;
-  sendBinaryPacket(MOTOR_RPM_PACKET_START_BYTE, motor_id, &mData, sizeof(mData), MOTOR_RPM_PACKET_END_BYTE);
-  endSensorTimer(MOTOR_RPM_ID, testStartTime, "Motor RPM Block");
+//   MotorRPMValue mData = calculateMotorRPM(currentPulseCount_motor, motor_last_pulse_count_test, interval_ms);
+//   byte motor_id = MOTOR_RPM_ID;
+//   sendBinaryPacket(MOTOR_RPM_PACKET_START_BYTE, motor_id, &mData, sizeof(mData), MOTOR_RPM_PACKET_END_BYTE);
+//   endSensorTimer(MOTOR_RPM_ID, testStartTime, "Motor RPM Block");
 
-  Serial.println(F("--- Timing Test Batch Complete ---"));
-}
+//   Serial.println(F("--- Timing Test Batch Complete ---"));
+// }

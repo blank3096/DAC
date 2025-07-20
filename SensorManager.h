@@ -36,7 +36,7 @@ extern const int FLOW_PPL;
 
 
 // --- Temperature Sensor (MAX6675) Constants ---
-extern const int THERMO_SHARED_CLK_PIN; // D22 - Shared Clock
+extern const int THERMO_SHARED_CLK_PIN; // D27 - Shared Clock
 extern const int THERMO_SHARED_DO_PIN;  // D50 - Shared Data Out (MISO)
 extern const int THERMO_CS_PINS[4];
 extern const int NUM_TEMP_SENSORS;
@@ -71,7 +71,6 @@ extern const byte MOTOR_RPM_PACKET_START_BYTE;
 extern const byte MOTOR_RPM_PACKET_END_BYTE;
 
 
-
 // --- Binary Protocol Constants (Incoming Commands) ---
 extern const byte COMMAND_START_BYTE;
 extern const byte COMMAND_END_BYTE;
@@ -80,9 +79,23 @@ extern const byte CMD_TYPE_SET_MOTOR;
 extern const byte CMD_TARGET_RELAY_START;
 extern const byte CMD_TARGET_MOTOR_ID;
 
+// --- ACK / NACK Constants (MUST MATCH PYTHON CLI's EXPECTATIONS) ---
+extern const byte RESPONSE_PACKET_START_BYTE;
+extern const byte RESPONSE_PACKET_END_BYTE;
+extern const byte RESPONSE_ID_COMMAND_ACK;
 
-// --- global value for ACK
-extern volatile bool RElay_status_set_success;
+// Status Codes (MUST MATCH PYTHON CLI's EXPECTATIONS)
+extern const byte STATUS_OK;
+extern const byte STATUS_ERROR_INVALID_TARGET_ID;
+extern const byte STATUS_ERROR_INVALID_STATE_VALUE;
+extern const byte STATUS_ERROR_INVALID_PAYLOAD_SIZE;
+extern const byte STATUS_ERROR_INVALID_COMMAND_TYPE;
+extern const byte STATUS_ERROR_HARDWARE_FAILURE; // Corresponds to your ERROR_INVALID_COMMAND_EXC
+extern const byte STATUS_ERROR_UNKNOWN_ISSUE;
+
+
+// --- global value for ACK (CHANGED TO BYTE TYPE) ---
+extern volatile byte RELAY_STATUS_BYTE;
 
 
 // Define ID ranges and number of IDs for each sensor type (Output Packets)
@@ -96,10 +109,6 @@ extern const byte TEMP_ID_START;
 extern const byte NUM_IDS_TEMP;
 extern const byte MOTOR_RPM_ID;
 extern const byte NUM_IDS_MOTOR_RPM;
-
-
-
-
 
 
 //-------Struct for sensor data ------
@@ -116,6 +125,14 @@ struct SensorTiming {
     unsigned long end_micros;
     unsigned long duration_micros;
 };
+
+// --- REMOVED: ErrorandStatus struct and its global arrays ---
+// These are no longer needed as the ACK/NACK payload is a fixed 3-byte sequence.
+// const byte MAX_CONTROLLED_RELAYS = 4;
+// const byte MAX_CONTROLLED_MOTORS = 1;
+// extern ErrorandStatus RELAY_RESPONSE[MAX_CONTROLLED_RELAYS];
+// extern ErrorandStatus MOTOR_RESPONSE[MAX_CONTROLLED_MOTORS];
+
 
 // --- NEW: Global Arrays to Store Timing Data ---
 const byte MAX_TIMED_PRESSURE_SENSORS = 6;
@@ -143,12 +160,12 @@ extern const byte TIMING_CATEGORY_CYCLE_ID;
 
 // --- Serial Receive State Machine Variables and Constants ---
 enum RxState {
-  RX_WAITING_FOR_START,
-  RX_READING_TYPE,
-  RX_READING_TARGET_ID,
-  RX_READING_SIZE,
-  RX_READING_PAYLOAD,
-  RX_READING_END
+    RX_WAITING_FOR_START,
+    RX_READING_TYPE,
+    RX_READING_TARGET_ID,
+    RX_READING_SIZE,
+    RX_READING_PAYLOAD,
+    RX_READING_END
 };
 
 extern RxState currentRxState; // Declared as extern
@@ -158,6 +175,7 @@ extern byte rxTargetId;
 extern byte rxPayloadSize;
 extern byte rxPayloadBytesRead;
 
+// Max command payload size (already defined in .cpp, just for clarity)
 const byte MAX_COMMAND_PAYLOAD_SIZE = 16;
 extern byte rxPayloadBuffer[MAX_COMMAND_PAYLOAD_SIZE]; // Declared as extern
 
@@ -207,7 +225,12 @@ FlowMeterValues calculateFlowMeterValues(long delta_pulse, unsigned long elapsed
 TemperatureSensorValues calculateTemperatureSensorValues(int index);
 MotorRPMValue calculateMotorRPM(unsigned long currentPulseCount, unsigned long previousPulseCount, unsigned long interval_ms);
 
+// --- NEW: Dedicated function for sending ACK/NACK responses ---
+void sendResponsePacket(byte originalCmdType, byte originalTargetId, byte statusCode);
+
+// Your existing sendBinaryPacket, but note it's not suitable for ACK/NACK directly
 void sendBinaryPacket(byte start_byte, byte id, const void* data_ptr, size_t data_size, byte end_byte, const SensorTiming* timing_data_ptr = nullptr);
+
 void handleCommand(byte commandType, byte targetId, const byte* payload, byte payloadSize);
 void setRelayState(byte relayIndex, byte state);
 void setMotorEnable(byte state);

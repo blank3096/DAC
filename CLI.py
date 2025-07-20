@@ -42,18 +42,19 @@ class ColoredFormatter(logging.Formatter):
 
 # --- Configure Logging ---
 logger = logging.getLogger()
-logger.setLevel(logging.INFO) # Set overall logging level
+logger.setLevel(logging.INFO) # Set overall logging level (e.g., INFO to see all packet logs)
 
-# File handler (no colors)
+# File handler (no colors) - Logs ALL info/debug messages
 file_handler = logging.FileHandler('Work.log', mode='a')
 file_formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s', datefmt='%Y-%m-%d %H:%M:%S')
 file_handler.setFormatter(file_formatter)
 logger.addHandler(file_handler)
 
-# Stream handler (with colors for console)
+# Stream handler (with colors for console) - Logs INFO, WARNING, ERROR, CRITICAL
 stream_handler = logging.StreamHandler(sys.stdout)
 stream_formatter = ColoredFormatter()
 stream_handler.setFormatter(stream_formatter)
+stream_handler.setLevel(logging.INFO) # Set stream handler to INFO
 logger.addHandler(stream_handler)
 
 
@@ -117,10 +118,12 @@ RESPONSE_ID_COMMAND_ACK = 0x01 # ID for command acknowledgments/errors
 
 # Status Codes (matched to Arduino)
 STATUS_OK = 0x00
-STATUS_ERROR_INVALID_TARGET_ID = 0xE1
-STATUS_ERROR_INVALID_STATE_VALUE = 0xE2
-STATUS_ERROR_INVALID_PAYLOAD_SIZE = 0xE3
-STATUS_ERROR_INVALID_COMMAND_TYPE = 0xE4
+STATUS_ERROR_INVALID_TARGET_ID      = 0xE1
+STATUS_ERROR_INVALID_STATE_VALUE    = 0xE2
+STATUS_ERROR_INVALID_PAYLOAD_SIZE   = 0xE3
+STATUS_ERROR_INVALID_COMMAND_TYPE   = 0xE4
+STATUS_ERROR_HARDWARE_FAILURE       = 0xE5 # Corresponds to Arduino's ERROR_INVALID_COMMAND_EXC
+STATUS_ERROR_UNKNOWN_ISSUE          = 0xE6 # Corresponds to Arduino's ERROR_UNKNOWN_ISSUE
 
 
 # Define the structure of the appended SensorTiming data
@@ -301,10 +304,24 @@ class SerialPacketReceiver:
                     'duration': duration_micros,
                     'source_id': timing_sensor_id_in_payload # Store the ID of the category's first sensor
                 }
-                logger.debug(f"Received Category Timing Packet: Type={timing_type_id:02X}, CategoryID={timing_sensor_id_in_payload}, Duration={duration_micros} us")
+                # Log all received timing packets immediately
+                logger.info(f"[RAW TIMING] Type={timing_type_id:02X}, CategoryID={timing_sensor_id_in_payload}, Duration={duration_micros} us")
 
             elif packet_info['name'] == 'CommandResponse': # Handle Command Response packets
                 original_cmd_type, original_target_id, status_code = all_values
+                # Log all received command responses immediately
+                status_messages = {
+                    STATUS_OK: "OK",
+                    STATUS_ERROR_INVALID_TARGET_ID: "Invalid Target ID",
+                    STATUS_ERROR_INVALID_STATE_VALUE: "Invalid State Value",
+                    STATUS_ERROR_INVALID_PAYLOAD_SIZE: "Invalid Payload Size",
+                    STATUS_ERROR_INVALID_COMMAND_TYPE: "Invalid Command Type",
+                    STATUS_ERROR_HARDWARE_FAILURE: "Hardware Failure",
+                    STATUS_ERROR_UNKNOWN_ISSUE: "Unknown Issue"
+                }
+                status_text = status_messages.get(status_code, f"UNKNOWN STATUS {status_code:02X}")
+                logger.info(f"[RAW RESPONSE] CmdType=0x{original_cmd_type:02X}, TargetID={original_target_id}, Status=0x{status_code:02X} ({status_text})")
+                
                 # Put the response into the queue for the main thread to process
                 self.response_queue.put({
                     'type': 'response',
@@ -336,7 +353,8 @@ class SerialPacketReceiver:
                     'duration': duration_micros, # Store raw microseconds
                     'source_id': timing_sensor_id_in_payload # This should match self.current_id for individual timings
                 }
-                logger.debug(f"Received {packet_info['name']} Packet ID {self.current_id}: Values={sensor_data_values}, Timing Duration={duration_micros} us")
+                # Log all received sensor packets immediately
+                logger.info(f"[RAW SENSOR] {packet_info['name']} ID {self.current_id}: Values={sensor_data_values}, Timing Duration={duration_micros} us")
 
         except struct.error as e:
             logger.error(f"Unpacking {packet_info['name']} packet ID {self.current_id}: {e}. Raw payload: {self.payload_buffer.hex()}")
@@ -377,7 +395,7 @@ class SerialPacketReceiver:
             # Add a typical length for the data and timing part
             estimated_data_timing_len = 40 # e.g., "pressure: 12.34 bar (Time: 1234 us / 0.0012 s)"
             max_len = max(max_len, len(header_str) + estimated_data_timing_len)
-        
+            
         # Timing data headers (for category timings)
         for timing_key in self.latest_timing_data.keys():
             timing_type, identifier = timing_key
@@ -392,7 +410,7 @@ class SerialPacketReceiver:
             for relay_id in self.relay_states.keys():
                 header_str = f"[Relay ID {relay_id}]"
                 max_len = max(max_len, len(header_str) + 15) # "state: OPEN/CLOSE"
-        
+            
         return max_len
 
     def print_all_latest_data(self, status_message=None):
@@ -402,8 +420,9 @@ class SerialPacketReceiver:
         # Clear screen for a dashboard-like view
         os.system('cls' if os.name == 'nt' else 'clear')
 
-        logger.info(BOLD + BLUE + "-" * (max_header_len + 50) + RESET)
-        logger.info(BOLD + BLUE + f"{'--- SENSOR DATA ---':<{max_header_len + 50}}" + RESET)
+        # Use print() for the dashboard-like display, logger.info for general CLI messages
+        print(BOLD + BLUE + "-" * (max_header_len + 50) + RESET)
+        print(BOLD + BLUE + f"{'--- SENSOR DATA ---':<{max_header_len + 50}}" + RESET)
 
         # Iterate through all known sensor IDs and print their data
         for sensor_id, packet_type in self.get_all_sensor_ids_and_types():
@@ -441,28 +460,28 @@ class SerialPacketReceiver:
                     timing_data = self.latest_timing_data[timing_key]
                     duration_seconds = timing_data['duration'] / 1_000_000.0 # Convert micros to seconds
                     # Display both microseconds and seconds
-                    output_parts.append(f"(Time: {timing_data['duration']:,} us / {duration_seconds:.4f} s)") 
+                    output_parts.append(f"(Time: {timing_data['duration']:,} us / {duration_seconds:.4f} s)")  
                 
-                logger.info("".join(output_parts).strip())
+                print("".join(output_parts).strip()) # Use print() for sensor data lines
             else:
                 # If no data, print "No data"
-                logger.info(f"{header:<{max_header_len}} No data")
+                print(f"{header:<{max_header_len}} No data") # Use print()
 
-        # Print relay states (unchanged)
-        logger.info(BOLD + BLUE + f"\n{'--- RELAY STATES ---':<{max_header_len + 50}}" + RESET)
+        # Print relay states
+        print(BOLD + BLUE + f"\n{'--- RELAY STATES ---':<{max_header_len + 50}}" + RESET)
         for relay_id in sorted(self.relay_states.keys()):
             state = self.relay_states[relay_id]
             header = f"[Relay ID {relay_id}]"
             output = f"{header:<{max_header_len}} state: {GREEN + 'OPEN' + RESET if state else RED + 'CLOSE' + RESET}"
-            logger.info(output)
+            print(output) # Use print()
 
         # Print timing data (now primarily for category cycles)
-        logger.info(BOLD + BLUE + f"\n{'--- TIMING DATA (microseconds / seconds) ---':<{max_header_len + 50}}" + RESET)
+        print(BOLD + BLUE + f"\n{'--- TIMING DATA (microseconds / seconds) ---':<{max_header_len + 50}}" + RESET)
         # Filter for category timings and sort them
         sorted_category_timing_keys = sorted([k for k in self.latest_timing_data.keys() if k[0] == 'category'], key=lambda x: x[1])
 
         if not sorted_category_timing_keys:
-            logger.info(f"{'No category timing data received yet.':<{max_header_len + 50}}")
+            print(f"{'No category timing data received yet.':<{max_header_len + 50}}") # Use print()
         else:
             for timing_key in sorted_category_timing_keys:
                 timing_type, identifier = timing_key # identifier is the category name (e.g., "Pressure")
@@ -475,12 +494,12 @@ class SerialPacketReceiver:
                           f"Start: {timing_data['start']:,} us, "
                           f"End: {timing_data['end']:,} us, "
                           f"Duration: {timing_data['duration']:,} us ({duration_seconds:.4f} s)")
-                logger.info(output)
-        
+                print(output) # Use print()
+            
         # NEW: Print ephemeral status message
         if status_message:
-            logger.info(BOLD + MAGENTA + f"\n{'--- STATUS ---':<{max_header_len + 50}}" + RESET)
-            logger.info(BOLD + MAGENTA + f"{status_message:<{max_header_len + 50}}" + RESET)
+            print(BOLD + MAGENTA + f"\n{'--- STATUS ---':<{max_header_len + 50}}" + RESET)
+            print(BOLD + MAGENTA + f"{status_message:<{max_header_len + 50}}" + RESET)
 
 
 # --- (Rest of your code, including auto_detect_arduino_port, send_motor_control_command,
@@ -614,11 +633,11 @@ def command_input_thread(command_queue):
 def print_help_message(max_header_len):
     """Prints the available commands and their syntax."""
     logger.info(BOLD + BLUE + f"\n{'--- COMMANDS ---':<{max_header_len + 50}}" + RESET)
-    logger.info("  'm <throttle>'       : Set motor throttle (0-100%). E.g., 'm 50'")
-    logger.info("  'r <id> <state>'     : Set relay state (id: 0-3, state: 0=OFF, 1=ON). E.g., 'r 0 1'")
-    logger.info("  'u <interval>'       : Set sensor data update interval in seconds (e.g., 'u 0.5')")
-    logger.info("  'h' or 'help'        : Display this help message.")
-    logger.info("  'q'                  : Quit the application.")
+    logger.info("  'm <throttle>'         : Set motor throttle (0-100%). E.g., 'm 50'")
+    logger.info("  'r <id> <state>'       : Set relay state (id: 0-3, state: 0=OFF, 1=ON). E.g., 'r 0 1'")
+    logger.info("  'u <interval>'         : Set sensor data update interval in seconds (e.g., 'u 0.5')")
+    logger.info("  'h' or 'help'          : Display this help message.")
+    logger.info("  'q'                    : Quit the application.")
     logger.info(BOLD + BLUE + "-" * (max_header_len + 50) + RESET)
 
 
@@ -658,8 +677,8 @@ def main():
     ser = None
 
     # NEW: Command timeout and status message variables
-    COMMAND_ACK_TIMEOUT_SECONDS = 2.0 # How long to wait for an ACK/NACK
-    STATUS_MESSAGE_DISPLAY_DURATION = 3.0 # How long ephemeral messages stay on screen
+    COMMAND_ACK_TIMEOUT_SECONDS = 3.0 # How long to wait for an ACK/NACK
+    STATUS_MESSAGE_DISPLAY_DURATION = 4.0 # How long ephemeral messages stay on screen
 
     pending_command = { # Tracks the last command sent that's awaiting an ACK
         'type': None, # CMD_TYPE_SET_MOTOR or CMD_TYPE_SET_RELAY
@@ -704,7 +723,9 @@ def main():
                             STATUS_ERROR_INVALID_TARGET_ID: "ERROR: Invalid Target ID",
                             STATUS_ERROR_INVALID_STATE_VALUE: "ERROR: Invalid State Value",
                             STATUS_ERROR_INVALID_PAYLOAD_SIZE: "ERROR: Invalid Payload Size",
-                            STATUS_ERROR_INVALID_COMMAND_TYPE: "ERROR: Invalid Command Type"
+                            STATUS_ERROR_INVALID_COMMAND_TYPE: "ERROR: Invalid Command Type",
+                            STATUS_ERROR_HARDWARE_FAILURE: "ERROR: Hardware Failure (Command Execution Failed)", # Added for clarity
+                            STATUS_ERROR_UNKNOWN_ISSUE: "ERROR: Unknown Issue" # Added for clarity
                         }
                         status_text = status_messages.get(status_code, f"UNKNOWN STATUS {status_code:02X}")
 
@@ -784,7 +805,7 @@ def main():
                         }
                         send_relay_control_command(ser, relay_id, state) # Removed receiver argument
                         status_message = BOLD + CYAN + f"Sending relay command: ID={relay_id}, State={'ON' if state else 'OFF'}..." + RESET
-                        status_message_expiry_time = current_time + STATUS_MESSAGE_DISPLAY_DURATION
+                        status_message_expiry_expiry_time = current_time + STATUS_MESSAGE_DISPLAY_DURATION
                     except ValueError:
                         logger.error("Invalid relay command. Use integers for relay_id (0-3) and state (0 or 1).")
                 elif cmd_type == 'u' and len(parts) == 2:

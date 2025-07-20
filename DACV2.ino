@@ -32,7 +32,7 @@ void setup() {
   delay(1000); // Short delay before tests
   Serial.println(F("\n--- Running Initial Timing Tests ---"));
 
-  testTimingBatchAllTypes(); // Call the test function (defined in SensorManager.cpp)
+  // testTimingBatchAllTypes(); // Call the test function (defined in SensorManager.cpp)
 
   Serial.println(F("\n--- Initial Timing Tests Complete. Entering Main Loop ---"));
   delay(1000); // Delay before starting the continuous loop
