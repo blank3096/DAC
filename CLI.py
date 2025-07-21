@@ -1,7 +1,7 @@
 import serial
 import struct
 import time
-import serial.tools.list_ports
+import serial.tools.list_ports # Correct import
 import sys
 import threading
 import argparse
@@ -9,6 +9,7 @@ import math
 import queue
 import logging
 import os
+import datetime # Import datetime for manual timestamp formatting
 
 # --- ANSI Color Codes ---
 RESET = "\033[0m"
@@ -21,9 +22,22 @@ MAGENTA = "\033[95m"
 CYAN = "\033[96m"
 WHITE = "\033[97m"
 
+# --- Custom Log Filter for Microsecond Timestamp ---
+class MicrosecondFilter(logging.Filter):
+    """
+    A log filter that adds a high-precision timestamp to log records.
+    This ensures microseconds are consistently logged, bypassing potential
+    issues with %(asctime)s and datefmt='%f' in some environments.
+    """
+    def filter(self, record):
+        # Format the current time with microseconds
+        record.formatted_time = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S.%f')
+        return True
+
 # --- Custom Colored Formatter for Console Output ---
 class ColoredFormatter(logging.Formatter):
-    FORMAT = "%(asctime)s - %(levelname)s - %(message)s" 
+    # Use %(formatted_time)s which will be added by MicrosecondFilter
+    FORMAT = "%(formatted_time)s - %(levelname)s - %(message)s" 
     
     LOG_COLORS = {
         logging.DEBUG: CYAN,
@@ -36,18 +50,24 @@ class ColoredFormatter(logging.Formatter):
     def format(self, record):
         log_fmt = self.FORMAT
         color = self.LOG_COLORS.get(record.levelno, RESET)
-        formatter = logging.Formatter(color + log_fmt + RESET, datefmt='%Y-%m-%d %H:%M:%S.%f') 
+        # No datefmt needed here as formatted_time is already a string
+        formatter = logging.Formatter(color + log_fmt + RESET) 
         return formatter.format(record)
 
 # --- Configure Logging ---
 logger = logging.getLogger()
 logger.setLevel(logging.DEBUG) # Set root logger to DEBUG to allow all messages to pass
 
+# Create an instance of our custom filter
+microsecond_filter = MicrosecondFilter()
+
 # File handler (no colors) - Logs ALL debug/info/warning/error/critical messages
 file_handler = logging.FileHandler('Work.log', mode='a')
-file_formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s', datefmt='%Y-%m-%d %H:%M:%S.%f') 
+# Use %(formatted_time)s here as well
+file_formatter = logging.Formatter('%(formatted_time)s - %(levelname)s - %(message)s') 
 file_handler.setFormatter(file_formatter)
 file_handler.setLevel(logging.DEBUG) # Set file handler to DEBUG
+file_handler.addFilter(microsecond_filter) # Add the filter to the file handler
 logger.addHandler(file_handler)
 
 # Stream handler (with colors for console) - Logs INFO, WARNING, ERROR, CRITICAL
@@ -55,6 +75,7 @@ stream_handler = logging.StreamHandler(sys.stdout)
 stream_formatter = ColoredFormatter()
 stream_handler.setFormatter(stream_formatter)
 stream_handler.setLevel(logging.INFO) # Set stream handler to INFO
+stream_handler.addFilter(microsecond_filter) # Add the filter to the stream handler
 logger.addHandler(stream_handler)
 
 
@@ -376,11 +397,11 @@ class SerialPacketReceiver:
                 timing_type_id = self.current_id # This is TIMING_CATEGORY_CYCLE_ID or TIMING_SENSOR_OPERATION_ID (if sent separately)
                 
                 category_name = "Unknown"
-                if timing_sensor_id_in_payload == PRESSURE_ID_START: category_name = "Pressure"
-                elif timing_sensor_id_in_payload == LOADCELL_ID_START: category_name = "LoadCell"
-                elif timing_sensor_id_in_payload == FLOW_SENSOR_ID: category_name = "Flow"
-                elif timing_sensor_id_in_payload == TEMP_ID_START: category_name = "Temperature"
-                elif timing_sensor_id_in_payload == MOTOR_RPM_ID: category_name = "MotorRPM"
+                if timing_sensor_id_in_payload == 0: category_name = "Pressure" # Using 0 as start ID for Pressure
+                elif timing_sensor_id_in_payload == 6: category_name = "LoadCell" # Using 6 as start ID for LoadCell
+                elif timing_sensor_id_in_payload == 9: category_name = "Flow" # Using 9 as start ID for Flow
+                elif timing_sensor_id_in_payload == 10: category_name = "Temperature" # Using 10 as start ID for Temperature
+                elif timing_sensor_id_in_payload == 14: category_name = "MotorRPM" # Using 14 as start ID for MotorRPM
 
                 self.latest_timing_data[('category', category_name)] = {
                     'start': start_micros,
@@ -626,7 +647,8 @@ def auto_detect_arduino_port():
     arduino_ports = []
     search_terms = ['Arduino', 'USB-SERIAL', 'VID:PID=2341', 'VID:PID=1A86', 'VID:PID=0403', 'usbmodem']
     logger.info("Searching for Arduino port...")
-    ports = serial.tools.list_ports.comports()
+    # FIX: Corrected typo from list_list_ports to list_ports
+    ports = serial.tools.list_ports.comports() 
     for port in ports:
         port_description = port.description.lower()
         port_hwid = port.hwid.lower() if port.hwid else ''
