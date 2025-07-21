@@ -125,6 +125,16 @@ void loop() {
     } // End switch(currentRxState)
   } // End while(Serial.available())
 
+  // --- NEW: Call the Startup Sequence Handler (Non-blocking) ---
+  if (isStartupSequenceActive) {
+    runStartupSequence();
+  }
+
+  // --- NEW: Call the Shutdown Sequence Handler (Non-blocking) ---
+  if (isShutdownSequenceActive) {
+    runShutdownSequence();
+  }
+
 // --- Pressure Sensors (BATCH PROCESSING - Runs every loop iteration) ---
 pressureCategoryStartTime = micros(); // Assignment to global variable
 
@@ -151,7 +161,7 @@ for(int i = 0; i < NUM_PRESSURE_SENSORS; i++){ // Use local 'i' for loop counter
   // as the optional last argument. The 'id' parameter is the sensor's ID.
   sendBinaryPacket(PRESSURE_PACKET_START_BYTE, pressure_id, &pressureData, sizeof(pressureData), PRESSURE_PACKET_END_BYTE, currentSensorTiming);
 }
- 
+  
 // End category timer AFTER the loop finishes for the entire batch
 categoryDuration = micros() - pressureCategoryStartTime; // Calculate duration for the entire category batch
 categoryTiming = {PRESSURE_ID_START, pressureCategoryStartTime, micros(), categoryDuration}; // Store category timing data
@@ -196,7 +206,7 @@ sendTimingPacket(TIMING_CATEGORY_CYCLE_ID, &categoryTiming); // Send the categor
   sendTimingPacket(TIMING_CATEGORY_CYCLE_ID, &categoryTiming);
 
   // Update lastProcessTime for consistency, though it no longer gates this loop
-  lastLoadCellProcessTime = currentMillis; 
+  lastLoadCellProcessTime = currentMillis;  
   
   // --- State Machine Logic for Flow Sensor ---
   // This block remains as originally provided by you.
@@ -223,6 +233,8 @@ sendTimingPacket(TIMING_CATEGORY_CYCLE_ID, &categoryTiming); // Send the categor
     FlowMeterValues flowData = calculateFlowMeterValues(delta_pulse,elapsed_time);
     flow_pulseLast = currentPulseCount;
 
+    // NEW: Store the calculated flowData globally for sequence access
+    latestFlowMeterValues = flowData;
 
     // End timer for the flow sensor's operation
     endSensorTimer(flow_id, individualSensorStartTime, "Flow Sensor Block");
@@ -294,7 +306,7 @@ sendTimingPacket(TIMING_CATEGORY_CYCLE_ID, &categoryTiming); // Send the categor
       unsigned long currentPulseCount;
       noInterrupts(); // Disable interrupts
       currentPulseCount = motor_pulse_count; // Read the volatile counter
-      interrupts();   // Re-enable interrupts
+      interrupts();    // Re-enable interrupts
 
       // 2. Calculate the number of pulses since the last check
       unsigned long delta_pulse = currentPulseCount - motor_last_pulse_count;
@@ -316,7 +328,7 @@ sendTimingPacket(TIMING_CATEGORY_CYCLE_ID, &categoryTiming); // Send the categor
         MOTOR_RPM_ID,                // Unique ID for this motor RPM (14)
         &mData,                      // Pointer to the calculated data struct
         sizeof(mData),               // Size of the data struct
-        MOTOR_RPM_PACKET_END_BYTE,    // End byte for motor rpm packets
+        MOTOR_RPM_PACKET_END_BYTE,   // End byte for motor rpm packets
         currentSensorTiming
       );
 
