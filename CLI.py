@@ -23,7 +23,6 @@ WHITE = "\033[97m"
 
 # --- Custom Colored Formatter for Console Output ---
 class ColoredFormatter(logging.Formatter):
-    # CHANGED: Added .%f to include microseconds in the default format string
     FORMAT = "%(asctime)s - %(levelname)s - %(message)s" 
     
     LOG_COLORS = {
@@ -36,29 +35,26 @@ class ColoredFormatter(logging.Formatter):
 
     def format(self, record):
         log_fmt = self.FORMAT
-        # Apply color based on log level
         color = self.LOG_COLORS.get(record.levelno, RESET)
-        # CHANGED: Added .%f to include microseconds in datefmt for the formatter instance
         formatter = logging.Formatter(color + log_fmt + RESET, datefmt='%Y-%m-%d %H:%M:%S.%f') 
         return formatter.format(record)
 
 # --- Configure Logging ---
 logger = logging.getLogger()
-logger.setLevel(logging.DEBUG) # CHANGED: Set root logger to DEBUG to allow all messages to pass
+logger.setLevel(logging.DEBUG) # Set root logger to DEBUG to allow all messages to pass
 
 # File handler (no colors) - Logs ALL debug/info/warning/error/critical messages
 file_handler = logging.FileHandler('Work.log', mode='a')
-# CHANGED: Added .%f to include microseconds in datefmt for the file handler
 file_formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s', datefmt='%Y-%m-%d %H:%M:%S.%f') 
 file_handler.setFormatter(file_formatter)
-file_handler.setLevel(logging.DEBUG) # CHANGED: Set file handler to DEBUG
+file_handler.setLevel(logging.DEBUG) # Set file handler to DEBUG
 logger.addHandler(file_handler)
 
 # Stream handler (with colors for console) - Logs INFO, WARNING, ERROR, CRITICAL
 stream_handler = logging.StreamHandler(sys.stdout)
 stream_formatter = ColoredFormatter()
 stream_handler.setFormatter(stream_formatter)
-stream_handler.setLevel(logging.INFO) # CHANGED: Set stream handler to INFO
+stream_handler.setLevel(logging.INFO) # Set stream handler to INFO
 logger.addHandler(stream_handler)
 
 
@@ -81,6 +77,10 @@ COMMAND_START_BYTE = 0xFC
 COMMAND_END_BYTE = 0xFD
 CMD_TYPE_SET_MOTOR = 0x02
 CMD_TYPE_SET_RELAY = 0x01
+# NEW COMMAND TYPES (matched to Arduino SensorManager.h)
+CMD_TYPE_STARTUP_SEQUENCE = 0x03
+CMD_TYPE_SHUTDOWN_SEQUENCE = 0x04
+
 CMD_TARGET_MOTOR_ID = 0
 CMD_TARGET_RELAY_START = 0
 MAX_COMMAND_PAYLOAD_SIZE = 32
@@ -128,6 +128,33 @@ STATUS_ERROR_INVALID_PAYLOAD_SIZE   = 0xE3
 STATUS_ERROR_INVALID_COMMAND_TYPE   = 0xE4
 STATUS_ERROR_HARDWARE_FAILURE       = 0xE5 # Corresponds to Arduino's ERROR_INVALID_COMMAND_EXC
 STATUS_ERROR_UNKNOWN_ISSUE          = 0xE6 # Corresponds to Arduino's ERROR_UNKNOWN_ISSUE
+
+# --- NEW: Sequence Status Packet Constants (matched to Arduino SensorManager.h) ---
+SEQUENCE_STATUS_PACKET_START_BYTE = 0xF4
+SEQUENCE_STATUS_PACKET_END_BYTE = 0xF5
+
+# Sequence Type IDs
+SEQUENCE_TYPE_STARTUP = 0x01
+SEQUENCE_TYPE_SHUTDOWN = 0x02
+
+# Startup Sequence Step Codes
+SEQ_STARTUP_STEP_OPEN_FUEL_VALVE = 0x01
+SEQ_STARTUP_STEP_SET_MOTOR_THROTTLE = 0x02
+SEQ_STARTUP_STEP_WAIT_FOR_FLOW = 0x03
+SEQ_STARTUP_STEP_OPEN_OXIDIZER_VALVE = 0x04
+SEQ_STARTUP_STEP_WAIT_200MS = 0x05
+SEQ_STARTUP_STEP_OPEN_IGNITER_VALVE = 0x06
+SEQ_STARTUP_COMPLETE = 0xFE
+SEQ_STARTUP_FAILED = 0xFF
+
+# Shutdown Sequence Step Codes
+SEQ_SHUTDOWN_STEP_CLOSE_OXIDIZER_VALVE = 0x01
+SEQ_SHUTDOWN_STEP_WAIT_200MS = 0x02
+SEQ_SHUTDOWN_STEP_SET_MOTOR_THROTTLE_ZERO = 0x03
+SEQ_SHUTDOWN_STEP_WAIT_1000MS = 0x04
+SEQ_SHUTDOWN_STEP_CLOSE_FUEL_VALVE = 0x05
+SEQ_SHUTDOWN_COMPLETE = 0xFE
+SEQ_SHUTDOWN_FAILED = 0xFF
 
 
 # Define the structure of the appended SensorTiming data
@@ -198,6 +225,15 @@ PACKET_TYPES = {
         'format': '<BBB',
         'fields': ['original_cmd_type', 'original_target_id', 'status_code'],
         'ids': [RESPONSE_ID_COMMAND_ACK] # The ID field in the packet is RESPONSE_ID_COMMAND_ACK
+    },
+    # NEW: Sequence Status Packet Type
+    SEQUENCE_STATUS_PACKET_START_BYTE: {
+        'name': 'SequenceStatus',
+        'end_byte': SEQUENCE_STATUS_PACKET_END_BYTE,
+        'payload_size': 3, # sequenceType (1B), stepCode (1B), statusCode (1B)
+        'format': '<BBB',
+        'fields': ['sequence_type', 'step_code', 'status_code'],
+        'ids': [RESPONSE_ID_COMMAND_ACK] # Arduino uses RESPONSE_ID_COMMAND_ACK as the ID byte for these packets
     }
 }
 
@@ -222,6 +258,44 @@ class SerialPacketReceiver:
         self.latest_timing_data = {} # Stores ALL timing data (individual sensor and category cycles)
         self.relay_states = {i: 0 for i in range(CMD_TARGET_RELAY_START, CMD_TARGET_RELAY_START + 4)}
         self.response_queue = queue.Queue() # Queue to pass command responses to the main thread
+
+        # NEW: Sequence status tracking
+        self.latest_sequence_status = None # Stores {'type': ..., 'step': ..., 'status': ..., 'timestamp': ...}
+
+        # NEW: Mappings for human-readable sequence status
+        self.sequence_type_map = {
+            SEQUENCE_TYPE_STARTUP: "Startup",
+            SEQUENCE_TYPE_SHUTDOWN: "Shutdown"
+        }
+        self.startup_step_map = {
+            SEQ_STARTUP_STEP_OPEN_FUEL_VALVE: "Step 1/6: Opening fuel valve (R0)",
+            SEQ_STARTUP_STEP_SET_MOTOR_THROTTLE: "Step 2/6: Setting motor throttle",
+            SEQ_STARTUP_STEP_WAIT_FOR_FLOW: "Step 3/6: Waiting for flow (>= 1.4 LPM)",
+            SEQ_STARTUP_STEP_OPEN_OXIDIZER_VALVE: "Step 4/6: Opening oxidizer valve (R1)",
+            SEQ_STARTUP_STEP_WAIT_200MS: "Step 5/6: Waiting 200ms",
+            SEQ_STARTUP_STEP_OPEN_IGNITER_VALVE: "Step 6/6: Opening igniter valve (R2)",
+            SEQ_STARTUP_COMPLETE: "Sequence Complete",
+            SEQ_STARTUP_FAILED: "Sequence FAILED"
+        }
+        self.shutdown_step_map = {
+            SEQ_SHUTDOWN_STEP_CLOSE_OXIDIZER_VALVE: "Step 1/5: Closing oxidizer valve (R1)",
+            SEQ_SHUTDOWN_STEP_WAIT_200MS: "Step 2/5: Waiting 200ms",
+            SEQ_SHUTDOWN_STEP_SET_MOTOR_THROTTLE_ZERO: "Step 3/5: Setting motor throttle to zero",
+            SEQ_SHUTDOWN_STEP_WAIT_1000MS: "Step 4/5: Waiting 1000ms",
+            SEQ_SHUTDOWN_STEP_CLOSE_FUEL_VALVE: "Step 5/5: Closing fuel valve (R0)",
+            SEQ_SHUTDOWN_COMPLETE: "Sequence Complete",
+            SEQ_SHUTDOWN_FAILED: "Sequence FAILED"
+        }
+        self.status_code_map = {
+            STATUS_OK: "OK",
+            STATUS_ERROR_INVALID_TARGET_ID: "ERROR: Invalid Target ID",
+            STATUS_ERROR_INVALID_STATE_VALUE: "ERROR: Invalid State Value",
+            STATUS_ERROR_INVALID_PAYLOAD_SIZE: "ERROR: Invalid Payload Size",
+            STATUS_ERROR_INVALID_COMMAND_TYPE: "ERROR: Invalid Command Type",
+            STATUS_ERROR_HARDWARE_FAILURE: "ERROR: Hardware Failure",
+            STATUS_ERROR_UNKNOWN_ISSUE: "ERROR: Unknown Issue"
+        }
+
 
     def process_byte(self, byte_data):
         """Processes a single incoming byte."""
@@ -248,8 +322,8 @@ class SerialPacketReceiver:
                 if self.payload_size != expected_size:
                     logger.warning(f"Packet {self.current_packet_type_info['name']} (start {self.current_start_byte:02X}) - Declared size ({self.payload_size}) != expected ({expected_size}). Discarding. Payload buffer: {self.payload_buffer.hex()}")
                     self._reset_state()
-                # Validate ID for non-timing/non-response packets
-                elif self.current_start_byte not in [TIMING_PACKET_START_BYTE, RESPONSE_PACKET_START_BYTE] and \
+                # Validate ID for non-timing/non-response/non-sequence packets
+                elif self.current_start_byte not in [TIMING_PACKET_START_BYTE, RESPONSE_PACKET_START_BYTE, SEQUENCE_STATUS_PACKET_START_BYTE] and \
                      expected_ids is not None and self.current_id not in expected_ids:
                     logger.warning(f"Packet {self.current_packet_type_info['name']} (start {self.current_start_byte:02X}) - Unexpected ID ({self.current_id}). Discarding. Payload buffer: {self.payload_buffer.hex()}")
                     self._reset_state()
@@ -262,6 +336,11 @@ class SerialPacketReceiver:
                 elif self.current_start_byte == RESPONSE_PACKET_START_BYTE and \
                      self.current_id != RESPONSE_ID_COMMAND_ACK:
                     logger.warning(f"Response Packet (start {self.current_start_byte:02X}) - Unexpected Response ID ({self.current_id}). Discarding. Payload buffer: {self.payload_buffer.hex()}")
+                    self._reset_state()
+                # NEW: Validate ID for sequence status packets (which use RESPONSE_ID_COMMAND_ACK as their 'id' field)
+                elif self.current_start_byte == SEQUENCE_STATUS_PACKET_START_BYTE and \
+                     self.current_id != RESPONSE_ID_COMMAND_ACK:
+                    logger.warning(f"Sequence Status Packet (start {self.current_start_byte:02X}) - Unexpected ID ({self.current_id}). Discarding. Payload buffer: {self.payload_buffer.hex()}")
                     self._reset_state()
                 elif self.payload_size == 0:
                     self.state = STATE_READING_END
@@ -335,6 +414,17 @@ class SerialPacketReceiver:
                     'original_target_id': original_target_id,
                     'status_code': status_code
                 })
+            
+            # NEW: Handle Sequence Status packets
+            elif packet_info['name'] == 'SequenceStatus':
+                sequence_type, step_code, status_code = all_values
+                self.latest_sequence_status = {
+                    'type': sequence_type,
+                    'step': step_code,
+                    'status': status_code,
+                    'timestamp': time.time()
+                }
+                logger.debug(f"[RAW SEQUENCE STATUS] Type=0x{sequence_type:02X}, Step=0x{step_code:02X}, Status=0x{status_code:02X}")
 
             else: # Regular sensor data packet (now includes embedded timing)
                 # Separate sensor data from timing data
@@ -379,8 +469,8 @@ class SerialPacketReceiver:
         """Returns a list of (sensor_id, sensor_type_name) for all known sensors."""
         all_sensors_info = []
         for start_byte, info in PACKET_TYPES.items():
-            # Skip timing and command/response packets, only interested in sensor data here
-            if start_byte in [TIMING_PACKET_START_BYTE, COMMAND_START_BYTE, RESPONSE_PACKET_START_BYTE]:
+            # Skip timing, command, response, and sequence packets, only interested in sensor data here
+            if start_byte in [TIMING_PACKET_START_BYTE, COMMAND_START_BYTE, RESPONSE_PACKET_START_BYTE, SEQUENCE_STATUS_PACKET_START_BYTE]:
                 continue
             sensor_type_name = info['name']
             for sensor_id in info.get('ids', []):
@@ -502,10 +592,31 @@ class SerialPacketReceiver:
                           f"Duration: {timing_data['duration']:,} us ({duration_seconds:.4f} s)")
                 print(output) # Use print()
             
-        # NEW: Print ephemeral status message
+        # NEW: Print Current Sequence Status
+        print(BOLD + MAGENTA + f"\n{'--- CURRENT SEQUENCE STATUS ---':<{max_header_len + 50}}" + RESET)
+        if self.latest_sequence_status:
+            seq_type = self.latest_sequence_status['type']
+            step_code = self.latest_sequence_status['step']
+            status_code = self.latest_sequence_status['status']
+
+            seq_type_str = self.sequence_type_map.get(seq_type, f"UNKNOWN_SEQ_TYPE(0x{seq_type:02X})")
+            status_str = self.status_code_map.get(status_code, f"UNKNOWN_STATUS(0x{status_code:02X})")
+
+            step_str = "Unknown Step"
+            if seq_type == SEQUENCE_TYPE_STARTUP:
+                step_str = self.startup_step_map.get(step_code, f"UNKNOWN_STARTUP_STEP(0x{step_code:02X})")
+            elif seq_type == SEQUENCE_TYPE_SHUTDOWN:
+                step_str = self.shutdown_step_map.get(step_code, f"UNKNOWN_SHUTDOWN_STEP(0x{step_code:02X})")
+            
+            display_color = GREEN if status_code == STATUS_OK else RED # Color based on status
+            print(f"{display_color}{seq_type_str}: {step_str} [{status_str}]{RESET}")
+        else:
+            print(f"{'No active sequence.':<{max_header_len + 50}}")
+
+        # NEW: Print ephemeral status message (for command ACKs/NACKs)
         if status_message:
-            print(BOLD + MAGENTA + f"\n{'--- STATUS ---':<{max_header_len + 50}}" + RESET)
-            print(BOLD + MAGENTA + f"{status_message:<{max_header_len + 50}}" + RESET)
+            print(BOLD + YELLOW + f"\n{'--- COMMAND STATUS ---':<{max_header_len + 50}}" + RESET)
+            print(BOLD + YELLOW + f"{status_message:<{max_header_len + 50}}" + RESET)
 
 
 # --- (Rest of your code, including auto_detect_arduino_port, send_motor_control_command,
@@ -603,6 +714,36 @@ def send_relay_control_command(ser, relay_id, state): # Removed receiver as it's
     except Exception as e:
         logger.error(f"Error sending relay command: {e}")
 
+# NEW: Function to send startup/shutdown sequence commands
+def send_sequence_command(ser, command_type):
+    """
+    Sends a command to initiate a startup or shutdown sequence on the Arduino.
+    :param ser: Open serial connection
+    :param command_type: CMD_TYPE_STARTUP_SEQUENCE or CMD_TYPE_SHUTDOWN_SEQUENCE
+    """
+    try:
+        if command_type not in [CMD_TYPE_STARTUP_SEQUENCE, CMD_TYPE_SHUTDOWN_SEQUENCE]:
+            logger.error("Invalid sequence command type.")
+            return
+
+        # Sequence commands currently have no payload
+        payload = b''
+        payload_size = len(payload)
+        
+        packet = bytearray()
+        packet.append(COMMAND_START_BYTE)
+        packet.append(command_type)
+        packet.append(0) # Target ID is 0 for system-wide sequences
+        packet.append(payload_size)
+        packet.extend(payload)
+        packet.append(COMMAND_END_BYTE)
+        ser.write(packet)
+    except serial.SerialException as e:
+        logger.error(f"Serial error when sending sequence command: {e}")
+    except Exception as e:
+        logger.error(f"Error sending sequence command: {e}")
+
+
 def serial_reader_thread(ser, receiver):
     """Reads serial data in a separate thread."""
     logger.info("Serial reading thread started.")
@@ -640,6 +781,8 @@ def print_help_message(max_header_len):
     print(BOLD + BLUE + f"\n{'--- COMMANDS ---':<{max_header_len + 50}}" + RESET)
     print("  'm <throttle>'         : Set motor throttle (0-100%). E.g., 'm 50'")
     print("  'r <id> <state>'       : Set relay state (id: 0-3, state: 0=OFF, 1=ON). E.g., 'r 0 1'")
+    print("  's'                    : Initiate system startup sequence.")
+    print("  'x'                    : Initiate system shutdown sequence.")
     print("  'u <interval>'         : Set sensor data update interval in seconds (e.g., 'u 0.5')")
     print("  'h' or 'help'          : Display this help message.")
     print("  'q'                    : Quit the application.")
@@ -650,7 +793,7 @@ def main():
     # Build ID_TO_PACKET_INFO lookup table for non-timing packets
     for start_byte, info in PACKET_TYPES.items():
         # Only map sensor data packets by their ID
-        if start_byte not in [TIMING_PACKET_START_BYTE, COMMAND_START_BYTE, RESPONSE_PACKET_START_BYTE]:
+        if start_byte not in [TIMING_PACKET_START_BYTE, COMMAND_START_BYTE, RESPONSE_PACKET_START_BYTE, SEQUENCE_STATUS_PACKET_START_BYTE]:
             for sensor_id in info.get('ids', []):
                 if sensor_id in ID_TO_PACKET_INFO:
                     existing_start_byte = ID_TO_PACKET_INFO[sensor_id]
@@ -681,14 +824,14 @@ def main():
     input_thread = None
     ser = None
 
-    # NEW: Command timeout and status message variables
+    # Command timeout and status message variables
     COMMAND_ACK_TIMEOUT_SECONDS = 3.0 # How long to wait for an ACK/NACK
     STATUS_MESSAGE_DISPLAY_DURATION = 4.0 # How long ephemeral messages stay on screen
 
     pending_command = { # Tracks the last command sent that's awaiting an ACK
-        'type': None, # CMD_TYPE_SET_MOTOR or CMD_TYPE_SET_RELAY
-        'target_id': None, # Motor ID or Relay ID
-        'desired_state': None, # For relay: 0/1; for motor: (enable, throttle) tuple
+        'type': None, # CMD_TYPE_SET_MOTOR or CMD_TYPE_SET_RELAY or sequence commands
+        'target_id': None, # Motor ID or Relay ID (or 0 for sequences)
+        'desired_state': None, # For relay: 0/1; for motor: (enable, throttle) tuple; None for sequences
         'sent_time': None # Timestamp when command was sent
     }
     status_message = None
@@ -723,16 +866,7 @@ def main():
                         
                         # Command matched, process status
                         status_code = response['status_code']
-                        status_messages = {
-                            STATUS_OK: "OK",
-                            STATUS_ERROR_INVALID_TARGET_ID: "ERROR: Invalid Target ID",
-                            STATUS_ERROR_INVALID_STATE_VALUE: "ERROR: Invalid State Value",
-                            STATUS_ERROR_INVALID_PAYLOAD_SIZE: "ERROR: Invalid Payload Size",
-                            STATUS_ERROR_INVALID_COMMAND_TYPE: "ERROR: Invalid Command Type",
-                            STATUS_ERROR_HARDWARE_FAILURE: "ERROR: Hardware Failure (Command Execution Failed)",
-                            STATUS_ERROR_UNKNOWN_ISSUE: "ERROR: Unknown Issue"
-                        }
-                        status_text = status_messages.get(status_code, f"UNKNOWN STATUS {status_code:02X}")
+                        status_text = receiver.status_code_map.get(status_code, f"UNKNOWN STATUS {status_code:02X}")
 
                         if status_code == STATUS_OK:
                             status_message = GREEN + f"Command successful: {status_text}" + RESET
@@ -812,6 +946,28 @@ def main():
                         status_message_expiry_time = current_time + STATUS_MESSAGE_DISPLAY_DURATION
                     except ValueError:
                         logger.error("Invalid relay command. Use integers for relay_id (0-3) and state (0 or 1).")
+                # NEW: Handle startup sequence command
+                elif cmd_type == 's':
+                    pending_command = {
+                        'type': CMD_TYPE_STARTUP_SEQUENCE,
+                        'target_id': 0, # System-wide command, target 0
+                        'desired_state': None,
+                        'sent_time': current_time
+                    }
+                    send_sequence_command(ser, CMD_TYPE_STARTUP_SEQUENCE)
+                    status_message = BOLD + CYAN + "Sending STARTUP SEQUENCE command..." + RESET
+                    status_message_expiry_time = current_time + STATUS_MESSAGE_DISPLAY_DURATION
+                # NEW: Handle shutdown sequence command
+                elif cmd_type == 'x':
+                    pending_command = {
+                        'type': CMD_TYPE_SHUTDOWN_SEQUENCE,
+                        'target_id': 0, # System-wide command, target 0
+                        'desired_state': None,
+                        'sent_time': current_time
+                    }
+                    send_sequence_command(ser, CMD_TYPE_SHUTDOWN_SEQUENCE)
+                    status_message = BOLD + CYAN + "Sending SHUTDOWN SEQUENCE command..." + RESET
+                    status_message_expiry_time = current_time + STATUS_MESSAGE_DISPLAY_DURATION
                 elif cmd_type == 'u' and len(parts) == 2:
                     try:
                         new_interval = float(parts[1])

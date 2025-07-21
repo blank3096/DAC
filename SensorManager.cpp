@@ -99,16 +99,16 @@ const byte CMD_TARGET_MOTOR_ID = 0;
 
 // --- Error handling ACK / NACK constants (Aligned with Python CLI's STATUS_ constants) ---
 const byte RESPONSE_PACKET_START_BYTE = 0xF2; // Matches ACK_START_BYTE from .h
-const byte RESPONSE_PACKET_END_BYTE = 0xF3;   // Matches ACK_END_BYTE from .h
-const byte RESPONSE_ID_COMMAND_ACK = 0x01;    // The ID byte for command responses
+const byte RESPONSE_PACKET_END_BYTE = 0xF3;    // Matches ACK_END_BYTE from .h
+const byte RESPONSE_ID_COMMAND_ACK = 0x01;     // The ID byte for command responses
 
-const byte STATUS_OK                   = 0x00; // Matches SUCCESS_BYTE from .h
+const byte STATUS_OK                  = 0x00; // Matches SUCCESS_BYTE from .h
 const byte STATUS_ERROR_INVALID_TARGET_ID = 0xE1; // Matches ERROR_INVALID_TARGET_ID from .h
 const byte STATUS_ERROR_INVALID_STATE_VALUE = 0xE2; // Matches ERROR_INVALID_STATE_VALUE from .h
 const byte STATUS_ERROR_INVALID_PAYLOAD_SIZE = 0xE3; // Matches ERROR_INVALID_PAYLOAD_SIZE from .h
 const byte STATUS_ERROR_INVALID_COMMAND_TYPE = 0xE4; // Matches ERROR_INVALID_COMMAND_TYPE from .h
 const byte STATUS_ERROR_HARDWARE_FAILURE = 0xE5; // Matches ERROR_INVALID_COMMAND_EXC from .h
-const byte STATUS_ERROR_UNKNOWN_ISSUE          = 0xE6; // Matches ERROR_UNKNOWN_ISSUE from .h
+const byte STATUS_ERROR_UNKNOWN_ISSUE      = 0xE6; // Matches ERROR_UNKNOWN_ISSUE from .h
 
 
 // Define ID ranges and number of IDs for each sensor type (Output Packets)
@@ -173,9 +173,9 @@ const unsigned long MOTOR_CALCULATION_INTERVAL_MS = 500;
 // --- NEW: Global Arrays to Store Timing Data ---
 SensorTiming pressureTimingData[MAX_TIMED_PRESSURE_SENSORS]; // Definition
 SensorTiming loadCellTimingData[MAX_TIMED_LOADCELL_SENSORS]; // Definition
-SensorTiming tempTimingData[MAX_TIMED_TEMP_SENSORS];         // Definition
-SensorTiming flowTimingData[MAX_TIMED_FLOW_SENSORS];         // Definition
-SensorTiming motorTimingData[MAX_TIMED_MOTOR_SENSORS];       // Definition
+SensorTiming tempTimingData[MAX_TIMED_TEMP_SENSORS];          // Definition
+SensorTiming flowTimingData[MAX_TIMED_FLOW_SENSORS];          // Definition
+SensorTiming motorTimingData[MAX_TIMED_MOTOR_SENSORS];        // Definition
 
 
 // --- NEW: Global variable for category timing ---
@@ -194,6 +194,17 @@ unsigned long loadCellCategoryStartTime = 0;
 unsigned long tempCategoryStartTime = 0;
 unsigned long flowCategoryStartTime = 0;
 unsigned long motorCategoryStartTime = 0;
+
+// --- NEW: Global variables for sequence management ---
+FlowMeterValues latestFlowMeterValues; // Global to store latest flow data
+volatile bool isStartupSequenceActive = false;
+volatile bool isShutdownSequenceActive = false;
+
+// NEW: Enums for sequence states
+StartupState currentStartupState = STARTUP_IDLE;
+ShutdownState currentShutdownState = SHUTDOWN_IDLE;
+
+unsigned long sequenceStepStartTime = 0; // To track start time for non-blocking delays (like 200ms wait)
 
 
 // --- Timing Helper Functions (Definitions) ---
@@ -248,14 +259,14 @@ void sendTimingPacket(byte timing_id, const SensorTiming* data_ptr) {
 
 // --- Calculation Function for Pressure Sensor ---
 PressureSensorValues calculatePressureSensorValues(int raw_pressure_int, int index) {
-  if (index < 0 || index >= NUM_PRESSURE_SENSORS) { return {-1.0f}; }
-  float raw_pressure_f = (float)raw_pressure_int;
-  float mV = raw_pressure_f * MV_FACTOR;
-  float volts = mV / 1000.0f;
-  float mA = volts * pressure_ma_factor[index];
-  float percent = mA * PERCENT_SLOPE + PERCENT_OFFSET;
-  float pressure = percent * pressure_scale_factor[index];
-  return {pressure};
+    if (index < 0 || index >= NUM_PRESSURE_SENSORS) { return {-1.0f}; }
+    float raw_pressure_f = (float)raw_pressure_int;
+    float mV = raw_pressure_f * MV_FACTOR;
+    float volts = mV / 1000.0f;
+    float mA = volts * pressure_ma_factor[index];
+    float percent = mA * PERCENT_SLOPE + PERCENT_OFFSET;
+    float pressure = percent * pressure_scale_factor[index];
+    return {pressure};
 }
 
 // --- Calculation Function for Load Cell Sensor ---
@@ -300,56 +311,78 @@ MotorRPMValue calculateMotorRPM(unsigned long currentPulseCount, unsigned long p
 // Now includes an optional timing_data_ptr. If provided, timing data is appended to the payload.
 void sendBinaryPacket(byte start_byte, byte id, const void* data_ptr, size_t data_size, byte end_byte, const SensorTiming* timing_data_ptr = nullptr) {
 
-  bool timing_presence = false;
-   // Ensure main data pointer is valid and has size
-  if (data_ptr == nullptr || data_size == 0) return;
-     size_t total_payload_size = data_size;
+    bool timing_presence = false;
+    // Ensure main data pointer is valid and has size
+    if (data_ptr == nullptr || data_size == 0) return;
+    size_t total_payload_size = data_size;
 
-  if (timing_data_ptr != nullptr) {
-      total_payload_size += sizeof(SensorTiming); // Add size of timing data if present
-      timing_presence = true;
-  }
+    if (timing_data_ptr != nullptr) {
+        total_payload_size += sizeof(SensorTiming); // Add size of timing data if present
+        timing_presence = true;
+    }
 
-  if (total_payload_size > 255) {
+    if (total_payload_size > 255) {
     // Optional: Print a warning to serial if the packet is too large
     // Serial.print(F("Warning: Packet ID ")); Serial.print(id); Serial.print(F(" total data size (")); Serial.print(total_payload_size); Serial.println(F(" bytes) exceeds 1-byte limit. Skipping packet."));
     return; // Abort if packet is too large
-   }
+    }
 
-  Serial.write(start_byte); // Write the packet start byte
-  Serial.write(id);         // Write the packet ID (which will be the sensor ID for sensor data packets)
+    Serial.write(start_byte); // Write the packet start byte
+    Serial.write(id);          // Write the packet ID (which will be the sensor ID for sensor data packets)
 
-  Serial.write((byte)total_payload_size); // Write the total size of the payload
+    Serial.write((byte)total_payload_size); // Write the total size of the payload
 
-  Serial.write((const byte*)data_ptr, (size_t)data_size); // Write the original sensor data bytes
+    Serial.write((const byte*)data_ptr, (size_t)data_size); // Write the original sensor data bytes
 
-  // If timing data is provided, append it to the packet
-  if (timing_presence == true) {
-      Serial.write((const byte*)timing_data_ptr, sizeof(SensorTiming)); // Write the appended timing data bytes
-  }
+    // If timing data is provided, append it to the packet
+    if (timing_presence == true) {
+        Serial.write((const byte*)timing_data_ptr, sizeof(SensorTiming)); // Write the appended timing data bytes
+    }
 
-  Serial.write(end_byte); // Write the packet end byte
+    Serial.write(end_byte); // Write the packet end byte
 }
 
 // --- Dedicated function to send ACK/NACK responses (REQUIRED for Python CLI) ---
 // This function creates the specific 3-byte payload expected by the Python CLI
 // (originalCmdType, originalTargetId, statusCode)
 void sendResponsePacket(byte originalCmdType, byte originalTargetId, byte statusCode) {
-  byte payload[3];
-  payload[0] = originalCmdType;
-  payload[1] = originalTargetId;
-  payload[2] = statusCode;
+    byte payload[3];
+    payload[0] = originalCmdType;
+    payload[1] = originalTargetId;
+    payload[2] = statusCode;
 
-  Serial.write(RESPONSE_PACKET_START_BYTE);
-  Serial.write(RESPONSE_ID_COMMAND_ACK); // This is the fixed ID for command responses
-  Serial.write(sizeof(payload));        // Payload size (always 3)
-  Serial.write(payload, sizeof(payload));
-  Serial.write(RESPONSE_PACKET_END_BYTE);
+    Serial.write(RESPONSE_PACKET_START_BYTE);
+    Serial.write(RESPONSE_ID_COMMAND_ACK); // This is the fixed ID for command responses
+    Serial.write(sizeof(payload));         // Payload size (always 3)
+    Serial.write(payload, sizeof(payload));
+    Serial.write(RESPONSE_PACKET_END_BYTE);
 
-  // Optional: For debugging on Arduino Serial Monitor (disable in production)
-  // Serial.print(F("Sent ACK/NACK: CmdType=0x")); Serial.print(originalCmdType, HEX);
-  // Serial.print(F(", TargetID=")); Serial.print(originalTargetId);
-  // Serial.print(F(", Status=0x")); Serial.println(statusCode, HEX);
+    // Optional: For debugging on Arduino Serial Monitor (disable in production)
+    // Serial.print(F("Sent ACK/NACK: CmdType=0x")); Serial.print(originalCmdType, HEX);
+    // Serial.print(F(", TargetID=")); Serial.print(originalTargetId);
+    // Serial.print(F(", Status=0x")); Serial.println(statusCode, HEX);
+}
+
+// --- NEW: Function to send sequence status updates ---
+// This function sends a structured packet for sequence progress/status
+void sendSequenceStatusPacket(byte sequenceType, byte stepCode, byte statusCode) {
+    // Payload: sequenceType (1B), stepCode (1B), statusCode (1B)
+    byte payload[3];
+    payload[0] = sequenceType; // e.g., SEQUENCE_TYPE_STARTUP, SEQUENCE_TYPE_SHUTDOWN
+    payload[1] = stepCode;     // e.g., SEQ_STARTUP_STEP_OPEN_FUEL_VALVE, SEQ_SHUTDOWN_COMPLETE
+    payload[2] = statusCode;   // e.g., STATUS_OK, STATUS_ERROR_HARDWARE_FAILURE
+
+    Serial.write(SEQUENCE_STATUS_PACKET_START_BYTE);
+    Serial.write(RESPONSE_ID_COMMAND_ACK); // Using a placeholder ID for the packet header, could be 0x01
+                                            // The actual sequence type is in the payload[0]
+    Serial.write(sizeof(payload));         // Payload size (always 3)
+    Serial.write(payload, sizeof(payload));
+    Serial.write(SEQUENCE_STATUS_PACKET_END_BYTE);
+
+    // Optional: For debugging on Arduino Serial Monitor
+    // Serial.print(F("Sent Seq Status: Type=0x")); Serial.print(sequenceType, HEX);
+    // Serial.print(F(", Step=0x")); Serial.print(stepCode, HEX);
+    // Serial.print(F(", Status=0x")); Serial.println(statusCode, HEX);
 }
 
 
@@ -368,7 +401,7 @@ void setRelayState(byte relayIndex, byte state) {
     // Determine the actual HIGH/LOW value for digitalWrite
     // IMPORTANT: Adjust LOW/HIGH based on whether your relay module is active LOW or active HIGH
     // For active LOW modules (common): state 1 (ON) -> LOW signal, state 0 (OFF) -> HIGH signal
-    int desiredPinLevel = (state == 1) ? LOW : HIGH; 
+    int desiredPinLevel = (state == 1) ? LOW : HIGH;  
 
     digitalWrite(RELAY_PINS[relayIndex], desiredPinLevel);
     
@@ -432,7 +465,7 @@ void handleCommand(byte commandType, byte targetId, const byte* payload, byte pa
                     byte state = payload[0]; // Extract the desired state (0 or 1)
 
                     // Validate the state value (must be 0 or 1)
-                    if (state > 1) { 
+                    if (state > 1) {  
                         statusCode = STATUS_ERROR_INVALID_STATE_VALUE;
                         // Optional: Serial.println(F("Error: Invalid relay state value."));
                     } else {
@@ -441,57 +474,96 @@ void handleCommand(byte commandType, byte targetId, const byte* payload, byte pa
                         setRelayState(targetId, state); // Pass targetId directly as it's 0-indexed
 
                         // Check the result of the setRelayState operation via the global flag.
-                        if (RELAY_STATUS_BYTE == STATUS_OK) { 
+                        if (RELAY_STATUS_BYTE == STATUS_OK) {  
                             statusCode = STATUS_OK; // Relay state was successfully set and verified.
                             // Optional: Serial.println(F("Relay command successful."));
                         } else {
                             // If RELAY_STATUS_BYTE is not STATUS_OK, it indicates a hardware failure
-                            statusCode = STATUS_ERROR_HARDWARE_FAILURE; 
+                            statusCode = STATUS_ERROR_HARDWARE_FAILURE;  
                             // Optional: Serial.println(F("Error: Relay hardware verification failed."));
                         }
                     }
                 } else {
                     // Invalid target ID for a SET_RELAY command.
-                    statusCode = STATUS_ERROR_INVALID_TARGET_ID; 
+                    statusCode = STATUS_ERROR_INVALID_TARGET_ID;  
                     // Optional: Serial.print(F("Error: CMD_TYPE_SET_RELAY received with invalid target ID: ")); Serial.println(targetId);
                 }
             } else {
                 // Invalid payload size for a SET_RELAY command.
-                statusCode = STATUS_ERROR_INVALID_PAYLOAD_SIZE; 
+                statusCode = STATUS_ERROR_INVALID_PAYLOAD_SIZE;  
                 // Optional: Serial.print(F("Error: CMD_TYPE_SET_RELAY received with invalid payload size: ")); Serial.println(payloadSize);
             }
             break;
 
         case CMD_TYPE_SET_MOTOR:
-             if (payloadSize == 2) {
-                 if (targetId == CMD_TARGET_MOTOR_ID) {
-                     byte enableState = payload[0];
-                     byte throttlePercent = payload[1];
+            if (payloadSize == 2) {
+                if (targetId == CMD_TARGET_MOTOR_ID) {
+                    byte enableState = payload[0];
+                    byte throttlePercent = payload[1];
 
-                     // Validate motor enable and throttle values.
-                     if (enableState > 1 || throttlePercent > 100) {
-                         statusCode = STATUS_ERROR_INVALID_STATE_VALUE;
-                         // Optional: Serial.println(F("Error: Invalid motor enable or throttle value."));
-                     } else {
-                         setMotorEnable(enableState);
-                         setMotorThrottle(throttlePercent);
-                         // For motor, without direct hardware read-back (like an encoder),
-                         // we assume success if the command was syntactically valid and executed.
-                         statusCode = STATUS_OK;
-                         // Optional: Serial.println(F("Motor command successful."));
-                     }
+                    // Validate motor enable and throttle values.
+                    if (enableState > 1 || throttlePercent > 100) {
+                        statusCode = STATUS_ERROR_INVALID_STATE_VALUE;
+                        // Optional: Serial.println(F("Error: Invalid motor enable or throttle value."));
+                    } else {
+                        setMotorEnable(enableState);
+                        setMotorThrottle(throttlePercent);
+                        // For motor, without direct hardware read-back (like an encoder),
+                        // we assume success if the command was syntactically valid and executed.
+                        statusCode = STATUS_OK;
+                        // Optional: Serial.println(F("Motor command successful."));
+                    }
 
-                 } else {
+                } else {
                     // Invalid target ID for a SET_MOTOR command.
                     statusCode = STATUS_ERROR_INVALID_TARGET_ID;
                     // Optional: Serial.print(F("Error: CMD_TYPE_SET_MOTOR received with invalid target ID: ")); Serial.println(targetId);
-                 }
-             } else {
+                }
+            } else {
                 // Invalid payload size for a SET_MOTOR command.
                 statusCode = STATUS_ERROR_INVALID_PAYLOAD_SIZE;
                 // Optional: Serial.print(F("Error: CMD_TYPE_SET_MOTOR received with invalid payload size: ")); Serial.println(payloadSize);
-             }
-             break;
+            }
+            break;
+
+        // NEW: Handle Startup Sequence Command
+        case CMD_TYPE_STARTUP_SEQUENCE: {
+            // For now, no payload expected for this command
+            if (payloadSize != 0) {
+                statusCode = STATUS_ERROR_INVALID_PAYLOAD_SIZE;
+                Serial.print(F("Startup Sequence Error: Invalid payload size (")); Serial.print(payloadSize); Serial.println(F("). Expected 0."));
+                break;
+            }
+            // Only initiate if no other sequence is active
+            if (!isStartupSequenceActive && !isShutdownSequenceActive) {
+                sendSequenceStatusPacket(SEQUENCE_TYPE_STARTUP, SEQ_STARTUP_STEP_OPEN_FUEL_VALVE, STATUS_OK); // Initial status
+                currentStartupState = STARTUP_STEP_OPEN_FUEL_VALVE; // Set to the first step
+                isStartupSequenceActive = true; // Activate the sequence handler
+            } else {
+                statusCode = STATUS_ERROR_UNKNOWN_ISSUE; // Or a more specific error like "SEQUENCE_ALREADY_ACTIVE"
+                Serial.println(F("Startup sequence already active or shutdown active. Ignoring command."));
+            }
+            break;
+        }
+        // NEW: Handle Shutdown Sequence Command
+        case CMD_TYPE_SHUTDOWN_SEQUENCE: {
+            // For now, no payload expected for this command
+            if (payloadSize != 0) {
+                statusCode = STATUS_ERROR_INVALID_PAYLOAD_SIZE;
+                Serial.print(F("Shutdown Sequence Error: Invalid payload size (")); Serial.print(payloadSize); Serial.println(F("). Expected 0."));
+                break;
+            }
+            // Only initiate if no other sequence is active
+            if (!isStartupSequenceActive && !isShutdownSequenceActive) {
+                sendSequenceStatusPacket(SEQUENCE_TYPE_SHUTDOWN, SEQ_SHUTDOWN_STEP_CLOSE_OXIDIZER_VALVE, STATUS_OK); // Initial status
+                currentShutdownState = SHUTDOWN_STEP_CLOSE_OXIDIZER_VALVE; // Set to the first step
+                isShutdownSequenceActive = true; // Activate the sequence handler
+            } else {
+                statusCode = STATUS_ERROR_UNKNOWN_ISSUE; // Or a more specific error like "SEQUENCE_ALREADY_ACTIVE"
+                Serial.println(F("Shutdown sequence already active or startup active. Ignoring command."));
+            }
+            break;
+        }
 
         default:
             // Received an unknown command type.
@@ -508,58 +580,58 @@ void handleCommand(byte commandType, byte targetId, const byte* payload, byte pa
 
 // --- Modular Setup Functions ---
 void setupPressureSensors() {
-  Serial.println(F("Setting up Pressure Sensors..."));
-  for (int i = 0; i < NUM_PRESSURE_SENSORS; i++) {
-    pressure_scale_factor[i] = PRESSURE_MAX[i] / 100.0f;
-    pressure_ma_factor[i] = 1000.0f / PRESSURE_SHUNT_OHMS[i];
-  }
-  Serial.print(NUM_PRESSURE_SENSORS); Serial.println(F(" Pressure Sensors setup complete."));
+    Serial.println(F("Setting up Pressure Sensors..."));
+    for (int i = 0; i < NUM_PRESSURE_SENSORS; i++) {
+        pressure_scale_factor[i] = PRESSURE_MAX[i] / 100.0f;
+        pressure_ma_factor[i] = 1000.0f / PRESSURE_SHUNT_OHMS[i];
+    }
+    Serial.print(NUM_PRESSURE_SENSORS); Serial.println(F(" Pressure Sensors setup complete."));
 }
 
 void setupLoadCells() {
-  Serial.println(F("Setting up Load Cells..."));
-  for (int i = 0; i < NUM_LOADCELL_SENSORS; i++) {
-    Serial.print(F("Load Cell ")); Serial.print(i + 1);
-    Serial.print(F(" on pins DOUT:")); Serial.print(LOADCELL_DOUT_PINS[i]);
-    Serial.print(F(" CLK:")); Serial.println(LOADCELL_CLK_PINS[i]);
+    Serial.println(F("Setting up Load Cells..."));
+    for (int i = 0; i < NUM_LOADCELL_SENSORS; i++) {
+        Serial.print(F("Load Cell ")); Serial.print(i + 1);
+        Serial.print(F(" on pins DOUT:")); Serial.print(LOADCELL_DOUT_PINS[i]);
+        Serial.print(F(" CLK:")); Serial.println(LOADCELL_CLK_PINS[i]);
 
-    scales[i].begin(LOADCELL_DOUT_PINS[i], LOADCELL_CLK_PINS[i]);
-    delay(100);
+        scales[i].begin(LOADCELL_DOUT_PINS[i], LOADCELL_CLK_PINS[i]);
+        delay(100);
 
-    scales[i].set_scale(LOADCELL_CALIBRATION_FACTORS[i]);
-    scales[i].tare();
+        scales[i].set_scale(LOADCELL_CALIBRATION_FACTORS[i]);
+        scales[i].tare();
 
-    Serial.print(F("Load Cell ")); Serial.print(i + 1); Serial.println(F(" tared."));
-    delay(50);
-  }
-  Serial.print(NUM_LOADCELL_SENSORS); Serial.println(F(" Load Cells setup complete."));
+        Serial.print(F("Load Cell ")); Serial.print(i + 1); Serial.println(F(" tared."));
+        delay(50);
+    }
+    Serial.print(NUM_LOADCELL_SENSORS); Serial.println(F(" Load Cells setup complete."));
 }
 
 void setupFlowSensors() {
-  Serial.println(F("Setting up Flow Sensor..."));
-  pinMode(FLOW_SENSOR_PIN_MEGA, INPUT);
-  attachInterrupt(digitalPinToInterrupt(FLOW_SENSOR_PIN_MEGA), flow_increase_pulse, RISING);
+    Serial.println(F("Setting up Flow Sensor..."));
+    pinMode(FLOW_SENSOR_PIN_MEGA, INPUT);
+    attachInterrupt(digitalPinToInterrupt(FLOW_SENSOR_PIN_MEGA), flow_increase_pulse, RISING);
 
-  flow_pulse = 0;
-  flow_pulseLast = 0;
-  lastFlowProcessTime = millis();
+    flow_pulse = 0;
+    flow_pulseLast = 0;
+    lastFlowProcessTime = millis();
 
-  Serial.println(F("Flow Sensor setup complete."));
+    Serial.println(F("Flow Sensor setup complete."));
 }
 
 void setupTemperatureSensors() {
-  Serial.println(F("Setting up Temperature Sensors (MAX6675)..."));
-  currentTempSensorIndex = 0;
-  lastTempProcessTime = millis();
+    Serial.println(F("Setting up Temperature Sensors (MAX6675)..."));
+    currentTempSensorIndex = 0;
+    lastTempProcessTime = millis();
 
-  Serial.print(NUM_TEMP_SENSORS); Serial.println(F(" Temperature Sensors setup complete."));
+    Serial.print(NUM_TEMP_SENSORS); Serial.println(F(" Temperature Sensors setup complete."));
 }
 
 void setupRelays() {
     Serial.println(F("Setting up Relays..."));
     for (int i = 0; i < NUM_RELAYS; i++) {
         pinMode(RELAY_PINS[i], OUTPUT);
-        digitalWrite(RELAY_PINS[i], LOW);
+        digitalWrite(RELAY_PINS[i], LOW); // Ensure relays are off initially (assuming active HIGH)
     }
     Serial.print(NUM_RELAYS); Serial.println(F(" Relays setup complete."));
 }
@@ -570,10 +642,14 @@ void setupDCMotor() {
     pinMode(MOTOR_ENABLE_PIN, OUTPUT);
     pinMode(MOTOR_PWM_PIN, OUTPUT);
 
+    // Configure Timer 4 for PWM on MOTOR_PWM_PIN (typically pin 6 on Mega)
+    // Fast PWM mode, TOP at ICR4, Clear OC4A on Compare Match, Set OC4A at TOP
     TCCR4A = _BV(COM4A1) | _BV(WGM41);
-    TCCR4B = _BV(WGM43) | _BV(WGM42) | _BV(CS41);
-    ICR4 = 199;
-    OCR4A = 0;
+    TCCR4B = _BV(WGM43) | _BV(WGM42) | _BV(CS41); // Prescaler 8 (for 16MHz, gives ~2kHz PWM)
+    ICR4 = 199; // Set TOP value for PWM (e.g., 199 for 200 counts, 16MHz/8/200 = 10kHz)
+    OCR4A = 0; // Initial duty cycle 0
+
+    digitalWrite(MOTOR_ENABLE_PIN, LOW); // Ensure motor driver is disabled initially
 
     pinMode(MOTOR_SPEED_SENSE_PIN, INPUT_PULLUP);
     attachInterrupt(digitalPinToInterrupt(MOTOR_SPEED_SENSE_PIN), motor_count_pulse, RISING);
@@ -588,62 +664,188 @@ void setupDCMotor() {
 
 // --- Flow sensor Interrupt Service Routine (ISR) ---
 extern "C" void flow_increase_pulse() { // Defined with extern "C"
-  flow_pulse++;
+    flow_pulse++;
 }
 
 // --- Motor Speed Sense Interrupt Service Routine (ISR) ---
 extern "C" void motor_count_pulse() { // Defined with extern "C"
-  motor_pulse_count++;
+    motor_pulse_count++;
+}
+
+// --- NEW: Startup Sequence Implementation (Skeleton with State Machine) ---
+void startup_sequence() {
+    // This function is called by handleCommand() to INITIATE the sequence.
+    // The actual sequence steps are handled by runStartupSequence() in the main loop.
+    // This ensures the sequence is non-blocking.
+    if (!isStartupSequenceActive && !isShutdownSequenceActive) {
+        sendSequenceStatusPacket(SEQUENCE_TYPE_STARTUP, SEQ_STARTUP_STEP_OPEN_FUEL_VALVE, STATUS_OK); // Initial status
+        currentStartupState = STARTUP_STEP_OPEN_FUEL_VALVE; // Set to the first step
+        isStartupSequenceActive = true; // Activate the sequence handler
+    } else {
+        // Send NACK if already active
+        sendResponsePacket(CMD_TYPE_STARTUP_SEQUENCE, 0, STATUS_ERROR_UNKNOWN_ISSUE);
+        // Serial.println(F("Startup sequence already active or shutdown active. Ignoring command.")); // For debug
+    }
+}
+
+void runStartupSequence() {
+    if (!isStartupSequenceActive) {
+        return; // Do nothing if sequence is not active
+    }
+
+    unsigned long currentMillis = millis(); // Get current time for non-blocking operations
+
+    switch (currentStartupState) {
+        case STARTUP_STEP_OPEN_FUEL_VALVE:
+            sendSequenceStatusPacket(SEQUENCE_TYPE_STARTUP, SEQ_STARTUP_STEP_OPEN_FUEL_VALVE, STATUS_OK);
+            setRelayState(0, 1); // Open R0 (fuel valve)
+            // You might add a check here for RELAY_STATUS_BYTE if verification is critical for moving to next step
+            currentStartupState = STARTUP_STEP_SET_MOTOR_THROTTLE; // Move to next step immediately
+            break;
+
+        case STARTUP_STEP_SET_MOTOR_THROTTLE:
+            sendSequenceStatusPacket(SEQUENCE_TYPE_STARTUP, SEQ_STARTUP_STEP_SET_MOTOR_THROTTLE, STATUS_OK);
+            setMotorEnable(1);
+            setMotorThrottle(77);
+            currentStartupState = STARTUP_STEP_WAIT_FOR_FLOW; // Move to wait state
+            break;
+
+        case STARTUP_STEP_WAIT_FOR_FLOW:
+            // This is the non-blocking "wait" for flow to reach target.
+            if (latestFlowMeterValues.flow_rate_lpm >= 1.4f) {
+                sendSequenceStatusPacket(SEQUENCE_TYPE_STARTUP, SEQ_STARTUP_STEP_WAIT_FOR_FLOW, STATUS_OK); // Indicate condition met
+                currentStartupState = STARTUP_STEP_OPEN_OXIDIZER_VALVE; // Move to next step
+            } else {
+                // Optionally, send a "waiting" status repeatedly
+                // sendSequenceStatusPacket(SEQUENCE_TYPE_STARTUP, SEQ_STARTUP_STEP_WAIT_FOR_FLOW, STATUS_UNKNOWN_ISSUE); // Or a custom "WAITING" status
+            }
+            break;
+
+        case STARTUP_STEP_OPEN_OXIDIZER_VALVE:
+            sendSequenceStatusPacket(SEQUENCE_TYPE_STARTUP, SEQ_STARTUP_STEP_OPEN_OXIDIZER_VALVE, STATUS_OK);
+            setRelayState(1, 1); // Open R1 (oxidizer valve)
+            currentStartupState = STARTUP_STEP_WAIT_200MS; // Move to next step
+            sequenceStepStartTime = currentMillis; // Record time when we entered this state for the 200ms wait
+            break;
+
+        case STARTUP_STEP_WAIT_200MS:
+            // Non-blocking 200ms wait
+            if (currentMillis - sequenceStepStartTime >= 200) {
+                sendSequenceStatusPacket(SEQUENCE_TYPE_STARTUP, SEQ_STARTUP_STEP_WAIT_200MS, STATUS_OK); // Indicate wait complete
+                currentStartupState = STARTUP_STEP_OPEN_IGNITER_VALVE; // Move to next step
+            } else {
+                // Optionally, send a "waiting" status repeatedly
+                // sendSequenceStatusPacket(SEQUENCE_TYPE_STARTUP, SEQ_STARTUP_STEP_WAIT_200MS, STATUS_UNKNOWN_ISSUE); // Or a custom "WAITING" status
+            }
+            break;
+
+        case STARTUP_STEP_OPEN_IGNITER_VALVE:
+            sendSequenceStatusPacket(SEQUENCE_TYPE_STARTUP, SEQ_STARTUP_STEP_OPEN_IGNITER_VALVE, STATUS_OK);
+            setRelayState(2, 1); // Open R2 (igniter valve)
+            currentStartupState = STARTUP_COMPLETE; // Sequence finished
+            break;
+
+        case STARTUP_COMPLETE:
+            sendSequenceStatusPacket(SEQUENCE_TYPE_STARTUP, SEQ_STARTUP_COMPLETE, STATUS_OK); // Final completion status
+            isStartupSequenceActive = false; // Deactivate the handler
+            currentStartupState = STARTUP_IDLE; // Reset state for future use
+            break;
+
+        case STARTUP_FAILED: // This state would be reached if you re-introduce timeouts or other failure conditions
+            sendSequenceStatusPacket(SEQUENCE_TYPE_STARTUP, SEQ_STARTUP_FAILED, STATUS_ERROR_UNKNOWN_ISSUE); // Final failure status
+            isStartupSequenceActive = false; // Deactivate the handler
+            currentStartupState = STARTUP_IDLE; // Reset state
+            break;
+
+        case STARTUP_IDLE:
+            // Should not be here if isStartupSequenceActive is true, but handle defensively
+            isStartupSequenceActive = false; // Ensure it's off if somehow entered
+            break;
+    }
 }
 
 
-// // --- Test Function Definitions ---
-// void testTimingBatchAllTypes() {
-//   Serial.println(F("\n--- Running Timing Test: Batch All Types ---"));
+// --- NEW: Shutdown Sequence Implementation (Skeleton with State Machine) ---
+void shutdown_sequence() {
+    // This function is called by handleCommand() to INITIATE the sequence.
+    // The actual sequence steps are handled by runShutdownSequence() in the main loop.
+    if (!isStartupSequenceActive && !isShutdownSequenceActive) {
+        sendSequenceStatusPacket(SEQUENCE_TYPE_SHUTDOWN, SEQ_SHUTDOWN_STEP_CLOSE_OXIDIZER_VALVE, STATUS_OK); // Initial status
+        currentShutdownState = SHUTDOWN_STEP_CLOSE_OXIDIZER_VALVE; // Set to the first step
+        isShutdownSequenceActive = true; // Activate the sequence handler
+    } else {
+        // Send NACK if already active
+        sendResponsePacket(CMD_TYPE_SHUTDOWN_SEQUENCE, 0, STATUS_ERROR_UNKNOWN_ISSUE);
+        // Serial.println(F("Shutdown sequence already active or startup active. Ignoring command.")); // For debug
+    }
+}
 
-//   int raw_p = analogRead(PRESSURE_SENSOR_PINS[0]);
-//   unsigned long testStartTime;
-//   startSensorTimer(PRESSURE_ID_START + 0, &testStartTime);
-//   PressureSensorValues pData = calculatePressureSensorValues(raw_p, 0);
-//   sendBinaryPacket(PRESSURE_PACKET_START_BYTE, PRESSURE_ID_START, &pData, sizeof(pData), PRESSURE_PACKET_END_BYTE);
-//   endSensorTimer(PRESSURE_ID_START + 0, testStartTime, "One Pressure Sensor Block");
+void runShutdownSequence() {
+    if (!isShutdownSequenceActive) {
+        return; // Do nothing if sequence is not active
+    }
 
+    unsigned long currentMillis = millis(); // Get current time for non-blocking operations
 
-//   HX711& testScale = scales[0];
-//   float raw_weight = testScale.get_units();
-//   startSensorTimer(LOADCELL_ID_START + 0, &testStartTime);
-//   LoadCellValues loadCellData = calculateLoadCellValues(raw_weight);
-//   byte loadCell_id = LOADCELL_ID_START + 0;
-//   sendBinaryPacket(LOADCELL_PACKET_START_BYTE, loadCell_id, &loadCellData, sizeof(loadCellData), LOADCELL_PACKET_END_BYTE);
-//   endSensorTimer(LOADCELL_ID_START + 0, testStartTime, "One Load Cell Block (incl. get_units wait)");
+    switch (currentShutdownState) {
+        case SHUTDOWN_STEP_CLOSE_OXIDIZER_VALVE:
+            sendSequenceStatusPacket(SEQUENCE_TYPE_SHUTDOWN, SEQ_SHUTDOWN_STEP_CLOSE_OXIDIZER_VALVE, STATUS_OK);
+            setRelayState(1, 0); // Close R1 (oxidizer valve)
+            currentShutdownState = SHUTDOWN_STEP_WAIT_200MS; // Move to next step
+            sequenceStepStartTime = currentMillis; // Record time for the 200ms wait
+            break;
 
+        case SHUTDOWN_STEP_WAIT_200MS:
+            // Non-blocking 200ms wait
+            if (currentMillis - sequenceStepStartTime >= 200) {
+                sendSequenceStatusPacket(SEQUENCE_TYPE_SHUTDOWN, SEQ_SHUTDOWN_STEP_WAIT_200MS, STATUS_OK); // Indicate wait complete
+                currentShutdownState = SHUTDOWN_STEP_SET_MOTOR_THROTTLE_ZERO; // Move to next step
+            } else {
+                // Optionally, send a "waiting" status repeatedly
+                // sendSequenceStatusPacket(SEQUENCE_TYPE_SHUTDOWN, SEQ_SHUTDOWN_STEP_WAIT_200MS, STATUS_UNKNOWN_ISSUE); // Or a custom "WAITING" status
+            }
+            break;
 
-//   long dummyCurrentPulse = flow_pulse + 100;
-//   long dummyLastPulse = 0;
-//   long delta_pulse = dummyCurrentPulse - dummyLastPulse;
-//   unsigned long dummyElapsedTime = FLOW_CALCULATION_INTERVAL_MS;
-  
-//   startSensorTimer(FLOW_SENSOR_ID, &testStartTime);
-//   FlowMeterValues fData = calculateFlowMeterValues(delta_pulse, dummyElapsedTime);
-//   sendBinaryPacket(FLOW_PACKET_START_BYTE, FLOW_SENSOR_ID, &fData, sizeof(fData), FLOW_PACKET_END_BYTE);
-//   endSensorTimer(FLOW_SENSOR_ID, testStartTime, "One Flow Sensor Calc + Send");
+        case SHUTDOWN_STEP_SET_MOTOR_THROTTLE_ZERO:
+            sendSequenceStatusPacket(SEQUENCE_TYPE_SHUTDOWN, SEQ_SHUTDOWN_STEP_SET_MOTOR_THROTTLE_ZERO, STATUS_OK);
+            setMotorThrottle(0); // Set motor throttle to 0
+            setMotorEnable(0);   // Disable motor driver
+            currentShutdownState = SHUTDOWN_STEP_WAIT_1000MS; // Move to next step
+            sequenceStepStartTime = currentMillis; // Record time for the 1000ms wait
+            break;
 
+        case SHUTDOWN_STEP_WAIT_1000MS:
+            // Non-blocking 1000ms wait
+            if (currentMillis - sequenceStepStartTime >= 1000) {
+                sendSequenceStatusPacket(SEQUENCE_TYPE_SHUTDOWN, SEQ_SHUTDOWN_STEP_WAIT_1000MS, STATUS_OK); // Indicate wait complete
+                currentShutdownState = SHUTDOWN_STEP_CLOSE_FUEL_VALVE; // Move to next step
+            } else {
+                // Optionally, send a "waiting" status repeatedly
+                // sendSequenceStatusPacket(SEQUENCE_TYPE_SHUTDOWN, SEQ_SHUTDOWN_STEP_WAIT_1000MS, STATUS_UNKNOWN_ISSUE); // Or a custom "WAITING" status
+            }
+            break;
 
-//   startSensorTimer(TEMP_ID_START + 0, &testStartTime);
-//   TemperatureSensorValues tData = calculateTemperatureSensorValues(0);
-//   sendBinaryPacket(TEMP_PACKET_START_BYTE, TEMP_ID_START, &tData, sizeof(tData), TEMP_PACKET_END_BYTE);
-//   endSensorTimer(TEMP_ID_START + 0, testStartTime, "One Temp Sensor Block (incl. readCelsius wait)");
+        case SHUTDOWN_STEP_CLOSE_FUEL_VALVE:
+            sendSequenceStatusPacket(SEQUENCE_TYPE_SHUTDOWN, SEQ_SHUTDOWN_STEP_CLOSE_FUEL_VALVE, STATUS_OK);
+            setRelayState(0, 0); // Close R0 (fuel valve)
+            currentShutdownState = SHUTDOWN_COMPLETE; // Sequence finished
+            break;
 
-//   startSensorTimer(MOTOR_RPM_ID, &testStartTime);
+        case SHUTDOWN_COMPLETE:
+            sendSequenceStatusPacket(SEQUENCE_TYPE_SHUTDOWN, SEQ_SHUTDOWN_COMPLETE, STATUS_OK); // Final completion status
+            isShutdownSequenceActive = false; // Deactivate the handler
+            currentShutdownState = SHUTDOWN_IDLE; // Reset state for future use
+            break;
 
-//   unsigned long interval_ms = MOTOR_CALCULATION_INTERVAL_MS;
-//   unsigned long currentPulseCount_motor = motor_pulse_count + 50;
-//   unsigned long motor_last_pulse_count_test = 0;
+        case SHUTDOWN_FAILED: // This state would be reached if you re-introduce timeouts or other failure conditions
+            sendSequenceStatusPacket(SEQUENCE_TYPE_SHUTDOWN, SEQ_SHUTDOWN_FAILED, STATUS_ERROR_UNKNOWN_ISSUE); // Final failure status
+            isShutdownSequenceActive = false; // Deactivate the handler
+            currentShutdownState = SHUTDOWN_IDLE; // Reset state
+            break;
 
-//   MotorRPMValue mData = calculateMotorRPM(currentPulseCount_motor, motor_last_pulse_count_test, interval_ms);
-//   byte motor_id = MOTOR_RPM_ID;
-//   sendBinaryPacket(MOTOR_RPM_PACKET_START_BYTE, motor_id, &mData, sizeof(mData), MOTOR_RPM_PACKET_END_BYTE);
-//   endSensorTimer(MOTOR_RPM_ID, testStartTime, "Motor RPM Block");
-
-//   Serial.println(F("--- Timing Test Batch Complete ---"));
-// }
+        case SHUTDOWN_IDLE:
+            // Should not be here if isShutdownSequenceActive is true, but handle defensively
+            isShutdownSequenceActive = false; // Ensure it's off if somehow entered
+            break;
+    }
+}

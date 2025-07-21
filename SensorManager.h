@@ -2,7 +2,7 @@
 #define SENSOR_MANAGER_H
 
 #include <Arduino.h> // Always include Arduino.h in .h files
-#include "HX711.h"   // Include necessary library headers
+#include "HX711.h"    // Include necessary library headers
 #include "max6675.h" // Include MAX6675 library header
 #include <math.h>    // For isnan() prototype
 
@@ -76,6 +76,9 @@ extern const byte COMMAND_START_BYTE;
 extern const byte COMMAND_END_BYTE;
 extern const byte CMD_TYPE_SET_RELAY;
 extern const byte CMD_TYPE_SET_MOTOR;
+const byte CMD_TYPE_STARTUP_SEQUENCE = 0x03; // Command to initiate system startup sequence
+const byte CMD_TYPE_SHUTDOWN_SEQUENCE = 0x04; // Command to initiate system shutdown sequence
+
 extern const byte CMD_TARGET_RELAY_START;
 extern const byte CMD_TARGET_MOTOR_ID;
 
@@ -92,6 +95,34 @@ extern const byte STATUS_ERROR_INVALID_PAYLOAD_SIZE;
 extern const byte STATUS_ERROR_INVALID_COMMAND_TYPE;
 extern const byte STATUS_ERROR_HARDWARE_FAILURE; // Corresponds to your ERROR_INVALID_COMMAND_EXC
 extern const byte STATUS_ERROR_UNKNOWN_ISSUE;
+
+
+// --- NEW: Sequence Status Packet Constants ---
+const byte SEQUENCE_STATUS_PACKET_START_BYTE = 0xF4; // New start byte for sequence status
+const byte SEQUENCE_STATUS_PACKET_END_BYTE = 0xF5;   // New end byte for sequence status
+
+// Sequence Type IDs
+const byte SEQUENCE_TYPE_STARTUP = 0x01;
+const byte SEQUENCE_TYPE_SHUTDOWN = 0x02;
+
+// Startup Sequence Step Codes
+const byte SEQ_STARTUP_STEP_OPEN_FUEL_VALVE = 0x01;
+const byte SEQ_STARTUP_STEP_SET_MOTOR_THROTTLE = 0x02;
+const byte SEQ_STARTUP_STEP_WAIT_FOR_FLOW = 0x03;
+const byte SEQ_STARTUP_STEP_OPEN_OXIDIZER_VALVE = 0x04;
+const byte SEQ_STARTUP_STEP_WAIT_200MS = 0x05;
+const byte SEQ_STARTUP_STEP_OPEN_IGNITER_VALVE = 0x06;
+const byte SEQ_STARTUP_COMPLETE = 0xFE; // Indicates sequence finished successfully
+const byte SEQ_STARTUP_FAILED = 0xFF;   // Indicates sequence failed (e.g., timeout, error)
+
+// Shutdown Sequence Step Codes
+const byte SEQ_SHUTDOWN_STEP_CLOSE_OXIDIZER_VALVE = 0x01;
+const byte SEQ_SHUTDOWN_STEP_WAIT_200MS = 0x02;
+const byte SEQ_SHUTDOWN_STEP_SET_MOTOR_THROTTLE_ZERO = 0x03;
+const byte SEQ_SHUTDOWN_STEP_WAIT_1000MS = 0x04;
+const byte SEQ_SHUTDOWN_STEP_CLOSE_FUEL_VALVE = 0x05;
+const byte SEQ_SHUTDOWN_COMPLETE = 0xFE; // Indicates sequence finished successfully
+const byte SEQ_SHUTDOWN_FAILED = 0xFF;   // Indicates sequence failed (e.g., timeout, error)
 
 
 // --- global value for ACK (CHANGED TO BYTE TYPE) ---
@@ -125,14 +156,6 @@ struct SensorTiming {
     unsigned long end_micros;
     unsigned long duration_micros;
 };
-
-// --- REMOVED: ErrorandStatus struct and its global arrays ---
-// These are no longer needed as the ACK/NACK payload is a fixed 3-byte sequence.
-// const byte MAX_CONTROLLED_RELAYS = 4;
-// const byte MAX_CONTROLLED_MOTORS = 1;
-// extern ErrorandStatus RELAY_RESPONSE[MAX_CONTROLLED_RELAYS];
-// extern ErrorandStatus MOTOR_RESPONSE[MAX_CONTROLLED_MOTORS];
-
 
 // --- NEW: Global Arrays to Store Timing Data ---
 const byte MAX_TIMED_PRESSURE_SENSORS = 6;
@@ -211,6 +234,39 @@ extern unsigned long tempCategoryStartTime;
 extern unsigned long flowCategoryStartTime;
 extern unsigned long motorCategoryStartTime;
 
+// --- NEW: Global variables for sequence management ---
+extern FlowMeterValues latestFlowMeterValues; // Global to store latest flow data
+extern volatile bool isStartupSequenceActive;
+extern volatile bool isShutdownSequenceActive;
+
+// NEW: Enums for sequence states
+enum StartupState {
+  STARTUP_IDLE = 0,
+  STARTUP_STEP_OPEN_FUEL_VALVE,
+  STARTUP_STEP_SET_MOTOR_THROTTLE,
+  STARTUP_STEP_WAIT_FOR_FLOW,
+  STARTUP_STEP_OPEN_OXIDIZER_VALVE,
+  STARTUP_STEP_WAIT_200MS,
+  STARTUP_STEP_OPEN_IGNITER_VALVE,
+  STARTUP_COMPLETE,
+  STARTUP_FAILED // In case of unrecoverable error, though no timeouts for now
+};
+extern StartupState currentStartupState;
+
+enum ShutdownState {
+  SHUTDOWN_IDLE = 0,
+  SHUTDOWN_STEP_CLOSE_OXIDIZER_VALVE,
+  SHUTDOWN_STEP_WAIT_200MS,
+  SHUTDOWN_STEP_SET_MOTOR_THROTTLE_ZERO,
+  SHUTDOWN_STEP_WAIT_1000MS,
+  SHUTDOWN_STEP_CLOSE_FUEL_VALVE,
+  SHUTDOWN_COMPLETE,
+  SHUTDOWN_FAILED // In case of unrecoverable error, though no timeouts for now
+};
+extern ShutdownState currentShutdownState;
+
+extern unsigned long sequenceStepStartTime; // To track start time for non-blocking delays (like 200ms wait)
+
 
 // --- Timing Helper Function Prototypes ---
 void startSensorTimer(byte sensorId, unsigned long* startTimeVar);
@@ -225,8 +281,11 @@ FlowMeterValues calculateFlowMeterValues(long delta_pulse, unsigned long elapsed
 TemperatureSensorValues calculateTemperatureSensorValues(int index);
 MotorRPMValue calculateMotorRPM(unsigned long currentPulseCount, unsigned long previousPulseCount, unsigned long interval_ms);
 
-// --- NEW: Dedicated function for sending ACK/NACK responses ---
+// --- Dedicated function for sending ACK/NACK responses ---
 void sendResponsePacket(byte originalCmdType, byte originalTargetId, byte statusCode);
+
+// NEW: Function to send sequence status updates
+void sendSequenceStatusPacket(byte sequenceType, byte stepCode, byte statusCode);
 
 // Your existing sendBinaryPacket, but note it's not suitable for ACK/NACK directly
 void sendBinaryPacket(byte start_byte, byte id, const void* data_ptr, size_t data_size, byte end_byte, const SensorTiming* timing_data_ptr = nullptr);
@@ -235,6 +294,12 @@ void handleCommand(byte commandType, byte targetId, const byte* payload, byte pa
 void setRelayState(byte relayIndex, byte state);
 void setMotorEnable(byte state);
 void setMotorThrottle(byte throttlePercent);
+
+// NEW: Startup and Shutdown Sequence Prototypes
+void startup_sequence(); // Function to initiate the startup sequence
+void runStartupSequence(); // State machine handler for startup
+void shutdown_sequence(); // Function to initiate the shutdown sequence
+void runShutdownSequence(); // State machine handler for shutdown
 
 void setupPressureSensors();
 void setupLoadCells();
