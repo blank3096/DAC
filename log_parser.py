@@ -15,8 +15,9 @@ def parse_log_to_csv(log_file_path, output_dir):
     print(f"Starting parsing of log file: {log_file_path}")
 
     # --- Regular Expressions for New Log Format ---
-    # Example line: 2025-07-16 22:36:06 - INFO - [RAW SENSOR] Pressure ID 0: Values=(0.16,), Timing Duration=496 us
-    log_line_regex = re.compile(r"^(\d{4}-\d{2}-\d{2}\s\d{2}:\d{2}:\d{2})\s-\s(INFO|DEBUG|WARNING|ERROR|CRITICAL)\s-\s(.*)$")
+    # Example line: 2025-07-21 11:56:46.580 - DEBUG - [RAW SENSOR] Pressure ID 1: Values=(0.11137725412845612,), Timing Duration=204 us
+    # CHANGED: Added \.\d{3} to the timestamp regex to capture milliseconds.
+    log_line_regex = re.compile(r"^(\d{4}-\d{2}-\d{2}\s\d{2}:\d{2}:\d{2}\.\d{3})\s-\s(INFO|DEBUG|WARNING|ERROR|CRITICAL)\s-\s(.*)$")
 
     # [RAW SENSOR] Pressure ID 0: Values=(0.16,), Timing Duration=496 us
     raw_sensor_regex = re.compile(r"\[RAW SENSOR\]\s(.+?)\sID\s(\d+):\sValues=\((.+?)\),\sTiming\sDuration=(\d+)\sus")
@@ -28,11 +29,8 @@ def parse_log_to_csv(log_file_path, output_dir):
     raw_response_regex = re.compile(r"\[RAW RESPONSE\]\sCmdType=(0x[0-9a-fA-F]+),\sTargetID=(\d+),\sStatus=(0x[0-9a-fA-F]+)\s\((.+?)\)")
 
     # --- Data Storage ---
-    # Dictionary of lists: { 'sensor_type_id': [ {record1}, {record2}, ... ] }
     sensor_data_csvs = defaultdict(list)
-    # List of dictionaries for category timing
     category_timing_data = []
-    # List of dictionaries for command responses
     command_response_data = []
 
     # --- File Processing ---
@@ -41,7 +39,7 @@ def parse_log_to_csv(log_file_path, output_dir):
             for line_num, line in enumerate(f, 1):
                 line_match = log_line_regex.match(line)
                 if not line_match:
-                    # Skip lines that don't match the general log format (e.g., help messages)
+                    # Skip lines that don't match the general log format (e.g., help messages, incomplete lines)
                     continue
 
                 timestamp_str, log_level, content = line_match.groups()
@@ -51,20 +49,15 @@ def parse_log_to_csv(log_file_path, output_dir):
                 if sensor_match:
                     sensor_type_name, sensor_id, values_str, duration_us = sensor_match.groups()
                     
-                    # Clean up sensor type name (e.g., "Pressure " -> "Pressure")
                     sensor_type_name = sensor_type_name.strip()
 
-                    # Parse values string into appropriate types
-                    # This assumes comma-separated values, often floats
                     values = [float(v.strip()) for v in values_str.split(',') if v.strip()]
                     
-                    # Create dynamic headers and record for sensor data
                     record = {
                         'Timestamp': timestamp_str,
                         'Duration_us': int(duration_us),
                         'Duration_s': float(duration_us) / 1_000_000.0
                     }
-                    # Assign dynamic field names based on sensor type for clarity
                     if sensor_type_name == "Pressure":
                         record['Pressure_bar'] = values[0] if values else None
                     elif sensor_type_name == "LoadCell":
@@ -76,7 +69,7 @@ def parse_log_to_csv(log_file_path, output_dir):
                         record['Temp_F'] = values[1] if len(values) > 1 else None
                     elif sensor_type_name == "MotorRPM":
                         record['RPM'] = values[0] if values else None
-                    else: # Fallback for unknown sensor types
+                    else:
                         for i, val in enumerate(values):
                             record[f'Value_{i+1}'] = val
                     
@@ -110,10 +103,6 @@ def parse_log_to_csv(log_file_path, output_dir):
                     })
                     continue
                 
-                # If a line reaches here, it matched the general log_line_regex but not any specific RAW type.
-                # These are usually general CLI messages, which we don't put into structured CSVs.
-                # print(f"Skipping line {line_num} (general CLI message): {content.strip()}")
-
     except FileNotFoundError:
         print(f"Error: The log file '{log_file_path}' was not found. ❌")
         return
@@ -133,10 +122,10 @@ def parse_log_to_csv(log_file_path, output_dir):
             continue
         
         output_file_path = os.path.join(output_dir, f"{file_key}.csv")
-        # Use records[0].keys() to get headers, ensuring all keys are present if varying
-        # A more robust solution might collect all possible keys across all records for a sensor type
-        # For simplicity here, assume first record has all relevant keys
-        headers = list(records[0].keys())
+        all_headers = set()
+        for record in records:
+            all_headers.update(record.keys())
+        headers = sorted(list(all_headers))
         
         with open(output_file_path, 'w', newline='') as f_out:
             writer = csv.DictWriter(f_out, fieldnames=headers)
@@ -147,7 +136,7 @@ def parse_log_to_csv(log_file_path, output_dir):
     # 2. Write Category Timing Data CSV
     if category_timing_data:
         output_file_path = os.path.join(output_dir, "category_timing.csv")
-        headers = category_timing_data[0].keys()
+        headers = list(category_timing_data[0].keys())
         with open(output_file_path, 'w', newline='') as f_out:
             writer = csv.DictWriter(f_out, fieldnames=headers)
             writer.writeheader()
@@ -159,7 +148,7 @@ def parse_log_to_csv(log_file_path, output_dir):
     # 3. Write Command Response Data CSV
     if command_response_data:
         output_file_path = os.path.join(output_dir, "command_responses.csv")
-        headers = command_response_data[0].keys()
+        headers = list(command_response_data[0].keys())
         with open(output_file_path, 'w', newline='') as f_out:
             writer = csv.DictWriter(f_out, fieldnames=headers)
             writer.writeheader()
@@ -173,36 +162,8 @@ def parse_log_to_csv(log_file_path, output_dir):
 
 # --- Example Usage ---
 if __name__ == '__main__':
-    # Create a dummy Work.log content that matches the new CLI output format
-    # This includes RAW SENSOR, RAW TIMING, and RAW RESPONSE lines
-    # It also includes some general CLI INFO lines that should be ignored by the CSV parser.
-    log_content = """2025-07-21 01:20:00 - INFO - Searching for Arduino port...
-2025-07-21 01:20:01 - INFO - Automatically selected port: COM3
-2025-07-21 01:20:02 - INFO - Serial port opened successfully.
-2025-07-21 01:20:02 - INFO - Connected to Arduino Mega on COM3
-2025-07-21 01:20:03 - INFO - [RAW SENSOR] Pressure ID 0: Values=(0.15,), Timing Duration=123 us
-2025-07-21 01:20:03 - INFO - [RAW SENSOR] Temperature ID 10: Values=(25.1, 77.2), Timing Duration=200 us
-2025-07-21 01:20:03 - INFO - [RAW TIMING] Type=0x02, CategoryID=0, Duration=500 us
-2025-07-21 01:20:04 - INFO - [RAW SENSOR] Pressure ID 0: Values=(0.16,), Timing Duration=130 us
-2025-07-21 01:20:04 - INFO - [RAW SENSOR] LoadCell ID 6: Values=(-0.5,), Timing Duration=180 us
-2025-07-21 01:20:04 - INFO - [RAW TIMING] Type=0x02, CategoryID=6, Duration=600 us
-2025-07-21 01:20:05 - INFO - [RAW SENSOR] Pressure ID 0: Values=(0.17,), Timing Duration=125 us
-2025-07-21 01:20:05 - INFO - [RAW SENSOR] Flow ID 9: Values=(1.23,), Timing Duration=150 us
-2025-07-21 01:20:05 - INFO - [RAW RESPONSE] CmdType=0x01, TargetID=0, Status=0x00 (OK)
-2025-07-21 01:20:06 - INFO - [RAW SENSOR] Temperature ID 11: Values=(26.0, 78.8), Timing Duration=210 us
-2025-07-21 01:20:06 - INFO - [RAW TIMING] Type=0x02, CategoryID=9, Duration=550 us
-2025-07-21 01:20:07 - INFO - [RAW RESPONSE] CmdType=0x02, TargetID=0, Status=0xE1 (ERROR: Invalid Target ID)
-2025-07-21 01:20:08 - WARNING - Could not open serial port /dev/ttyS0: Permission denied
-2025-07-21 01:20:09 - INFO - Exiting due to user interrupt.
-"""
-    # Create a dummy Work.log file with the new format
-    dummy_log_file = "Work.log"
-    with open(dummy_log_file, "w") as f:
-        f.write(log_content)
-    print(f"Created dummy log file: {dummy_log_file}")
-
     # Define the log file to use and the directory for CSVs
-    input_file = dummy_log_file  # Use the dummy file for testing
+    input_file = 'Work.log'
     output_folder = "sensor_data_csvs"
 
     # Run the parser

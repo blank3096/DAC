@@ -42,19 +42,20 @@ class ColoredFormatter(logging.Formatter):
 
 # --- Configure Logging ---
 logger = logging.getLogger()
-logger.setLevel(logging.INFO) # Set overall logging level (e.g., INFO to see all packet logs)
+logger.setLevel(logging.DEBUG) # CHANGED: Set root logger to DEBUG to allow all messages to pass
 
-# File handler (no colors) - Logs ALL info/debug messages
+# File handler (no colors) - Logs ALL debug/info/warning/error/critical messages
 file_handler = logging.FileHandler('Work.log', mode='a')
 file_formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s', datefmt='%Y-%m-%d %H:%M:%S')
 file_handler.setFormatter(file_formatter)
+file_handler.setLevel(logging.DEBUG) # CHANGED: Set file handler to DEBUG
 logger.addHandler(file_handler)
 
 # Stream handler (with colors for console) - Logs INFO, WARNING, ERROR, CRITICAL
 stream_handler = logging.StreamHandler(sys.stdout)
 stream_formatter = ColoredFormatter()
 stream_handler.setFormatter(stream_formatter)
-stream_handler.setLevel(logging.INFO) # Set stream handler to INFO
+stream_handler.setLevel(logging.INFO) # CHANGED: Set stream handler to INFO
 logger.addHandler(stream_handler)
 
 
@@ -313,12 +314,12 @@ class SerialPacketReceiver:
                     'duration': duration_micros,
                     'source_id': timing_sensor_id_in_payload # Store the ID of the category's first sensor
                 }
-                # Log all received timing packets immediately
-                logger.info(f"[RAW TIMING] Type={timing_type_id:02X}, CategoryID={timing_sensor_id_in_payload}, Duration={duration_micros} us")
+                # CHANGED: Log all received timing packets immediately at DEBUG level
+                logger.debug(f"[RAW TIMING] Type=0x{timing_type_id:02X}, CategoryID={timing_sensor_id_in_payload}, Duration={duration_micros} us")
 
             elif packet_info['name'] == 'CommandResponse': # Handle Command Response packets
                 original_cmd_type, original_target_id, status_code = all_values
-                # Log all received command responses immediately
+                # Log all received command responses immediately at DEBUG level
                 status_messages = {
                     STATUS_OK: "OK",
                     STATUS_ERROR_INVALID_TARGET_ID: "Invalid Target ID",
@@ -329,7 +330,8 @@ class SerialPacketReceiver:
                     STATUS_ERROR_UNKNOWN_ISSUE: "Unknown Issue"
                 }
                 status_text = status_messages.get(status_code, f"UNKNOWN STATUS {status_code:02X}")
-                logger.info(f"[RAW RESPONSE] CmdType=0x{original_cmd_type:02X}, TargetID={original_target_id}, Status=0x{status_code:02X} ({status_text})")
+                # CHANGED: Log at DEBUG level
+                logger.debug(f"[RAW RESPONSE] CmdType=0x{original_cmd_type:02X}, TargetID={original_target_id}, Status=0x{status_code:02X} ({status_text})")
                 
                 # Put the response into the queue for the main thread to process
                 self.response_queue.put({
@@ -362,8 +364,8 @@ class SerialPacketReceiver:
                     'duration': duration_micros, # Store raw microseconds
                     'source_id': timing_sensor_id_in_payload # This should match self.current_id for individual timings
                 }
-                # Log all received sensor packets immediately
-                logger.info(f"[RAW SENSOR] {packet_info['name']} ID {self.current_id}: Values={sensor_data_values}, Timing Duration={duration_micros} us")
+                # CHANGED: Log all received sensor packets immediately at DEBUG level
+                logger.debug(f"[RAW SENSOR] {packet_info['name']} ID {self.current_id}: Values={sensor_data_values}, Timing Duration={duration_micros} us")
 
         except struct.error as e:
             logger.error(f"Unpacking {packet_info['name']} packet ID {self.current_id}: {e}. Raw payload: {self.payload_buffer.hex()}")
@@ -641,13 +643,14 @@ def command_input_thread(command_queue):
 
 def print_help_message(max_header_len):
     """Prints the available commands and their syntax."""
-    logger.info(BOLD + BLUE + f"\n{'--- COMMANDS ---':<{max_header_len + 50}}" + RESET)
-    logger.info("  'm <throttle>'         : Set motor throttle (0-100%). E.g., 'm 50'")
-    logger.info("  'r <id> <state>'       : Set relay state (id: 0-3, state: 0=OFF, 1=ON). E.g., 'r 0 1'")
-    logger.info("  'u <interval>'         : Set sensor data update interval in seconds (e.g., 'u 0.5')")
-    logger.info("  'h' or 'help'          : Display this help message.")
-    logger.info("  'q'                    : Quit the application.")
-    logger.info(BOLD + BLUE + "-" * (max_header_len + 50) + RESET)
+    # CHANGED: Use print() instead of logger.info() for help message to keep it off Work.log
+    print(BOLD + BLUE + f"\n{'--- COMMANDS ---':<{max_header_len + 50}}" + RESET)
+    print("  'm <throttle>'         : Set motor throttle (0-100%). E.g., 'm 50'")
+    print("  'r <id> <state>'       : Set relay state (id: 0-3, state: 0=OFF, 1=ON). E.g., 'r 0 1'")
+    print("  'u <interval>'         : Set sensor data update interval in seconds (e.g., 'u 0.5')")
+    print("  'h' or 'help'          : Display this help message.")
+    print("  'q'                    : Quit the application.")
+    print(BOLD + BLUE + "-" * (max_header_len + 50) + RESET)
 
 
 def main():
@@ -711,7 +714,7 @@ def main():
         input_thread.start()
 
         logger.info(f"Connected to Arduino Mega on {SERIAL_PORT}")
-        print_help_message(20)
+        print_help_message(max(20, receiver.max_header_len_for_display())) # CHANGED: Call print_help_message directly
         last_print_time = time.time()
 
         while True:
@@ -814,7 +817,7 @@ def main():
                         }
                         send_relay_control_command(ser, relay_id, state) # Removed receiver argument
                         status_message = BOLD + CYAN + f"Sending relay command: ID={relay_id}, State={'ON' if state else 'OFF'}..." + RESET
-                        status_message_expiry_expiry_time = current_time + STATUS_MESSAGE_DISPLAY_DURATION
+                        status_message_expiry_time = current_time + STATUS_MESSAGE_DISPLAY_DURATION
                     except ValueError:
                         logger.error("Invalid relay command. Use integers for relay_id (0-3) and state (0 or 1).")
                 elif cmd_type == 'u' and len(parts) == 2:

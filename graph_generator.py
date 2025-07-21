@@ -81,7 +81,7 @@ def generate_graphs_from_csv(input_dir):
 if __name__ == '__main__':
     # Assuming your previous script created 'sensor_csv_output'
     # in the same directory as this script.
-    output_folder_from_previous_script = "sensor_csv_output"
+    output_folder_from_previous_script = "sensor_data_csvs"
 
     # Run the graph generator
     generate_graphs_from_csv(output_folder_from_previous_script)
