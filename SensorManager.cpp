@@ -29,7 +29,7 @@ float pressure_ma_factor[6];
 // --- Load Cell Constants ---
 const byte LOADCELL_DOUT_PINS[3] = {26, 30, 32};
 const byte LOADCELL_CLK_PINS[3] = {29, 31, 33};
-const float LOADCELL_CALIBRATION_FACTORS[3] = {145.4f, 150.0f, 160.0f};
+const float LOADCELL_CALIBRATION_FACTORS[3] = {-145.4f, 8.1f, -145.0f};
 const int NUM_LOADCELL_SENSORS = sizeof(LOADCELL_DOUT_PINS) / sizeof(LOADCELL_DOUT_PINS[0]);
 
 HX711 scales[3]; // Definition
