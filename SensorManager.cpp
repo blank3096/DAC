@@ -17,7 +17,7 @@ volatile byte RELAY_STATUS_BYTE = STATUS_OK; // Changed to volatile byte, initia
 
 // --- Pressure Sensor Constants ---
 const int PRESSURE_SENSOR_PINS[6] = {A0, A2, A4, A6, A8, A10};
-const float PRESSURE_MAX[6] = {16.0, 16.0, 25.0, 25.0, 40.0, 40.0};
+const float PRESSURE_MAX[6] = {16.0, 16.0, 25.0, 40.0, 40.0, 25.0};
 const int NUM_PRESSURE_SENSORS = sizeof(PRESSURE_SENSOR_PINS) / sizeof(PRESSURE_SENSOR_PINS[0]);
 
 const float MV_FACTOR = (float)ANALOG_REFERENCE_mV / 1024.0f;
