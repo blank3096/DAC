@@ -596,7 +596,7 @@ void setupLoadCells() {
         Serial.print(F(" CLK:")); Serial.println(LOADCELL_CLK_PINS[i]);
 
         scales[i].begin(LOADCELL_DOUT_PINS[i], LOADCELL_CLK_PINS[i]);
-        delay(100);
+        delay(200);
 
         scales[i].set_scale(LOADCELL_CALIBRATION_FACTORS[i]);
         scales[i].tare();
@@ -631,7 +631,7 @@ void setupRelays() {
     Serial.println(F("Setting up Relays..."));
     for (int i = 0; i < NUM_RELAYS; i++) {
         pinMode(RELAY_PINS[i], OUTPUT);
-        digitalWrite(RELAY_PINS[i], LOW); // Ensure relays are off initially (assuming active HIGH)
+        digitalWrite(RELAY_PINS[i], HIGH); // Ensure relays are off initially (assuming active HIGH)
     }
     Serial.print(NUM_RELAYS); Serial.println(F(" Relays setup complete."));
 }
