@@ -130,7 +130,10 @@ STATUS_ERROR_UNKNOWN_ISSUE          = 0xE6 # Corresponds to Arduino's ERROR_UNKN
 # struct SensorTiming { byte sensor_id; unsigned long start_micros; unsigned long end_micros; unsigned long duration_micros; };
 # Python struct format: <BIII (1 byte, 3 unsigned 4-byte integers)
 SENSOR_TIMING_STRUCT_SIZE = 1 + 4 + 4 + 4  # 13 bytes
-SENSOR_TIMING_STRUCT_FORMAT = '<BIII'
+# SENSOR_TIMING_STRUCT_FORMAT = '<BIII' # We will no longer use this for concatenation
+# Instead, we'll use the individual type codes for timing:
+TIMING_FIELD_FORMAT = 'BIII' # Just the type codes, no leading '<'
+
 SENSOR_TIMING_STRUCT_FIELDS = ['timing_sensor_id', 'start_micros', 'end_micros', 'duration_micros']
 
 
@@ -140,7 +143,8 @@ PACKET_TYPES = {
         'name': 'Pressure',
         'end_byte': PRESSURE_PACKET_END_BYTE,
         'payload_size': 4 + SENSOR_TIMING_STRUCT_SIZE, # float + timing struct
-        'format': '<f' + SENSOR_TIMING_STRUCT_FORMAT,
+        # CHANGED: Direct format string, removed redundant '<'
+        'format': '<f' + TIMING_FIELD_FORMAT, # Now becomes '<fBIII'
         'fields': ['pressure'] + SENSOR_TIMING_STRUCT_FIELDS,
         'ids': list(range(PRESSURE_ID_START, PRESSURE_ID_START + NUM_IDS_PRESSURE))
     },
@@ -148,7 +152,8 @@ PACKET_TYPES = {
         'name': 'LoadCell',
         'end_byte': LOADCELL_PACKET_END_BYTE,
         'payload_size': 4 + SENSOR_TIMING_STRUCT_SIZE, # float + timing struct
-        'format': '<f' + SENSOR_TIMING_STRUCT_FORMAT,
+        # CHANGED: Direct format string, removed redundant '<'
+        'format': '<f' + TIMING_FIELD_FORMAT, # Now becomes '<fBIII'
         'fields': ['weight_grams'] + SENSOR_TIMING_STRUCT_FIELDS,
         'ids': list(range(LOADCELL_ID_START, LOADCELL_ID_START + NUM_IDS_LOADCELL))
     },
@@ -156,7 +161,8 @@ PACKET_TYPES = {
         'name': 'Flow',
         'end_byte': FLOW_PACKET_END_BYTE,
         'payload_size': 4 + SENSOR_TIMING_STRUCT_SIZE, # float + timing struct
-        'format': '<f' + SENSOR_TIMING_STRUCT_FORMAT,
+        # CHANGED: Direct format string, removed redundant '<'
+        'format': '<f' + TIMING_FIELD_FORMAT, # Now becomes '<fBIII'
         'fields': ['flow_rate_lpm'] + SENSOR_TIMING_STRUCT_FIELDS,
         'ids': [FLOW_SENSOR_ID]
     },
@@ -164,7 +170,8 @@ PACKET_TYPES = {
         'name': 'Temperature',
         'end_byte': TEMP_PACKET_END_BYTE,
         'payload_size': 8 + SENSOR_TIMING_STRUCT_SIZE, # 2 floats + timing struct
-        'format': '<ff' + SENSOR_TIMING_STRUCT_FORMAT,
+        # CHANGED: Direct format string, removed redundant '<'
+        'format': '<ff' + TIMING_FIELD_FORMAT, # Now becomes '<ffBIII'
         'fields': ['temp_c', 'temp_f'] + SENSOR_TIMING_STRUCT_FIELDS,
         'ids': list(range(TEMP_ID_START, TEMP_ID_START + NUM_IDS_TEMP))
     },
@@ -172,7 +179,8 @@ PACKET_TYPES = {
         'name': 'MotorRPM',
         'end_byte': MOTOR_RPM_PACKET_END_BYTE,
         'payload_size': 4 + SENSOR_TIMING_STRUCT_SIZE, # float + timing struct
-        'format': '<f' + SENSOR_TIMING_STRUCT_FORMAT,
+        # CHANGED: Direct format string, removed redundant '<'
+        'format': '<f' + TIMING_FIELD_FORMAT, # Now becomes '<fBIII'
         'fields': ['rpm'] + SENSOR_TIMING_STRUCT_FIELDS,
         'ids': [MOTOR_RPM_ID]
     },
@@ -181,7 +189,8 @@ PACKET_TYPES = {
         'name': 'Timing',
         'end_byte': TIMING_PACKET_END_BYTE,
         'payload_size': SENSOR_TIMING_STRUCT_SIZE, # Only the timing struct
-        'format': SENSOR_TIMING_STRUCT_FORMAT,
+        # CHANGED: Direct format string, kept single '<'
+        'format': '<' + TIMING_FIELD_FORMAT, # Now becomes '<BIII'
         'fields': SENSOR_TIMING_STRUCT_FIELDS,
         'ids': [TIMING_SENSOR_OPERATION_ID, TIMING_CATEGORY_CYCLE_ID] # Timing Type IDs
     },
